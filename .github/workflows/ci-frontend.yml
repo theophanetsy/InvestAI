@@ -1,11 +1,10 @@
 name: CI frontend
 
+# No path filters: these jobs are required status checks on main and must always report.
 on:
   pull_request:
-    paths: ['frontend/**', '.github/workflows/ci-frontend.yml']
   push:
     branches: [main]
-    paths: ['frontend/**', '.github/workflows/ci-frontend.yml']
 
 permissions:
   contents: read
