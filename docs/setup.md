@@ -20,15 +20,20 @@ cd frontend && npm ci && npx playwright install chromium
 cd ../backend && ./mvnw verify
 ```
 
-## Configuration GitHub (une fois)
+## Configuration GitHub
 
-1. **Protection de `main`** (Settings → Rules → Rulesets) : PR obligatoire, historique linéaire,
-   checks requis : `Backend verify`, `Frontend check`, `Frontend e2e`, `Secret scan (gitleaks)`,
-   `CodeQL (*)`, `SAST (Semgrep)`, `Dependency vulnerabilities (OSV-Scanner)`,
-   `Filesystem & IaC scan (Trivy)`, `Conventional PR title`, `Conventional commits`.
-2. **Secret scanning + push protection** et **Dependabot alerts/security updates** :
-   Settings → Code security.
-3. **SonarCloud** : créer l'organisation `theophanetsy` et le projet `theophanetsy_InvestAI` sur
+Déjà en place (dépôt public) :
+
+- Ruleset **`protect-main`** (Settings → Rules → Rulesets) : PR obligatoire, historique linéaire,
+  pas de force-push ni de suppression, merge squash/rebase, checks requis : `Backend verify`,
+  `Frontend check`, `Frontend e2e`, `Secret scan (gitleaks)`, `CodeQL (*)`, `SAST (Semgrep)`,
+  `Dependency vulnerabilities (OSV-Scanner)`, `Filesystem & IaC scan (Trivy)`,
+  `Dependency review`, `Conventional PR title`, `Conventional commits`.
+- **Secret scanning + push protection**, **Dependabot alerts + security updates**.
+
+Reste à faire manuellement :
+
+1. **SonarCloud** : créer l'organisation `theophanetsy` et le projet `theophanetsy_InvestAI` sur
    https://sonarcloud.io (import GitHub), désactiver l'« Automatic Analysis », puis ajouter le
    secret `SONAR_TOKEN` (Settings → Secrets and variables → Actions). Ajouter ensuite
    `SonarCloud quality gate` aux checks requis.
