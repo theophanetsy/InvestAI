@@ -12,7 +12,8 @@ Voir [docs/setup.md](docs/setup.md), puis :
 
 ```bash
 npm install                                # git hooks (Lefthook, commitlint)
-cd backend && ./mvnw spring-boot:run       # http://localhost:8080/api/v1/status
+cp infra/.env.example infra/.env           # puis définir POSTGRES_PASSWORD
+cd backend && ./mvnw spring-boot:run       # démarre PostgreSQL (Docker) + API sur :8080
 cd frontend && npm ci && npm start         # http://localhost:4200
 ```
 

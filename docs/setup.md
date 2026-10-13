@@ -7,7 +7,7 @@
 | JDK Temurin | 25 | `winget install EclipseAdoptium.Temurin.25.JDK` puis définir `JAVA_HOME` |
 | Node.js | 24 (`.nvmrc`) | https://nodejs.org ou `nvm` |
 | gitleaks | ≥ 8.30 | `winget install Gitleaks.Gitleaks` (requis par le hook pre-commit) |
-| Docker Desktop | récent | requis à partir de la Phase 1 (Postgres, Testcontainers, observabilité) |
+| Docker Desktop | récent | **obligatoire** : PostgreSQL local et tests d'intégration (Testcontainers) |
 | GitHub CLI | récent | `winget install GitHub.cli` |
 
 Maven n'a pas besoin d'être installé : utiliser `backend/mvnw`.
@@ -17,8 +17,20 @@ Maven n'a pas besoin d'être installé : utiliser `backend/mvnw`.
 ```bash
 npm install                 # installe Lefthook + commitlint et active les git hooks
 cd frontend && npm ci && npx playwright install chromium
-cd ../backend && ./mvnw verify
+cd ../backend && ./mvnw verify   # Docker doit tourner (Testcontainers)
 ```
+
+## Lancer l'application en local
+
+```bash
+cp infra/.env.example infra/.env     # puis renseigner POSTGRES_PASSWORD (fichier ignoré par Git)
+cd backend && ./mvnw spring-boot:run # profil local : démarre PostgreSQL via Docker Compose
+cd frontend && npm start             # http://localhost:4200 (proxy /api → :8080)
+```
+
+- Santé : http://localhost:8080/actuator/health/readiness (inclut la base).
+- Arrêter la base : `docker compose -f infra/docker-compose.yml stop` (Spring ne l'arrête pas,
+  `lifecycle-management=start-only`). Repartir de zéro : `... down -v` (supprime les données).
 
 ## Configuration GitHub
 
