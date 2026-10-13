@@ -33,6 +33,14 @@ cd frontend && npm run format
 cd frontend && npm run e2e         # Playwright
 ```
 
+## Environnement (sandbox / cloud)
+
+- Outils manquants (`java`, `node`, `gitleaks`…) → lancer `bash scripts/setup-dev-env.sh`, puis
+  `source ~/.investai-env`. Ne pas installer d'autres versions à la main.
+- **Docker absent** → `./mvnw -DskipITs verify` au lieu de `./mvnw verify`, et **l'écrire dans la PR**
+  (« tests d'intégration non exécutés localement »). Ne jamais désactiver/sauter un test autrement.
+- Détails : `docs/agent-environments.md`.
+
 ## Workflow obligatoire
 
 1. **Spec d'abord** : chaque feature part d'une issue (template `feature`) ou de `docs/specs/` avec

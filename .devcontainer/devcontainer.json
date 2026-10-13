@@ -1,0 +1,24 @@
+{
+  "name": "InvestAI",
+  "image": "mcr.microsoft.com/devcontainers/base:3.0.9-ubuntu24.04",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "postCreateCommand": "bash scripts/setup-dev-env.sh",
+  "forwardPorts": [4200, 8080],
+  "portsAttributes": {
+    "4200": { "label": "Frontend" },
+    "8080": { "label": "Backend API" }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "vscjava.vscode-java-pack",
+        "vmware.vscode-boot-dev-pack",
+        "angular.ng-template",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ]
+    }
+  }
+}
