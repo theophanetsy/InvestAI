@@ -12,7 +12,7 @@ Objectif du projet : apprendre Java/Spring Boot/Angular **et** l'intégration d'
 |---|---|---|
 | `backend/` | Spring Boot 4, Java 25, Maven (`./mvnw`) | `backend/CLAUDE.md` |
 | `frontend/` | Angular 22 (standalone, signals, zoneless), Vitest, Playwright | `frontend/CLAUDE.md` |
-| `infra/` | docker compose, observabilité (Phase 1+) | — |
+| `infra/` | docker compose (Postgres), observabilité (Phase 3) | — |
 | `docs/` | ROADMAP, ADR (`docs/adr/`), specs, sécurité | — |
 | `.claude/` | settings, hooks, commandes, sous-agents | — |
 

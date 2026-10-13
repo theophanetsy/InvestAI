@@ -9,5 +9,5 @@ Configuration d'exécution locale.
 
 Démarrage : voir [docs/setup.md](../docs/setup.md#lancer-lapplication-en-local).
 
-À venir : stack d'observabilité Grafana LGTM / OpenTelemetry (Phase 1.6), Langfuse (Phase 3),
-conteneurs backend/frontend. Les Dockerfiles et manifestes ajoutés ici sont analysés par Trivy en CI.
+À venir : stack d'observabilité Grafana LGTM / OpenTelemetry et Langfuse (Phase 3), images
+backend/frontend (Phase 10). Les Dockerfiles et manifestes ajoutés ici sont analysés par Trivy en CI.
