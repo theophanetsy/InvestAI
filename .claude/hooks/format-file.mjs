@@ -28,7 +28,7 @@ function run(command, args, cwd) {
 
 function runMavenWrapper(args) {
   if (isWindows) {
-    run(process.env.ComSpec ?? 'cmd.exe', ['/d', '/c', path.join(backendDir, 'mvnw.cmd'), ...args], backendDir);
+    run('cmd.exe', ['/d', '/c', path.join(backendDir, 'mvnw.cmd'), ...args], backendDir);
   } else {
     run(path.join(backendDir, 'mvnw'), args, backendDir);
   }

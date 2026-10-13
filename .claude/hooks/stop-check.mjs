@@ -25,7 +25,7 @@ function runNodeTool(binPath, args) {
 
 function runMavenWrapper(args) {
   return isWindows
-    ? run(process.env.ComSpec ?? 'cmd.exe', ['/d', '/c', path.join(backendDir, 'mvnw.cmd'), ...args], backendDir)
+    ? run('cmd.exe', ['/d', '/c', path.join(backendDir, 'mvnw.cmd'), ...args], backendDir)
     : run(path.join(backendDir, 'mvnw'), args, backendDir);
 }
 
