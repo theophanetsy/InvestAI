@@ -26,3 +26,16 @@ garder le domaine indépendant (règle ArchUnit : pas de `dev.langchain4j` dans 
   brancher (listeners LangChain4j → OpenTelemetry / Langfuse).
 - Suivi : si le starter Spring Boot 4 n'est pas disponible, utiliser LangChain4j « core » avec une
   configuration Spring manuelle.
+
+## Mise à jour — 2026-10-13 : versions beta acceptées
+
+InvestAI est un POC personnel : les modules LangChain4j encore en beta (dont l'intégration
+Spring Boot) sont acceptés, avec trois garde-fous :
+
+- **Version exacte épinglée** dans le `pom.xml` (pas de plage), montées de version via Dependabot
+  et validées par la CI.
+- **Confinement** : seuls les packages `..infrastructure..` importent `dev.langchain4j`
+  (règle ArchUnit à ajouter en Phase 3.0, sur le modèle de la règle JPA). Le domaine et la couche
+  `application` ne voient que des ports : changer de framework ne touche que les adaptateurs.
+- Une API beta qui casse lors d'une montée de version est corrigée dans l'adaptateur, jamais en
+  contournant un contrôle qualité.

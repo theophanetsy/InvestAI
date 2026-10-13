@@ -28,4 +28,4 @@ relationnelle. Cette étape met en place la base et ses outils, **sans aucune ta
 ## Hors périmètre
 
 - Tables métier (Phase 2), ShedLock (Phase 2), Spring Security (Phase 1.3).
-- Conteneurisation du backend/frontend dans le compose (avec l'observabilité, Phase 1.6).
+- Observabilité (Phase 3.0) et conteneurisation du backend/frontend (Phase 10).
