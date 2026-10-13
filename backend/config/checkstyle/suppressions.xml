@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!DOCTYPE suppressions PUBLIC
+  "-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN"
+  "https://checkstyle.org/dtds/suppressions_1_2.dtd">
+<!-- Adding a suppression requires a justification comment and the owner's approval. -->
+<suppressions>
+  <!-- Tests: no Javadoc required, magic numbers allowed in fixtures/assertions. -->
+  <suppress checks="MissingJavadocType|MagicNumber|MethodLength" files="[\\/]src[\\/]test[\\/]"/>
+</suppressions>

@@ -1,0 +1,8 @@
+# OSV-Scanner configuration.
+# Every ignored vulnerability MUST also be listed in docs/security/accepted-risks.md
+# with a justification and a review date (ignoreUntil).
+
+[[IgnoredVulns]]
+id = "GHSA-vfj7-8cjw-p6xm"
+ignoreUntil = 2027-01-13
+reason = "braces DoS via stylelint (dev-only lint tool, no fix released). See docs/security/accepted-risks.md#AR-001"

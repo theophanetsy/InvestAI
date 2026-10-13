@@ -1,0 +1,46 @@
+# Git hooks. Never bypass them (--no-verify is forbidden, see CLAUDE.md).
+# Install: npm install (runs `lefthook install`).
+pre-commit:
+  parallel: true
+  commands:
+    gitleaks:
+      run: gitleaks git --pre-commit --staged --redact --no-banner
+      fail_text: "Secret detected (or gitleaks not installed: https://github.com/gitleaks/gitleaks#installing)"
+    backend-format:
+      root: backend/
+      glob: "*.{java,xml}"
+      run: ./mvnw -B -q spotless:check
+      fail_text: "Run: cd backend && ./mvnw spotless:apply"
+    backend-checkstyle:
+      root: backend/
+      glob: "*.java"
+      run: ./mvnw -B -q checkstyle:check
+    frontend-format:
+      root: frontend/
+      glob: "*.{ts,html,scss,json,js,mjs}"
+      run: npx prettier --check {staged_files}
+      fail_text: "Run: cd frontend && npm run format"
+    frontend-lint:
+      root: frontend/
+      glob: "*.{ts,html}"
+      run: npx eslint --max-warnings=0 {staged_files}
+    frontend-styles:
+      root: frontend/
+      glob: "*.scss"
+      run: npx stylelint {staged_files}
+
+commit-msg:
+  commands:
+    commitlint:
+      run: npx --no -- commitlint --edit {1}
+
+pre-push:
+  commands:
+    frontend-tests:
+      root: frontend/
+      glob: "*.{ts,html}"
+      run: npm run test:ci
+    backend-tests:
+      root: backend/
+      glob: "*.java"
+      run: ./mvnw -B -q test

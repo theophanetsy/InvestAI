@@ -1,0 +1,50 @@
+name: SonarCloud
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  sonar:
+    name: SonarCloud quality gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    steps:
+      - name: Skip when SonarCloud is not configured
+        if: env.SONAR_TOKEN == ''
+        run: echo "::warning::SONAR_TOKEN secret missing, SonarCloud analysis skipped (see docs/setup.md)"
+      - if: env.SONAR_TOKEN != ''
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - if: env.SONAR_TOKEN != ''
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - if: env.SONAR_TOKEN != ''
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - if: env.SONAR_TOKEN != ''
+        name: Backend build and coverage
+        working-directory: backend
+        run: ./mvnw -B -ntp verify -Dpmd.skip -Dspotbugs.skip -Dcheckstyle.skip
+      - if: env.SONAR_TOKEN != ''
+        name: Frontend coverage
+        working-directory: frontend
+        run: npm ci && npm run test:ci
+      - if: env.SONAR_TOKEN != ''
+        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
+        with:
+          args: -Dsonar.qualitygate.wait=true
