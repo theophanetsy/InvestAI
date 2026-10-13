@@ -1,0 +1,54 @@
+# Backend — consignes
+
+Spring Boot 4.1 · Java 25 · Maven wrapper (`./mvnw`, ne pas utiliser un `mvn` global).
+
+## Architecture (vérifiée par `ArchitectureTest`)
+
+Un package par module métier sous `dev.investai` : `portfolio`, `market`, `assistant`, `news`,
+`simulation` (+ `system`, `shared`). Chaque module est découpé en :
+
+| Package | Contenu | Peut dépendre de |
+|---|---|---|
+| `domain` | Entités métier, value objects (records), règles, ports (interfaces) | JDK uniquement |
+| `application` | Services de cas d'usage, orchestration, transactions | `domain` |
+| `infrastructure` | Adaptateurs : JPA, clients HTTP, LLM (LangChain4j), schedulers | `domain`, `application` |
+| `api` | Controllers REST (`*Controller`), DTO requête/réponse | `application`, `domain` |
+
+- Pas de cycle entre modules. Un module en appelle un autre via son package `application`.
+- Le `domain` ne connaît ni Spring, ni JPA, ni Jackson, ni LangChain4j.
+- Les entités JPA vivent dans `infrastructure` et sont mappées vers le domaine ; jamais exposées
+  par l'API.
+
+## Règles de code
+
+- Injection par constructeur uniquement. Classes de service `final` implicite via records ou
+  champs `private final`.
+- **Null-safety** : NullAway (mode JSpecify) est actif sur `dev.investai`. Tout est non-null par
+  défaut ; annoter `@Nullable` (`org.jspecify.annotations`) explicitement sinon.
+  Préférer `Optional` en retour plutôt que `null`.
+- Records pour DTO et value objects. Validation Bean Validation (`@Valid`, `@NotNull`…) sur les DTO
+  d'entrée.
+- Erreurs : exceptions métier dédiées → `ProblemDetail` (RFC 9457) via `@RestControllerAdvice`.
+  Jamais de stacktrace ni de message interne renvoyé au client.
+- Temps : injecter `java.time.Clock` (bean dans `shared.config`), jamais `Instant.now()` direct.
+- Argent : `BigDecimal` + devise ; arrondis explicites (`RoundingMode.HALF_EVEN`).
+- Logs : SLF4J, paramétrés (`log.info("x={}", x)`), aucune donnée sensible.
+- Javadoc sur les types publics de `src/main`.
+- Limites Checkstyle : méthode ≤ 40 lignes, complexité cyclomatique ≤ 10, ≤ 6 paramètres.
+
+## Tests
+
+- Unitaires : `*Test.java` (Surefire), JUnit 5 + AssertJ + Mockito. Domaine testé sans Spring.
+- Intégration : `*IT.java` (Failsafe), `@SpringBootTest`, Testcontainers Postgres dès la Phase 1.
+- Web : `@WebMvcTest` + `MockMvcTester`.
+- Nommage : `methodOrBehaviour_condition_expectedResult` ou phrase descriptive en camelCase.
+- Mutation testing (PIT) : `./mvnw -Pmutation test-compile org.pitest:pitest-maven:mutationCoverage`,
+  seuil 70 %, exécuté chaque nuit.
+
+## Outils qualité (tous bloquants dans `./mvnw verify`)
+
+Spotless (google-java-format), Checkstyle (`config/checkstyle`), Error Prone + NullAway (compilation,
+warnings = erreurs), PMD (`config/pmd`), SpotBugs + FindSecBugs (`config/spotbugs`), ArchUnit,
+JaCoCo (80 % lignes / 70 % branches), Maven Enforcer (Java 25, dépendances bannies).
+
+Toute exclusion dans `config/**` doit être justifiée par un commentaire et validée par l'utilisateur.

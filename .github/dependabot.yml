@@ -1,0 +1,61 @@
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: build
+      include: scope
+    groups:
+      spring:
+        patterns: ['org.springframework*']
+      quality-tooling:
+        patterns:
+          - 'com.puppycrawl*'
+          - 'com.github.spotbugs*'
+          - 'com.h3xstream*'
+          - 'com.google.errorprone*'
+          - 'com.uber.nullaway*'
+          - 'org.pitest*'
+          - 'org.jacoco*'
+          - 'com.diffplug*'
+          - 'org.apache.maven.plugins*'
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: build
+      include: scope
+    groups:
+      angular:
+        patterns: ['@angular*', 'angular-eslint', '@angular-eslint*']
+      lint:
+        patterns: ['eslint*', '@eslint*', 'typescript-eslint', 'prettier', 'stylelint*']
+      test:
+        patterns: ['vitest', '@vitest*', '@playwright*', 'jsdom']
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: build
+      include: scope
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        patterns: ['*']

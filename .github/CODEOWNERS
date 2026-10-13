@@ -1,0 +1,9 @@
+# Quality gates, CI and agent instructions require the owner's review.
+*                         @theophanetsy
+/.github/                 @theophanetsy
+/.claude/                 @theophanetsy
+/CLAUDE.md                @theophanetsy
+/backend/config/          @theophanetsy
+/backend/pom.xml          @theophanetsy
+/frontend/eslint.config.js @theophanetsy
+/lefthook.yml             @theophanetsy

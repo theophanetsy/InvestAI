@@ -1,0 +1,20 @@
+{
+  "name": "investai",
+  "private": true,
+  "description": "Repository tooling (git hooks, commit conventions). App code lives in backend/ and frontend/.",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "prepare": "lefthook install",
+    "check:backend": "node scripts/mvnw.mjs -B verify",
+    "check:frontend": "cd frontend && npm run check",
+    "check": "npm run check:backend && npm run check:frontend",
+    "secrets": "gitleaks git --redact --no-banner -v ."
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.3",
+    "@commitlint/config-conventional": "^21.2.3",
+    "lefthook": "^2.2.1"
+  }
+}

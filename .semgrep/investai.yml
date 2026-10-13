@@ -1,0 +1,52 @@
+# Project-specific Semgrep rules, on top of the public rulesets used in CI.
+rules:
+  - id: investai-no-hardcoded-llm-api-key
+    languages: [java, typescript]
+    severity: ERROR
+    message: LLM provider API keys must come from configuration/environment, never from source code.
+    pattern-regex: (sk-ant-[A-Za-z0-9_-]{10,}|sk-[A-Za-z0-9]{20,})
+
+  - id: investai-no-string-concatenated-sql
+    languages: [java]
+    severity: ERROR
+    message: Build SQL with bind parameters (JPA, JdbcClient params), never string concatenation.
+    patterns:
+      - pattern-either:
+          - pattern: $JDBC.query("..." + $X, ...)
+          - pattern: $JDBC.update("..." + $X, ...)
+          - pattern: $JDBC.sql("..." + $X)
+          - pattern: $EM.createQuery("..." + $X, ...)
+          - pattern: $EM.createNativeQuery("..." + $X, ...)
+
+  - id: investai-no-permit-all-on-api
+    languages: [java]
+    severity: WARNING
+    message: >-
+      permitAll() on /api/** must be justified (public endpoint) and covered by a security test.
+    pattern: $X.requestMatchers("/api/**").permitAll()
+
+  - id: investai-no-bypass-security-trust
+    languages: [typescript]
+    severity: ERROR
+    message: Bypassing Angular sanitization opens XSS. Render untrusted content (LLM output, news) as text or sanitize it.
+    pattern-either:
+      - pattern: $S.bypassSecurityTrustHtml(...)
+      - pattern: $S.bypassSecurityTrustScript(...)
+      - pattern: $S.bypassSecurityTrustUrl(...)
+      - pattern: $S.bypassSecurityTrustResourceUrl(...)
+
+  - id: investai-no-inner-html-binding
+    languages: [generic]
+    paths:
+      include: ['*.html']
+    severity: ERROR
+    message: '[innerHTML] with LLM or news content is an XSS vector. Use text interpolation or a vetted markdown renderer.'
+    pattern: '[innerHTML]'
+
+  - id: investai-no-local-storage-token
+    languages: [typescript]
+    severity: ERROR
+    message: Never store tokens or credentials in localStorage/sessionStorage (XSS exfiltration).
+    pattern-either:
+      - pattern: localStorage.setItem($K, ...)
+      - pattern: sessionStorage.setItem($K, ...)

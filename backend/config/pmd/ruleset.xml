@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<ruleset name="InvestAI"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+  <description>InvestAI PMD rules. Every exclusion must be justified.</description>
+
+  <rule ref="category/java/bestpractices.xml">
+    <!-- AssertJ fluent assertions are self-describing -->
+    <exclude name="UnitTestAssertionsShouldIncludeMessage"/>
+    <exclude name="UnitTestContainsTooManyAsserts"/>
+  </rule>
+
+  <rule ref="category/java/errorprone.xml">
+    <!-- Noisy with records and fluent APIs -->
+    <exclude name="AvoidFieldNameMatchingMethodName"/>
+    <exclude name="AvoidLiteralsInIfCondition"/>
+    <!-- DTOs and beans are not serialized with Java serialization -->
+    <exclude name="MissingSerialVersionUID"/>
+  </rule>
+
+  <rule ref="category/java/multithreading.xml">
+    <!-- Concurrency is delegated to Spring and virtual threads -->
+    <exclude name="DoNotUseThreads"/>
+    <exclude name="UseConcurrentHashMap"/>
+  </rule>
+
+  <rule ref="category/java/performance.xml"/>
+  <rule ref="category/java/security.xml"/>
+
+  <rule ref="category/java/design.xml">
+    <!-- Covered by ArchUnit / Checkstyle, or too opinionated for Spring code -->
+    <exclude name="LawOfDemeter"/>
+    <exclude name="LoosePackageCoupling"/>
+    <exclude name="DataClass"/>
+    <exclude name="UseUtilityClass"/>
+    <exclude name="TooManyMethods"/>
+    <exclude name="ExcessiveImports"/>
+  </rule>
+
+  <rule ref="category/java/codestyle.xml/UnnecessaryFullyQualifiedName"/>
+  <rule ref="category/java/codestyle.xml/UnnecessaryImport"/>
+  <rule ref="category/java/codestyle.xml/UnnecessaryModifier"/>
+  <rule ref="category/java/codestyle.xml/UnnecessaryReturn"/>
+  <rule ref="category/java/codestyle.xml/UselessParentheses"/>
+  <rule ref="category/java/codestyle.xml/FieldDeclarationsShouldBeAtStartOfClass"/>
+  <rule ref="category/java/codestyle.xml/UseDiamondOperator"/>
+  <rule ref="category/java/codestyle.xml/IdenticalCatchBranches"/>
+</ruleset>

@@ -1,0 +1,23 @@
+name: Bug
+description: Comportement incorrect
+labels: [bug]
+body:
+  - type: textarea
+    id: actual
+    attributes:
+      label: Comportement observé
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportement attendu
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Étapes de reproduction
+      description: Le correctif doit commencer par un test qui reproduit le bug.
+    validations:
+      required: true
