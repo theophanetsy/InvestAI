@@ -28,11 +28,18 @@ Un package par module métier sous `dev.investai` : `portfolio`, `market`, `assi
   Préférer `Optional` en retour plutôt que `null`.
 - Records pour DTO et value objects. Validation Bean Validation (`@Valid`, `@NotNull`…) sur les DTO
   d'entrée.
-- Erreurs : exceptions métier dédiées → `ProblemDetail` (RFC 9457) via `@RestControllerAdvice`.
-  Jamais de stacktrace ni de message interne renvoyé au client.
+- Erreurs (ADR 0006) : lever `ResourceNotFoundException` (404) ou `BusinessRuleException` (422)
+  de `shared.domain` avec un `code` stable (`account.not-found`) ; `shared.api.ApiExceptionHandler`
+  est le **seul** `@RestControllerAdvice` et produit le ProblemDetail (`code`, `errors`,
+  `requestId`, jamais de `detail`). Le message de l'exception va dans les logs, jamais au client :
+  uniquement des identifiants techniques (jamais IBAN, n° de compte, montant, e-mail, saisie
+  utilisateur). Jamais de donnée sensible en variable de chemin (renvoyée dans `instance`).
+- Configuration : dans `application.properties`, un séparateur de document `#---` doit être
+  précédé d'une ligne vide (sinon il est ignoré en silence ; voir `ApplicationPropertiesTest`).
 - Temps : injecter `java.time.Clock` (bean dans `shared.config`), jamais `Instant.now()` direct.
 - Argent : `BigDecimal` + devise ; arrondis explicites (`RoundingMode.HALF_EVEN`).
-- Logs : SLF4J, paramétrés (`log.info("x={}", x)`), aucune donnée sensible.
+- Logs : SLF4J (`private static final Logger LOG`), paramétrés (`LOG.info("x={}", x)`), aucune
+  donnée sensible ; jamais l'URL brute ni la query string (utiliser la route, cf. `RequestIdFilter`).
 - Javadoc sur les types publics de `src/main`.
 - Limites Checkstyle : méthode ≤ 40 lignes, complexité cyclomatique ≤ 10, ≤ 6 paramètres.
 
