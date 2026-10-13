@@ -19,6 +19,13 @@
     <java.version>25</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
+    <!-- Security overrides of Spring Boot managed versions (OSV-Scanner findings).
+         Remove once the Spring Boot BOM ships these versions or newer. -->
+    <!-- GHSA-9xv2-5v5q-p794, GHSA-gcx9-497g-6cp6, GHSA-h3x4-894j-xpx5 -->
+    <tomcat.version>11.0.27</tomcat.version>
+    <!-- GHSA-7hhh-6rmp-j9qf, GHSA-p6pp-m3f8-5c89, GHSA-cxp5-3px4-pw24, GHSA-wv8q-qhhj-9h54 and others -->
+    <jackson-bom.version>3.1.7</jackson-bom.version>
+
     <!-- Quality tooling versions: bump through Dependabot only -->
     <spotless.version>3.10.4</spotless.version>
     <checkstyle-plugin.version>3.6.0</checkstyle-plugin.version>
