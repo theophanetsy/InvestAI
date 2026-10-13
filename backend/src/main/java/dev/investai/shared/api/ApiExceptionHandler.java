@@ -40,20 +40,33 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
   private static final Logger LOG = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
   /**
-   * Maps a domain exception to its HTTP status, exposing only its code.
+   * Missing resource: 404 exposing only the code.
    *
-   * @param ex the domain exception
+   * @param ex the exception
    * @param request the current request
    * @return the problem response
    */
-  @ExceptionHandler(DomainException.class)
-  public @Nullable ResponseEntity<Object> handleDomainException(
-      DomainException ex, WebRequest request) {
-    HttpStatus status =
-        switch (ex) {
-          case ResourceNotFoundException _ -> HttpStatus.NOT_FOUND;
-          case BusinessRuleException _ -> HttpStatus.UNPROCESSABLE_CONTENT;
-        };
+  @ExceptionHandler(ResourceNotFoundException.class)
+  public @Nullable ResponseEntity<Object> handleNotFound(
+      ResourceNotFoundException ex, WebRequest request) {
+    return domainProblem(ex, HttpStatus.NOT_FOUND, request);
+  }
+
+  /**
+   * Business rule violation: 422 exposing only the code.
+   *
+   * @param ex the exception
+   * @param request the current request
+   * @return the problem response
+   */
+  @ExceptionHandler(BusinessRuleException.class)
+  public @Nullable ResponseEntity<Object> handleBusinessRule(
+      BusinessRuleException ex, WebRequest request) {
+    return domainProblem(ex, HttpStatus.UNPROCESSABLE_CONTENT, request);
+  }
+
+  private @Nullable ResponseEntity<Object> domainProblem(
+      DomainException ex, HttpStatus status, WebRequest request) {
     // The code is already validated; sanitising it too keeps FindSecBugs' taint analysis exact.
     String code = LogSanitizer.oneLine(ex.code());
     String reason = LogSanitizer.oneLine(ex.getMessage());

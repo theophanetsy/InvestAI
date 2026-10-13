@@ -8,7 +8,7 @@ import java.util.regex.Pattern;
  * <p>The {@link #code()} is a stable identifier sent to API clients, which translate it for the
  * user. The message is logged and never returned to the client (ADR-0006): it must only contain
  * non-sensitive technical identifiers (no IBAN, account number, amount, e-mail or user content).
- * The hierarchy is sealed so that the HTTP mapping must handle every category.
+ * The hierarchy is sealed: each category has its own HTTP handler (checked by a test).
  */
 public abstract sealed class DomainException extends RuntimeException
     permits ResourceNotFoundException, BusinessRuleException {

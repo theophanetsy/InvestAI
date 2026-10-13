@@ -2,6 +2,8 @@ package dev.investai.shared.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.investai.shared.domain.DomainException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -14,6 +16,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.ServletWebRequest;
 
 /** Cases that are hard to trigger through MockMvc: class-level constraints, missing request id. */
@@ -50,6 +53,19 @@ class ApiExceptionHandlerEdgeCasesTest {
                             new FieldViolation(OBJECT_NAME, "ValidRange"),
                             new FieldViolation(OBJECT_NAME, "Invalid")))
                     .doesNotContainKey("requestId"));
+  }
+
+  @Test
+  void everyDomainExceptionCategoryHasItsOwnHandler() {
+    List<Class<?>> handled =
+        Arrays.stream(ApiExceptionHandler.class.getDeclaredMethods())
+            .map(method -> method.getAnnotation(ExceptionHandler.class))
+            .filter(Objects::nonNull)
+            .<Class<?>>flatMap(annotation -> Arrays.stream(annotation.value()))
+            .toList();
+
+    assertThat(DomainException.class.getPermittedSubclasses()).isNotEmpty();
+    assertThat(handled).contains(DomainException.class.getPermittedSubclasses());
   }
 
   @Test
