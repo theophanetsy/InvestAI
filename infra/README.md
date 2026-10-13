@@ -1,8 +1,13 @@
 # infra
 
-Configuration d'exécution locale (Phase 1) :
+Configuration d'exécution locale.
 
-- `docker-compose.yml` : PostgreSQL, backend, frontend
-- stack d'observabilité : Grafana LGTM (OpenTelemetry), Langfuse (Phase 3)
+| Fichier | Rôle |
+|---|---|
+| `docker-compose.yml` | PostgreSQL 18 (loopback uniquement, volume `postgres-data`) |
+| `.env.example` | Variables à copier dans `.env` (ignoré par Git) |
 
-Les Dockerfiles et manifestes ajoutés ici sont analysés par Trivy (misconfig) et hadolint en CI.
+Démarrage : voir [docs/setup.md](../docs/setup.md#lancer-lapplication-en-local).
+
+À venir : stack d'observabilité Grafana LGTM / OpenTelemetry (Phase 1.6), Langfuse (Phase 3),
+conteneurs backend/frontend. Les Dockerfiles et manifestes ajoutés ici sont analysés par Trivy en CI.

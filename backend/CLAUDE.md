@@ -36,10 +36,30 @@ Un package par module métier sous `dev.investai` : `portfolio`, `market`, `assi
 - Javadoc sur les types publics de `src/main`.
 - Limites Checkstyle : méthode ≤ 40 lignes, complexité cyclomatique ≤ 10, ≤ 6 paramètres.
 
+## Persistance (ADR 0005)
+
+- PostgreSQL 18. Le schéma appartient à **Flyway** : `src/main/resources/db/migration/V<n>__<description>.sql`.
+  Hibernate est en `ddl-auto=validate` (ne jamais passer en `update`/`create`).
+- **Ne jamais modifier une migration déjà mergée** : corriger via une nouvelle migration.
+- Conventions SQL : `snake_case`, tables au singulier, clés `uuid` générées par l'application,
+  montants `numeric(19, 4)` + devise `char(3)`, dates `timestamptz` (UTC).
+- Entités JPA et repositories Spring Data uniquement dans `infrastructure` (ArchUnit), mappés
+  vers/depuis le domaine. `open-in-view=false` : charger ce qu'il faut dans le service transactionnel.
+- Aucun identifiant de connexion dans le code : `SPRING_DATASOURCE_*`, Docker Compose (profil
+  `local`) ou Testcontainers (tests).
+
 ## Tests
 
 - Unitaires : `*Test.java` (Surefire), JUnit 5 + AssertJ + Mockito. Domaine testé sans Spring.
-- Intégration : `*IT.java` (Failsafe), `@SpringBootTest`, Testcontainers Postgres dès la Phase 1.
+- Intégration : `*IT.java` (Failsafe), annotés **`@IntegrationTest`** (`dev.investai.support`) :
+  contexte complet + PostgreSQL Testcontainers + `MockMvcTester`. Ne pas créer d'autre
+  combinaison d'annotations (`@SpringBootTest` seul, `@MockitoBean`…) sans raison : chaque variante
+  crée un nouveau contexte et un nouveau conteneur, ce qui ralentit la suite.
+- Repositories : tester via `@IntegrationTest` (vraie base), jamais avec H2.
+- Règles ArchUnit : toute nouvelle règle qui pourrait passer « à vide » (aucune classe ciblée) doit
+  être prouvée par un test sur des fixtures fautives (`ArchitectureRulesTest`, `architecture.fixture`).
+- Répertoire de travail = `backend/` pour Maven, les tests et `spring-boot:run` (chemins relatifs
+  vers `../infra`). Configurer l'IDE en conséquence.
 - Web : `@WebMvcTest` + `MockMvcTester`.
 - Nommage : `methodOrBehaviour_condition_expectedResult` ou phrase descriptive en camelCase.
 - Mutation testing (PIT) : `./mvnw -Pmutation test-compile org.pitest:pitest-maven:mutationCoverage`,

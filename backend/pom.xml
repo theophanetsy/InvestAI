@@ -18,6 +18,8 @@
   <properties>
     <java.version>25</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <!-- `./mvnw spring-boot:run` uses the local profile (Docker Compose integration) -->
+    <spring-boot.run.profiles>local</spring-boot.run.profiles>
 
     <!-- Security overrides of Spring Boot managed versions (OSV-Scanner findings).
          Remove once the Spring Boot BOM ships these versions or newer. -->
@@ -62,9 +64,33 @@
       <artifactId>spring-boot-starter-webmvc</artifactId>
     </dependency>
     <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-flyway</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-database-postgresql</artifactId>
+    </dependency>
+    <dependency>
       <groupId>org.jspecify</groupId>
       <artifactId>jspecify</artifactId>
       <version>${jspecify.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+    <!-- Starts infra/docker-compose.yml on `spring-boot:run` (local profile only); not packaged in the jar -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-docker-compose</artifactId>
+      <scope>runtime</scope>
+      <optional>true</optional>
     </dependency>
 
     <dependency>
@@ -80,6 +106,16 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-webmvc-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-testcontainers</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-postgresql</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>

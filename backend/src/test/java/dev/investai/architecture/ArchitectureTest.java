@@ -13,7 +13,10 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
+import jakarta.persistence.Embeddable;
+import jakarta.persistence.Entity;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.repository.Repository;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -29,6 +32,37 @@ class ArchitectureTest {
   static final String APPLICATION = "..application..";
   static final String INFRASTRUCTURE = "..infrastructure..";
   static final String API = "..api..";
+  static final String JPA = "jakarta.persistence..";
+
+  @ArchTest
+  static final ArchRule ENTITIES_LIVE_IN_INFRASTRUCTURE =
+      classes()
+          .that()
+          .areAnnotatedWith(Entity.class)
+          .or()
+          .areAnnotatedWith(Embeddable.class)
+          .should()
+          .resideInAPackage(INFRASTRUCTURE)
+          .because("JPA entities are persistence details, mapped to/from the domain model");
+
+  @ArchTest
+  static final ArchRule REPOSITORIES_LIVE_IN_INFRASTRUCTURE =
+      classes()
+          .that()
+          .areAssignableTo(Repository.class)
+          .should()
+          .resideInAPackage(INFRASTRUCTURE)
+          .because("application services depend on domain ports, implemented by adapters");
+
+  @ArchTest
+  static final ArchRule ONLY_INFRASTRUCTURE_USES_JPA =
+      noClasses()
+          .that()
+          .resideInAnyPackage(API, APPLICATION)
+          .should()
+          .dependOnClassesThat()
+          .resideInAPackage(JPA)
+          .because("entities must never leak into use cases or the HTTP API");
 
   @ArchTest
   static final ArchRule DOMAIN_IS_FRAMEWORK_FREE =
@@ -39,7 +73,7 @@ class ArchitectureTest {
           .dependOnClassesThat()
           .resideInAnyPackage(
               "org.springframework..",
-              "jakarta.persistence..",
+              JPA,
               "tools.jackson..",
               "com.fasterxml.jackson..",
               "dev.langchain4j..")
