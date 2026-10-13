@@ -38,10 +38,10 @@ rules:
   - id: investai-no-inner-html-binding
     languages: [generic]
     paths:
-      include: ['*.html']
+      include: ['*.html', '*.ts']
     severity: ERROR
     message: '[innerHTML] with LLM or news content is an XSS vector. Use text interpolation or a vetted markdown renderer.'
-    pattern: '[innerHTML]'
+    pattern-regex: '\[(innerHTML|outerHTML)\]'
 
   - id: investai-no-local-storage-token
     languages: [typescript]
@@ -50,3 +50,23 @@ rules:
     pattern-either:
       - pattern: localStorage.setItem($K, ...)
       - pattern: sessionStorage.setItem($K, ...)
+
+  - id: investai-no-os-command-execution
+    languages: [java]
+    severity: ERROR
+    message: >-
+      Executing OS commands is forbidden in this application (command injection risk).
+      If ever required, discuss it in an ADR first.
+    pattern-either:
+      - pattern: Runtime.getRuntime().exec(...)
+      - pattern: new ProcessBuilder(...)
+
+  - id: investai-no-console-in-app
+    languages: [typescript]
+    paths:
+      include: ['frontend/src/**']
+    severity: WARNING
+    message: Use a logging service; console output may leak data in production.
+    pattern-either:
+      - pattern: console.log(...)
+      - pattern: console.debug(...)
