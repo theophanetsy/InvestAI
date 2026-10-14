@@ -46,5 +46,8 @@ cd frontend && npm run check && npm run e2e
 et **écrit explicitement dans la PR que les tests d'intégration n'ont pas été exécutés localement**.
 La CI les exécute toujours (check requis `Backend verify`) : rien n'est mergé sans eux.
 
+Sans Docker, `npm run api:update` est impossible : le contrat `backend/target/openapi.json` est
+écrit par `OpenApiContractIT`. Un changement d'API se fait donc sur un poste ou un agent avec Docker.
+
 On n'utilise pas `@Testcontainers(disabledWithoutDocker = true)` : un test sauté en silence
 ressemble à un test qui passe.

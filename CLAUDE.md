@@ -13,6 +13,7 @@ Objectif du projet : apprendre Java/Spring Boot/Angular **et** l'intégration d'
 | `backend/` | Spring Boot 4, Java 25, Maven (`./mvnw`) | `backend/CLAUDE.md` |
 | `frontend/` | Angular 22 (standalone, signals, zoneless), Vitest, Playwright | `frontend/CLAUDE.md` |
 | `infra/` | docker compose (Postgres), observabilité (Phase 3) | — |
+| `api/` | Contrat OpenAPI versionné (`openapi.json`), source du client Angular | ADR-0004 |
 | `docs/` | ROADMAP, ADR (`docs/adr/`), specs, sécurité | — |
 | `.claude/` | settings, hooks, commandes, sous-agents | — |
 
@@ -31,6 +32,9 @@ cd backend && ./mvnw test -Dtest=StatusServiceTest
 cd frontend && npm run check       # prettier, eslint, stylelint, typecheck, tests + couverture, build
 cd frontend && npm run format
 cd frontend && npm run e2e         # Playwright
+
+# Après un changement d'API (contrat + client Angular, ADR-0004)
+cd backend && ./mvnw verify && cd .. && npm run api:update
 ```
 
 ## Environnement (sandbox / cloud)
@@ -72,7 +76,8 @@ cd frontend && npm run e2e         # Playwright
 - Tests unitaires + intégration couvrant les critères d'acceptation ; CI verte.
 - Couverture ≥ seuils (backend : 80 % lignes / 70 % branches ; frontend : 80/70/80/80).
 - Aucun avertissement de compilation, de lint ou d'analyse statique.
-- Contrat OpenAPI et client Angular généré à jour quand l'API change (à partir de la Phase 1).
+- Contrat `api/openapi.json` et client Angular généré à jour quand l'API change
+  (`npm run api:update`, vérifié par `OpenApiContractIT` et `AngularClientUpToDateTest`).
 - Pas de code mort, pas de `TODO` sans issue (`TODO(#12)`).
 - Documentation mise à jour (ADR, CLAUDE.md si nouvelle convention) et passe « Capitaliser »
   faite (étape 7 du workflow) : conventions, pièges et contrats écrits dans le dépôt.
