@@ -10,8 +10,8 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    /* Unused locals/parameters: enforced by ESLint (@typescript-eslint/no-unused-vars)
+       so generated OpenAPI client code can compile (ADR-0004). */
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "isolatedModules": true,

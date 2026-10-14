@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterOutlet } from '@angular/router';
 import { catchError, map, of } from 'rxjs';
-import { SystemStatusService } from './core/system/system-status.service';
+import { SystemService } from './api/generated';
 
 type BackendState = 'loading' | 'up' | 'down';
 
@@ -15,7 +15,7 @@ type BackendState = 'loading' | 'up' | 'down';
 })
 export class App {
   protected readonly backendState = toSignal(
-    inject(SystemStatusService)
+    inject(SystemService)
       .getStatus()
       .pipe(
         map((): BackendState => 'up'),

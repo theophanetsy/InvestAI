@@ -21,7 +21,9 @@ src/app/
 - Nouveau control flow uniquement (`@if`, `@for` avec `track`, `@switch`).
 - Inputs/outputs via `input()`, `output()`, `model()`.
 - Typage strict : pas de `any`, pas de `!` non justifié, `import type` pour les types.
-- Appels HTTP uniquement via le client généré (dès la Phase 1) ou un service de `core/`.
+- Appels HTTP uniquement via le client généré (`src/app/api/generated`, services par module :
+  `inject(SystemService).getStatus()`) ou un service de `core/`. Jamais de type ou d'URL d'API
+  écrits à la main.
 - Accessibilité : règles `template/accessibility` actives ; labels, rôles, contrastes.
 - **Contenu non fiable** (réponses LLM, news) : jamais `[innerHTML]` ni `bypassSecurityTrust*`.
 - Montants : formatter avec `CurrencyPipe`/`Intl`, ne pas recalculer côté front ce que le backend
@@ -46,13 +48,26 @@ src/app/
   écran de connexion), `auth.invalid-credentials`, `auth.forbidden`, `auth.csrf-invalid` (403 →
   recharger le jeton : refaire un GET), `validation.failed` (400, erreurs par champ),
   `http.<statut>` (erreurs génériques), `internal.error` (500), codes métier `<module>.<cas>`.
+  Type TypeScript : le modèle généré `Problem` (`api/generated`), jamais une interface à la main.
 - Publics sans session : `GET /api/v1/status`, `POST /api/v1/auth/login`.
 
 ## Pièges connus
 
 Format : symptôme → cause → bonne pratique. Compléter à chaque étape (workflow, étape 7).
 
-- Aucun pour l'instant.
+- **Client généré qui appelle `http://localhost/…` ou `//api/…`** : chemin de base par défaut
+  du générateur → toujours `provideApiClient()` (`core/api`), dans `app.config.ts` **et** dans
+  les tests qui utilisent un service généré.
+- **Variable ou membre `private` inutilisé** : vérifié par ESLint (`no-unused-vars`,
+  `no-unused-private-class-members` de typescript-eslint), plus par
+  `tsc` (désactivé pour tout le projet à cause du code généré, ADR-0004) → `npm run lint` avant
+  de conclure. `args: 'all'` sans exception : un paramètre préfixé `_` est aussi refusé.
+- **Modifier `api/generated`** : interdit, le build backend le compare au contrat →
+  `npm run api:update` depuis la racine.
+- **`eslint --max-warnings=0 <fichiers>` échoue sur « File ignored because of a matching ignore
+  pattern »** : un fichier ignoré (ex. `api/generated`) passé explicitement produit un
+  avertissement → toujours ajouter `--no-warn-ignored` quand on lint une liste de fichiers
+  (hook Stop, Lefthook).
 
 ## Tests
 
