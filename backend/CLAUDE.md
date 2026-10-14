@@ -43,6 +43,16 @@ Un package par module métier sous `dev.investai` : `portfolio`, `market`, `assi
 - Javadoc sur les types publics de `src/main`.
 - Limites Checkstyle : méthode ≤ 40 lignes, complexité cyclomatique ≤ 10, ≤ 6 paramètres.
 
+## Sécurité (ADR 0007)
+
+- API **fermée par défaut** : un nouvel endpoint public s'ajoute explicitement dans
+  `auth.infrastructure.SecurityConfiguration`, avec un test qui prouve l'accès anonyme.
+- Erreurs 401/403 : laisser Spring Security les produire (`ApiExceptionHandler` relance
+  `AuthenticationException` / `AccessDeniedException`) ; codes `auth.*`.
+- Identifiants : `INVESTAI_USERNAME` / `INVESTAI_PASSWORD_HASH` (PBKDF2,
+  `scripts/hash-password.mjs`), jamais de mot de passe en clair hors de `FixtureCredentials` (tests).
+- Ne jamais logger un nom d'utilisateur saisi, un mot de passe, un cookie ou un jeton.
+
 ## Persistance (ADR 0005)
 
 - PostgreSQL 18. Le schéma appartient à **Flyway** : `src/main/resources/db/migration/V<n>__<description>.sql`.
@@ -67,7 +77,10 @@ Un package par module métier sous `dev.investai` : `portfolio`, `market`, `assi
   être prouvée par un test sur des fixtures fautives (`ArchitectureRulesTest`, `architecture.fixture`).
 - Répertoire de travail = `backend/` pour Maven, les tests et `spring-boot:run` (chemins relatifs
   vers `../infra`). Configurer l'IDE en conséquence.
-- Web : `@WebMvcTest` + `MockMvcTester`.
+- Web : **`@SecuredWebMvcTest(MonController.class)`** + `MockMvcTester` (vraie config de sécurité) ;
+  utilisateur via `with(user("…"))` ou `@WithMockUser`, requêtes modifiantes avec `with(csrf().asHeader())` (jeton accepté uniquement en en-tête).
+- `@IntegrationTest` démarre un vrai serveur (port aléatoire) : `@LocalServerPort` + `HttpClient`
+  pour ce que MockMvc ne voit pas (cookies, `/error`, pare-feu HTTP, en-têtes du conteneur).
 - Nommage : `methodOrBehaviour_condition_expectedResult` ou phrase descriptive en camelCase.
 - Mutation testing (PIT) : `./mvnw -Pmutation test-compile org.pitest:pitest-maven:mutationCoverage`,
   seuil 70 %, exécuté chaque nuit.

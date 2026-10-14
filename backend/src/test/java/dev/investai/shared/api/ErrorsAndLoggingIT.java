@@ -1,6 +1,7 @@
 package dev.investai.shared.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 
 import dev.investai.support.IntegrationTest;
 import org.junit.jupiter.api.Test;
@@ -22,7 +23,7 @@ class ErrorsAndLoggingIT {
 
   @Test
   void unknownRouteIsProblemCorrelatedWithResponseHeader() {
-    var response = mvc.get().uri("/api/v1/does-not-exist").exchange();
+    var response = mvc.get().uri("/api/v1/does-not-exist").with(user("someone")).exchange();
 
     assertThat(response).hasStatus(HttpStatus.NOT_FOUND);
     assertThat(response).hasContentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON);

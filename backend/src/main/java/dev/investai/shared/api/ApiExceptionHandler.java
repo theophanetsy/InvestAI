@@ -15,6 +15,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -33,7 +35,6 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 @RestControllerAdvice
 public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
-  static final String CODE = "code";
   static final String VALIDATION_FAILED = "validation.failed";
   static final String INTERNAL_ERROR = "internal.error";
 
@@ -75,6 +76,28 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
   }
 
   /**
+   * Authentication failures raised by controllers are left to Spring Security, which answers 401
+   * with the same contract (ADR-0007), instead of becoming a 500 here.
+   *
+   * @param ex the exception, rethrown as is
+   */
+  @ExceptionHandler(AuthenticationException.class)
+  public void rethrowAuthenticationFailure(AuthenticationException ex) {
+    throw ex;
+  }
+
+  /**
+   * Access denials raised by controllers are left to Spring Security, which answers 401 (anonymous)
+   * or 403 with the same contract (ADR-0007), instead of becoming a 500 here.
+   *
+   * @param ex the exception, rethrown as is
+   */
+  @ExceptionHandler(AccessDeniedException.class)
+  public void rethrowAccessDenied(AccessDeniedException ex) {
+    throw ex;
+  }
+
+  /**
    * Last resort: hides the cause from the client and logs it with its stack trace.
    *
    * @param ex the unexpected exception
@@ -113,8 +136,8 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
       // Spring's default details echo client input or internals (e.g. "No static resource x").
       problem.setDetail(null);
       @Nullable Map<String, Object> properties = problem.getProperties();
-      if (properties == null || !properties.containsKey(CODE)) {
-        problem.setProperty(CODE, genericCodeOf(statusCode));
+      if (properties == null || !properties.containsKey(Problems.CODE)) {
+        problem.setProperty(Problems.CODE, genericCodeOf(statusCode));
       }
       if (request.getAttribute(RequestIdFilter.REQUEST_ATTRIBUTE, RequestAttributes.SCOPE_REQUEST)
           instanceof String requestId) {
@@ -131,16 +154,15 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
       HttpStatusCode status,
       WebRequest request) {
     ProblemDetail problem = ProblemDetail.forStatus(status);
-    problem.setProperty(CODE, VALIDATION_FAILED);
+    problem.setProperty(Problems.CODE, VALIDATION_FAILED);
     problem.setProperty("errors", violations);
     return handleExceptionInternal(ex, problem, headers, status, request);
   }
 
   private @Nullable ResponseEntity<Object> problem(
       Exception ex, HttpStatus status, String code, WebRequest request) {
-    ProblemDetail problem = ProblemDetail.forStatus(status);
-    problem.setProperty(CODE, code);
-    return handleExceptionInternal(ex, problem, new HttpHeaders(), status, request);
+    return handleExceptionInternal(
+        ex, Problems.withCode(status, code), new HttpHeaders(), status, request);
   }
 
   /** Code derived from the status of an error raised by Spring, e.g. {@code http.not-found}. */
