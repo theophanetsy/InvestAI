@@ -7,5 +7,6 @@
 | [0003](0003-garde-fous-qualite.md) | Garde-fous qualité et sécurité dès la Phase 0 | Accepté |
 | [0004](0004-api-contract-first.md) | API REST documentée par OpenAPI, client Angular généré | Accepté |
 | [0005](0005-persistance-postgres-flyway.md) | Persistance : PostgreSQL 18, Flyway, Testcontainers | Accepté |
+| [0006](0006-contrat-erreurs-et-logs.md) | Contrat d'erreur (RFC 9457 + `code`) et logs JSON corrélés | Accepté |
 
 Créer un nouvel ADR : commande `/new-adr <titre>` (modèle : [template.md](template.md)).
