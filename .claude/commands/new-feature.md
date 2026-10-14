@@ -17,5 +17,9 @@ Implémente la feature suivante en respectant strictement le workflow de `CLAUDE
    puis intégration/API, puis composant/E2E) et vérifie qu'il échoue pour la bonne raison.
 5. **Implémentation** minimale pour faire passer les tests, puis refactoring.
 6. **Vérification** : `/check`. Tout doit être vert sans désactiver de règle.
-7. **Commit(s)** Conventional Commits avec scope du module, puis propose d'ouvrir la PR
-   (`gh pr create`) avec le template rempli. Ne pousse pas sans accord.
+7. **Capitaliser** (étape 7 du workflow de `CLAUDE.md`) : conventions, pièges rencontrés
+   (« Pièges connus »), contrats pour l'autre côté (backend ↔ frontend), ADR/ROADMAP/setup à jour.
+   Relis la conversation : chaque erreur corrigée en cours de route est un piège à consigner.
+8. **Commit(s)** Conventional Commits avec scope du module, puis propose d'ouvrir la PR
+   (`gh pr create`) avec le template rempli et une section « Pour les prochains agents ».
+   Ne pousse pas sans accord.

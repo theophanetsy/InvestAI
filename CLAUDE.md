@@ -40,6 +40,10 @@ cd frontend && npm run e2e         # Playwright
 - **Docker absent** → `./mvnw -DskipITs verify` au lieu de `./mvnw verify`, et **l'écrire dans la PR**
   (« tests d'intégration non exécutés localement »). Ne jamais désactiver/sauter un test autrement.
 - Détails : `docs/agent-environments.md`.
+- **Poste Windows du propriétaire** (Git Bash) : pas de Python, utiliser `node` pour les scripts
+  ponctuels ; préférer les outils Read/Edit/Write aux heredocs complexes (guillemets et `${}`
+  mal interprétés) ; les fichiers `.env*` ne sont ni lisibles ni modifiables par l'agent
+  (demander à l'utilisateur, vérifier un diff sans l'afficher : `git diff --numstat`).
 
 ## Workflow obligatoire
 
@@ -51,6 +55,17 @@ cd frontend && npm run e2e         # Playwright
 5. **Branche + PR** : jamais de commit direct sur `main`. Commits au format Conventional Commits
    (`feat(portfolio): ...`, `fix(frontend): ...`, scopes dans `commitlint.config.mjs`).
 6. **Décision structurante** (lib, pattern, fournisseur, modèle IA) → ADR dans `docs/adr/` (`/new-adr`).
+7. **Capitaliser avant la PR** : se demander « qu'est-ce qu'un agent qui reprend ce code sans
+   cette conversation doit savoir ? » et l'écrire **dans le dépôt** (la mémoire d'un agent ou
+   la description de PR ne suffisent pas) :
+   - nouvelle convention ou règle → `CLAUDE.md` du module concerné ;
+   - piège rencontré (outil, framework, environnement) → section « Pièges connus » du
+     `CLAUDE.md` concerné, en une ligne : symptôme → cause → bonne pratique ;
+   - contrat consommé par l'autre côté (API, codes d'erreur, en-têtes) → `CLAUDE.md` du
+     consommateur (ex. `frontend/CLAUDE.md` quand le backend change) ;
+   - décision et risques acceptés → ADR ; avancement → `docs/ROADMAP.md` ; lancement local et
+     variables d'environnement → `docs/setup.md`.
+   Le récapituler dans la PR (section « Pour les prochains agents »).
 
 ## Definition of Done
 
@@ -59,7 +74,8 @@ cd frontend && npm run e2e         # Playwright
 - Aucun avertissement de compilation, de lint ou d'analyse statique.
 - Contrat OpenAPI et client Angular généré à jour quand l'API change (à partir de la Phase 1).
 - Pas de code mort, pas de `TODO` sans issue (`TODO(#12)`).
-- Documentation mise à jour (ADR, CLAUDE.md si nouvelle convention).
+- Documentation mise à jour (ADR, CLAUDE.md si nouvelle convention) et passe « Capitaliser »
+  faite (étape 7 du workflow) : conventions, pièges et contrats écrits dans le dépôt.
 
 ## Interdits (non négociables)
 

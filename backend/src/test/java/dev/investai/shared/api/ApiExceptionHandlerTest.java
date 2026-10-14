@@ -1,9 +1,11 @@
 package dev.investai.shared.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 
 import dev.investai.shared.domain.BusinessRuleException;
 import dev.investai.shared.domain.ResourceNotFoundException;
+import dev.investai.support.SecuredWebMvcTest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -18,10 +20,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.InsufficientAuthenticationException;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,7 +37,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-@WebMvcTest(controllers = ApiExceptionHandlerTest.FixtureController.class)
+@SecuredWebMvcTest(ApiExceptionHandlerTest.FixtureController.class)
+@WithMockUser
 @Import(ApiExceptionHandlerTest.FixtureController.class)
 @ExtendWith(OutputCaptureExtension.class)
 class ApiExceptionHandlerTest {
@@ -72,6 +77,7 @@ class ApiExceptionHandlerTest {
     var response =
         mvc.post()
             .uri(THINGS)
+            .with(csrf().asHeader())
             .contentType(MediaType.APPLICATION_JSON)
             .content("{\"name\":\"" + INTERNAL_DETAIL + "\",\"comment\":\" \"}")
             .exchange();
@@ -117,6 +123,7 @@ class ApiExceptionHandlerTest {
     var response =
         mvc.put()
             .uri(THINGS + "/-1")
+            .with(csrf().asHeader())
             .contentType(MediaType.APPLICATION_JSON)
             .content("{\"name\":\"ok\",\"comment\":\" \"}")
             .exchange();
@@ -143,6 +150,7 @@ class ApiExceptionHandlerTest {
     var response =
         mvc.post()
             .uri(THINGS)
+            .with(csrf().asHeader())
             .contentType(MediaType.APPLICATION_JSON)
             .content("{not json")
             .exchange();
@@ -153,7 +161,7 @@ class ApiExceptionHandlerTest {
 
   @Test
   void unsupportedMethodBecomesProblem() {
-    var response = mvc.delete().uri(THINGS).exchange();
+    var response = mvc.delete().uri(THINGS).with(csrf().asHeader()).exchange();
 
     assertProblem(response, HttpStatus.METHOD_NOT_ALLOWED);
     assertThat(response).bodyJson().extractingPath(CODE).isEqualTo("http.method-not-allowed");
@@ -196,6 +204,23 @@ class ApiExceptionHandlerTest {
                     .contains("\"requestId\":\"" + requestId + "\"")
                     .contains(INTERNAL_DETAIL)
                     .contains("at dev.investai.shared.api"));
+  }
+
+  @Test
+  void accessDeniedInControllerIsLeftToSpringSecurity() {
+    var response = mvc.get().uri("/fixture/denied").exchange();
+
+    assertProblem(response, HttpStatus.FORBIDDEN);
+    assertThat(response).bodyJson().extractingPath(CODE).isEqualTo("auth.forbidden");
+    assertThat(response).bodyText().doesNotContain(INTERNAL_DETAIL);
+  }
+
+  @Test
+  void authenticationFailureInControllerIsLeftToSpringSecurity() {
+    var response = mvc.get().uri("/fixture/unauthenticated").exchange();
+
+    assertProblem(response, HttpStatus.UNAUTHORIZED);
+    assertThat(response).bodyJson().extractingPath(CODE).isEqualTo("auth.required");
   }
 
   private static Map<String, String> violation(String field, String code) {
@@ -246,6 +271,16 @@ class ApiExceptionHandlerTest {
         @RequestParam(PAGE_SIZE) @Max(100) int pageSize,
         @RequestParam(defaultValue = "1") @Min(1) int page) {
       return List.of(String.valueOf(pageSize), String.valueOf(page));
+    }
+
+    @GetMapping("/denied")
+    void denied() {
+      throw new AccessDeniedException("Not allowed: " + INTERNAL_DETAIL);
+    }
+
+    @GetMapping("/unauthenticated")
+    void unauthenticated() {
+      throw new InsufficientAuthenticationException("Session gone: " + INTERNAL_DETAIL);
     }
 
     @GetMapping("/boom")

@@ -43,6 +43,16 @@ Un package par module métier sous `dev.investai` : `portfolio`, `market`, `assi
 - Javadoc sur les types publics de `src/main`.
 - Limites Checkstyle : méthode ≤ 40 lignes, complexité cyclomatique ≤ 10, ≤ 6 paramètres.
 
+## Sécurité (ADR 0007)
+
+- API **fermée par défaut** : un nouvel endpoint public s'ajoute explicitement dans
+  `auth.infrastructure.SecurityConfiguration`, avec un test qui prouve l'accès anonyme.
+- Erreurs 401/403 : laisser Spring Security les produire (`ApiExceptionHandler` relance
+  `AuthenticationException` / `AccessDeniedException`) ; codes `auth.*`.
+- Identifiants : `INVESTAI_USERNAME` / `INVESTAI_PASSWORD_HASH` (PBKDF2,
+  `scripts/hash-password.mjs`), jamais de mot de passe en clair hors de `FixtureCredentials` (tests).
+- Ne jamais logger un nom d'utilisateur saisi, un mot de passe, un cookie ou un jeton.
+
 ## Persistance (ADR 0005)
 
 - PostgreSQL 18. Le schéma appartient à **Flyway** : `src/main/resources/db/migration/V<n>__<description>.sql`.
@@ -67,10 +77,48 @@ Un package par module métier sous `dev.investai` : `portfolio`, `market`, `assi
   être prouvée par un test sur des fixtures fautives (`ArchitectureRulesTest`, `architecture.fixture`).
 - Répertoire de travail = `backend/` pour Maven, les tests et `spring-boot:run` (chemins relatifs
   vers `../infra`). Configurer l'IDE en conséquence.
-- Web : `@WebMvcTest` + `MockMvcTester`.
+- Web : **`@SecuredWebMvcTest(MonController.class)`** + `MockMvcTester` (vraie config de sécurité) ;
+  utilisateur via `with(user("…"))` ou `@WithMockUser`, requêtes modifiantes avec `with(csrf().asHeader())` (jeton accepté uniquement en en-tête).
+- `@IntegrationTest` démarre un vrai serveur (port aléatoire) : `@LocalServerPort` + `HttpClient`
+  pour ce que MockMvc ne voit pas (cookies, `/error`, pare-feu HTTP, en-têtes du conteneur).
 - Nommage : `methodOrBehaviour_condition_expectedResult` ou phrase descriptive en camelCase.
 - Mutation testing (PIT) : `./mvnw -Pmutation test-compile org.pitest:pitest-maven:mutationCoverage`,
   seuil 70 %, exécuté chaque nuit.
+
+## Pièges connus
+
+Format : symptôme → cause → bonne pratique. Compléter à chaque étape (workflow, étape 7).
+
+- **Spring Boot 4** : `server.error.*` sans effet → clés renommées → `spring.web.error.*`.
+- **Échec de démarrage qui affiche un secret** : les analyseurs de Boot impriment la valeur
+  rejetée d'une propriété (Bean Validation, conversion) → valider une valeur sensible dans le
+  `@Bean` qui l'utilise, avec un message sans la valeur (cf. `SingleUserConfiguration`).
+- **Test MockMvc en 403 sur un POST** : `csrf()` envoie le jeton en paramètre `_csrf`, refusé
+  ici → `with(csrf().asHeader())`.
+- **MockMvc ne voit pas** les cookies de session (posés par Tomcat), `/error`, le pare-feu HTTP
+  ni les en-têtes ajoutés par le conteneur → `@IntegrationTest` + `HttpClient` (cf. `AuthApiIT`).
+- **Checkstyle « Hard-coded secret »** : attrape toute constante `password|secret|token = "…"`,
+  tests compris → générer la valeur (`UUID.randomUUID()`) ; vecteur de test public :
+  `FixtureCredentials.PASSPHRASE` (décision du propriétaire, pas de suppression dans `config/`).
+- **Checkstyle ClassFanOutComplexity (> 20)** : config Spring Security ou advice qui grossit →
+  découper par responsabilité (`SecurityConfiguration` / `SingleUserConfiguration` /
+  `HttpFirewallConfiguration`, `FieldViolation`).
+- **PMD** : `GuardLogStatement` → calculer les arguments de log dans des variables locales ;
+  `AvoidDuplicateLiterals` → constantes ; `UnitTestShouldIncludeAssert` ne voit pas les
+  assertions dans un lambda → récupérer la valeur (`AtomicReference`) puis asserter dehors ;
+  `TestClassWithoutTestCases` sur une classe de test nommée `Test…` → la renommer
+  (`FixtureCredentials`) ; `AvoidUsingHardCodedIP` → asserter la propriété (`isLoopbackAddress`).
+- **SpotBugs / FindSecBugs** : `CRLF_INJECTION_LOGS` → `LogSanitizer.oneLine` ;
+  `CT_CONSTRUCTOR_THROW` → valider avant `super()` et garder la classe `final` ;
+  `SERVLET_HEADER` → ne pas lire d'en-tête soi-même, réutiliser l'API Spring ;
+  `SPRING_CSRF_UNRESTRICTED_REQUEST_MAPPING` → séparer méthodes sûres et modifiantes ;
+  `THROWS_METHOD_THROWS_RUNTIMEEXCEPTION` → typer précisément l'exception relancée.
+- **NullAway** ne comprend pas `assertThat(x).isNotNull()` → `Objects.requireNonNull(x)`.
+- **Hook de formatage** (après chaque édition) : retire un import encore inutilisé → ajouter
+  l'import en même temps que son usage, ou relancer `./mvnw spotless:apply` puis compiler.
+- **`@WebMvcTest` avec contrôleur imbriqué** : exclu du scan → `@Import(LeController.class)`.
+- **CodeQL** signale `case X _` (variable non lue) et bloque le merge (fil de revue à
+  résoudre) → un handler explicite par type plutôt qu'un `switch` à motifs anonymes.
 
 ## Outils qualité (tous bloquants dans `./mvnw verify`)
 

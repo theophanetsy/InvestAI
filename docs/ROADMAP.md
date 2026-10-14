@@ -24,8 +24,9 @@ Principe directeur : **chaque phase se termine par une app qui tourne, CI verte,
 | Phase 0 — Garde-fous qualité | ✅ Terminée (PR #1) |
 | Phase 1.1 — PostgreSQL, Flyway, Testcontainers | ✅ Terminée (PR #5) |
 | Environnement reproductible pour agents cloud | ✅ Terminé (PR #6) |
-| Phase 1.2 — Erreurs RFC 9457 + logs JSON | ✅ Terminée |
-| **Phase 1.3 — Authentification** | ⏭️ Prochaine étape |
+| Phase 1.2 — Erreurs RFC 9457 + logs JSON | ✅ Terminée (PR #9) |
+| Phase 1.3 — Authentification mono-utilisateur | ✅ Terminée |
+| **Phase 1.4** | ⏭️ Prochaine étape |
 
 ---
 
@@ -50,9 +51,9 @@ Objectif : le minimum de plomberie pour attaquer le métier. Ce qui ne sert qu'�
 |---|---|
 | 1.1 ✅ | PostgreSQL 18 via Docker Compose, Flyway, `ddl-auto=validate`, Testcontainers, règles ArchUnit JPA ([ADR-0005](adr/0005-persistance-postgres-flyway.md)). |
 | 1.2 ✅ | Gestion d'erreurs uniforme (RFC 9457 Problem Details), validation des entrées, logs JSON structurés avec identifiant de corrélation. |
-| 1.3 | **Auth** mono-utilisateur sécurisée (Spring Security, session) ; health readiness en `show-components=when-authorized`. 401/403 et erreurs hors Spring MVC (`/error`) au format problem+json (voir spec 1.2, hors périmètre). OIDC prévu pour le cloud. |
+| 1.3 ✅ | **Auth** mono-utilisateur ([ADR-0007](adr/0007-authentification-mono-utilisateur.md), [spec](specs/phase-1-03-authentication.md)) : session `HttpOnly` + CSRF, identifiants hors du code, 401/403 et `/error` en problem+json, readiness `show-components=when-authorized`. OIDC prévu pour le cloud (Phase 10). |
 | 1.4 | Contrat OpenAPI (springdoc) + client Angular généré, vérifié en CI ([ADR-0004](adr/0004-api-contract-first.md)). |
-| 1.5 | Shell Angular : layout, routing lazy (dashboard / chat / actu / simulation), lib UI (ADR : Angular Material ou PrimeNG), gestion des erreurs HTTP. |
+| 1.5 | Shell Angular : layout, routing lazy (dashboard / chat / actu / simulation), lib UI (ADR : Angular Material ou PrimeNG), gestion des erreurs HTTP, écran de connexion + intercepteur 401. Agent `app-verifier` (lance la stack locale et explore l'UI avec Playwright) une fois l'UI en place. |
 
 En local, l'app tourne avec `./mvnw spring-boot:run` (qui démarre Postgres) et `npm start` : pas d'image Docker de l'app avant la Phase 10.
 

@@ -23,12 +23,16 @@ cd ../backend && ./mvnw verify   # Docker doit tourner (Testcontainers)
 ## Lancer l'application en local
 
 ```bash
-cp infra/.env.example infra/.env     # puis renseigner POSTGRES_PASSWORD (fichier ignoré par Git)
+cp infra/.env.example infra/.env     # puis renseigner les variables (fichier ignoré par Git)
+node scripts/hash-password.mjs      # → valeur de INVESTAI_PASSWORD_HASH dans infra/.env
 cd backend && ./mvnw spring-boot:run # profil local : démarre PostgreSQL via Docker Compose
 cd frontend && npm start             # http://localhost:4200 (proxy /api → :8080)
 ```
 
-- Santé : http://localhost:8080/actuator/health/readiness (inclut la base).
+- `infra/.env` contient `POSTGRES_PASSWORD`, `INVESTAI_USERNAME` et `INVESTAI_PASSWORD_HASH`
+  (hash PBKDF2, jamais le mot de passe en clair ; [ADR-0007](adr/0007-authentification-mono-utilisateur.md)).
+  Sans eux, le backend refuse de démarrer.
+- Santé : http://localhost:8080/actuator/health/readiness (détail de la base une fois connecté).
 - Arrêter la base : `docker compose -f infra/docker-compose.yml stop` (Spring ne l'arrête pas,
   `lifecycle-management=start-only`). Repartir de zéro : `... down -v` (supprime les données).
 
