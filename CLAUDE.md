@@ -48,6 +48,10 @@ cd backend && ./mvnw verify && cd .. && npm run api:update
   ponctuels ; préférer les outils Read/Edit/Write aux heredocs complexes (guillemets et `${}`
   mal interprétés) ; les fichiers `.env*` ne sont ni lisibles ni modifiables par l'agent
   (demander à l'utilisateur, vérifier un diff sans l'afficher : `git diff --numstat`).
+- **Scripts Node** (`scripts/`) : jamais `spawn(..., { shell: true })`, bloqué par Semgrep ; pour
+  un `.cmd` Windows, appeler `cmd.exe /d /c <fichier> <args>` explicitement (cf.
+  `update-api-contract.mjs`). Prettier : `npx prettier --config frontend/.prettierrc`, sinon les
+  défauts (guillemets doubles) s'appliquent hors de `frontend/`.
 
 ## Workflow obligatoire
 

@@ -25,13 +25,14 @@ if (!existsSync(served)) {
 }
 copyFileSync(served, contract);
 
-const mvnw = join(root, 'backend', process.platform === 'win32' ? 'mvnw.cmd' : 'mvnw');
-// One command string (constant arguments): Windows needs a shell to run mvnw.cmd.
-const generation = spawnSync(`"${mvnw}" -q openapi-generator:generate@angular-client`, {
-  cwd: join(root, 'backend'),
-  stdio: 'inherit',
-  shell: true,
-});
+const backend = join(root, 'backend');
+const mavenArgs = ['-q', 'openapi-generator:generate@angular-client'];
+// No `shell: true` (Semgrep): on Windows, a .cmd file only runs through cmd.exe, called explicitly.
+const [command, args] =
+  process.platform === 'win32'
+    ? ['cmd.exe', ['/d', '/c', join(backend, 'mvnw.cmd'), ...mavenArgs]]
+    : [join(backend, 'mvnw'), mavenArgs];
+const generation = spawnSync(command, args, { cwd: backend, stdio: 'inherit' });
 if (generation.status !== 0) {
   process.exit(generation.status ?? 1);
 }
