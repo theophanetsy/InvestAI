@@ -29,6 +29,31 @@ src/app/
 - Sélecteurs préfixés `inv-`. Texte UI en français.
 - Limites ESLint : complexité ≤ 10, fichier ≤ 300 lignes, profondeur ≤ 3, ≤ 4 paramètres.
 
+## Contrat de l'API backend (ADR 0006, ADR 0007)
+
+- **Même origine** : appels en chemins relatifs `/api/v1/…` (proxy `/api` → `:8080` en dev),
+  jamais d'URL absolue ni de CORS.
+- **Session** : cookie `HttpOnly` géré par le navigateur, invisible pour le code. État connecté :
+  `GET /api/v1/auth/me` → 200 `{ username }` ou 401. Connexion :
+  `POST /api/v1/auth/login` `{ username, password }` → 204 ; échec → 401
+  `auth.invalid-credentials`. Déconnexion : `POST /api/v1/auth/logout` → 204.
+- **CSRF** : le backend pose le cookie `XSRF-TOKEN` ; `HttpClient` le renvoie seul dans
+  l'en-tête `X-XSRF-TOKEN` (`withXsrfConfiguration` par défaut). Le jeton change à la connexion :
+  ne jamais le mettre en cache. Jamais en paramètre d'URL ou de formulaire (refusé).
+- **Erreurs** : RFC 9457 `application/problem+json` avec `status`, `title`, `code` stable,
+  `requestId`, parfois `errors: [{ field, code }]` ; jamais de `detail`. Décider sur `code`
+  (pas sur `title`), afficher `requestId` pour le support. Codes : `auth.required` (401 →
+  écran de connexion), `auth.invalid-credentials`, `auth.forbidden`, `auth.csrf-invalid` (403 →
+  recharger le jeton : refaire un GET), `validation.failed` (400, erreurs par champ),
+  `http.<statut>` (erreurs génériques), `internal.error` (500), codes métier `<module>.<cas>`.
+- Publics sans session : `GET /api/v1/status`, `POST /api/v1/auth/login`.
+
+## Pièges connus
+
+Format : symptôme → cause → bonne pratique. Compléter à chaque étape (workflow, étape 7).
+
+- Aucun pour l'instant.
+
 ## Tests
 
 - Unitaires : `*.spec.ts` à côté du fichier, Vitest via `ng test`. HTTP via
