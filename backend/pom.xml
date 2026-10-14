@@ -27,6 +27,10 @@
     <tomcat.version>11.0.27</tomcat.version>
     <!-- GHSA-7hhh-6rmp-j9qf, GHSA-p6pp-m3f8-5c89, GHSA-cxp5-3px4-pw24, GHSA-wv8q-qhhj-9h54 and others -->
     <jackson-bom.version>3.1.7</jackson-bom.version>
+    <!-- Jackson 2, used by swagger-core (springdoc): GHSA-7hhh-6rmp-j9qf, GHSA-p6pp-m3f8-5c89,
+         GHSA-cxp5-3px4-pw24, GHSA-gx83-3vf8-gh7j, GHSA-q4xh-88c3-wmh7, GHSA-wjgm-6hv5-3cvf,
+         GHSA-wv8q-qhhj-9h54 -->
+    <jackson-2-bom.version>2.21.7</jackson-2-bom.version>
 
     <!-- Spring Boot 4.1 line; not managed by the Spring Boot BOM -->
     <springdoc.version>3.1.1</springdoc.version>

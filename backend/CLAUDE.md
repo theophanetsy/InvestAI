@@ -122,6 +122,14 @@ Format : symptôme → cause → bonne pratique. Compléter à chaque étape (wo
   `@Bean` qui l'utilise, avec un message sans la valeur (cf. `SingleUserConfiguration`).
 - **Test MockMvc en 403 sur un POST** : `csrf()` envoie le jeton en paramètre `_csrf`, refusé
   ici → `with(csrf().asHeader())`.
+- **`AuthApiIT` cassé selon l'ordre des IT (session créée, cookie `XSRF-TOKEN` absent)** :
+  `csrf()` de spring-security-test remplace durablement le dépôt CSRF du filtre partagé par un
+  dépôt en session → dans un `@IntegrationTest`, jamais `csrf()` : GET pour obtenir le cookie
+  `XSRF-TOKEN`, puis le renvoyer en cookie + en-tête `X-XSRF-TOKEN` (cf. `OpenApiContractIT`).
+  Reproduire l'ordre de la CI : `./mvnw verify -Dfailsafe.runOrder=reversealphabetical`.
+- **OSV-Scanner sur une dépendance transitive** (ex. Jackson 2 via springdoc/swagger-core) :
+  version gérée par le BOM de Boot → surcharger la propriété (`jackson-2-bom.version`) dans le
+  bloc « Security overrides » du `pom.xml`, avec les identifiants GHSA.
 - **MockMvc ne voit pas** les cookies de session (posés par Tomcat), `/error`, le pare-feu HTTP
   ni les en-têtes ajoutés par le conteneur → `@IntegrationTest` + `HttpClient` (cf. `AuthApiIT`).
 - **Checkstyle « Hard-coded secret »** : attrape toute constante `password|secret|token = "…"`,
