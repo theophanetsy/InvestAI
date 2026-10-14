@@ -1,6 +1,7 @@
 package dev.investai.auth.api;
 
 import dev.investai.shared.api.Problems;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
  * /api/v1/auth/logout}).
  */
 @RestController
+@Tag(name = "auth")
 @RequestMapping("/api/v1/auth")
 public class AuthController {
 

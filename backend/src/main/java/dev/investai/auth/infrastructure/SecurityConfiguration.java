@@ -33,6 +33,9 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
 @Import({SingleUserConfiguration.class, HttpFirewallConfiguration.class})
 public class SecurityConfiguration {
 
+  /** Logout URL, handled by Spring Security's logout filter. */
+  static final String LOGOUT_PATH = "/api/v1/auth/logout";
+
   /** Servlet container default; keep in sync if server.servlet.session.cookie.name is set. */
   private static final String SESSION_COOKIE = "JSESSIONID";
 
@@ -69,7 +72,7 @@ public class SecurityConfiguration {
         .logout(
             logout ->
                 logout
-                    .logoutUrl("/api/v1/auth/logout")
+                    .logoutUrl(LOGOUT_PATH)
                     .logoutSuccessHandler(
                         new HttpStatusReturningLogoutSuccessHandler(HttpStatus.NO_CONTENT))
                     .deleteCookies(SESSION_COOKIE))
