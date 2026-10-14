@@ -1,10 +1,10 @@
 package dev.investai.shared.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 
 import dev.investai.support.IntegrationTest;
+import jakarta.servlet.http.Cookie;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +33,7 @@ class OpenApiContractIT {
   private static final Path CURRENT = Path.of("target", "openapi.json");
   private static final String API_DOCS = "/v3/api-docs";
   private static final String PROBLEM_REF = "#/components/schemas/Problem";
+  private static final String CSRF_COOKIE = "XSRF-TOKEN";
 
   @Autowired private MockMvcTester mvc;
   @Autowired private JsonMapper json;
@@ -129,10 +131,15 @@ class OpenApiContractIT {
   @Test
   void actualErrorResponsesMatchTheProblemSchema() {
     var unauthenticated = mvc.get().uri("/api/v1/auth/me").exchange();
+    // Real CSRF exchange, like the browser: csrf() would swap the shared CsrfFilter repository
+    // for a session-based one and break the tests that go through the server (AuthApiIT).
+    Cookie csrf =
+        Objects.requireNonNull(unauthenticated.getResponse().getCookie(CSRF_COOKIE), CSRF_COOKIE);
     var invalid =
         mvc.post()
             .uri("/api/v1/auth/login")
-            .with(csrf().asHeader())
+            .cookie(csrf)
+            .header("X-XSRF-TOKEN", csrf.getValue())
             .contentType(MediaType.APPLICATION_JSON)
             .content("{\"username\":\"\",\"password\":\"\"}")
             .exchange();
