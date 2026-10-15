@@ -43,7 +43,7 @@ cd frontend && npm start             # http://localhost:4200 (proxy /api → :80
 ```bash
 npm run stack:start    # base jetable + backend :18080 + frontend http://localhost:14200
 npm run stack:status   # rappelle l'URL et l'identifiant
-npm run stack:stop     # arrête tout, supprime la base jetable
+npm run stack:stop     # arrête tout, supprime la base jetable et les snapshots du navigateur
 ```
 
 - Copie **isolée** de l'app (projet Compose `investai-verify`, ports 15432 / 18080 / 14200) :

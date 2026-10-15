@@ -38,7 +38,8 @@ Tu ne modifies aucun fichier du dépôt : tu rends un rapport.
 - Mobile : `browser_resize` à 390 × 844, pas de défilement horizontal, navigation utilisable.
 - Cas d'erreur réalistes du parcours (mauvais mot de passe, champ vide, page inconnue…).
 - Captures d'écran (`browser_take_screenshot`) des étapes clés et de chaque anomalie : elles vont
-  dans `.local-stack/browser/` (ignoré par Git).
+  dans `.local-stack/browser/` (ignoré par Git). Les snapshots `.yml` du même dossier montrent
+  les valeurs saisies, dont le mot de passe : `npm run stack:stop` les supprime.
 
 ## Règles
 

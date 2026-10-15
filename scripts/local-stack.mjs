@@ -9,7 +9,15 @@
 // Logs and state (with the throwaway login) in .local-stack/, ignored by Git.
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { createServer } from 'node:net';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,6 +26,7 @@ import { hashPassword } from './lib/password-hash.mjs';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const stateDir = join(root, '.local-stack');
 const stateFile = join(stateDir, 'state.json');
+const browserDir = join(stateDir, 'browser');
 const composeFile = join(root, 'infra', 'docker-compose.yml');
 const PROJECT = 'investai-verify';
 const PORTS = { database: 15432, backend: 18080, frontend: 14200 };
@@ -213,6 +222,18 @@ async function start() {
   printLogin(state);
 }
 
+/** Browser snapshots show field values, including the throwaway password; screenshots are kept. */
+function removeBrowserSnapshots() {
+  if (!existsSync(browserDir)) {
+    return;
+  }
+  for (const file of readdirSync(browserDir)) {
+    if (file.endsWith('.yml')) {
+      rmSync(join(browserDir, file));
+    }
+  }
+}
+
 function stop() {
   const state = readState();
   if (state) {
@@ -220,6 +241,7 @@ function stop() {
     killTree(state.backendPid);
     rmSync(stateFile);
   }
+  removeBrowserSnapshots();
   removeDatabase();
   console.log('Stack de vérification arrêtée, base jetable supprimée.');
 }
