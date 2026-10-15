@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { API, mockApi } from './support/api-mock';
+import { expectFocusRing, tabTo } from './support/layout';
 
 test.describe('application shell', () => {
   test('opens the dashboard with the backend connected', async ({ page }) => {
@@ -51,6 +52,16 @@ test.describe('application shell', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Page introuvable');
     await page.getByRole('link', { name: 'Retour au tableau de bord' }).click();
     await expect(page).toHaveURL('/dashboard');
+  });
+
+  test('shows the keyboard focus on navigation links', async ({ page }) => {
+    await mockApi(page, { loggedIn: true });
+    await page.goto('/dashboard');
+    const link = page.getByRole('link', { name: 'Actu' });
+
+    await tabTo(page, link);
+
+    await expectFocusRing(link);
   });
 
   test.describe('on a phone', () => {

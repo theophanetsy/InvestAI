@@ -18,6 +18,10 @@ html {
       density: 0,
     )
   );
+
+  // Visible keyboard focus ring on every Material component (WCAG 2.4.7): by default Material
+  // only tints the background, too faint to follow the focus.
+  @include mat.strong-focus-indicators;
 }
 
 body {
