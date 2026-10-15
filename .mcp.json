@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "investai-browser": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@0.0.83",
+        "--headless",
+        "--isolated",
+        "--allowed-origins",
+        "http://localhost:14200",
+        "--output-dir",
+        ".local-stack/browser"
+      ]
+    }
+  }
+}
