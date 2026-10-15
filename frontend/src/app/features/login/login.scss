@@ -1,6 +1,7 @@
 .login {
   display: grid;
   place-items: center;
+  box-sizing: border-box; // the padding stays inside 100dvh: no vertical scroll
   min-height: 100dvh;
   padding: 1rem;
 }

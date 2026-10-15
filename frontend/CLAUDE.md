@@ -61,7 +61,9 @@ src/app/
 - Appels HTTP uniquement via le client généré (`src/app/api/generated`, services par module :
   `inject(SystemService).getStatus()`) ou un service de `core/`. Jamais de type ou d'URL d'API
   écrits à la main.
-- Accessibilité : règles `template/accessibility` actives ; labels, rôles, contrastes.
+- Accessibilité : règles `template/accessibility` actives ; labels, rôles, contrastes. Focus
+  clavier : contour Material renforcé pour toute l'app (`mat.strong-focus-indicators` dans
+  `src/styles.scss`) ; jamais `outline: none` sans indicateur de remplacement.
 - **Contenu non fiable** (réponses LLM, news) : jamais `[innerHTML]` ni `bypassSecurityTrust*`.
 - Montants : formatter avec `CurrencyPipe`/`Intl`, ne pas recalculer côté front ce que le backend
   calcule.
@@ -124,6 +126,9 @@ Format : symptôme → cause → bonne pratique. Compléter à chaque étape (wo
   en-tête existant → relire `HttpXsrfTokenExtractor.getToken()` et poser `X-XSRF-TOKEN`
   soi-même (cf. `csrf-retry.interceptor.ts`). Le logout supprime le cookie `XSRF-TOKEN` : le
   POST de connexion suivant part sans jeton et passe par ce rejeu.
+- **Page plein écran qui défile de quelques pixels** : `min-height: 100dvh` + `padding` sans
+  `box-sizing: border-box` (le padding s'ajoute) → toujours `border-box` sur ce type de conteneur ;
+  test e2e `expectNoScroll` (`e2e/support/layout.ts`).
 - **Modifier `api/generated`** : interdit, le build backend le compare au contrat →
   `npm run api:update` depuis la racine.
 - **`eslint --max-warnings=0 <fichiers>` échoue sur « File ignored because of a matching ignore
@@ -137,7 +142,8 @@ Format : symptôme → cause → bonne pratique. Compléter à chaque étape (wo
   `provideHttpClientTesting()`.
 - Couverture minimale : 80 % statements/lines/functions, 70 % branches (`angular.json`).
 - E2E : `e2e/*.spec.ts`, Playwright ; mocker l'API avec `page.route` sauf tests d'intégration
-  complète ; sélecteurs par rôle / `data-testid`.
+  complète ; sélecteurs par rôle / `data-testid`. Aides de mise en page dans
+  `e2e/support/layout.ts` : `tabTo` (focus au clavier), `expectFocusRing`, `expectNoScroll`.
 
 ## Commandes
 

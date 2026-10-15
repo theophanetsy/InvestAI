@@ -50,7 +50,8 @@ npm run stack:start                # http://localhost:14200 ; npm run stack:stop
 - **Poste Windows du propriétaire** (Git Bash) : pas de Python, utiliser `node` pour les scripts
   ponctuels ; préférer les outils Read/Edit/Write aux heredocs complexes (guillemets et `${}`
   mal interprétés) ; les fichiers `.env*` ne sont ni lisibles ni modifiables par l'agent
-  (demander à l'utilisateur, vérifier un diff sans l'afficher : `git diff --numstat`).
+  (demander à l'utilisateur, vérifier un diff sans l'afficher : `git diff --numstat`) ; un
+  chemin Git Bash `/c/…` écrit dans un fichier lu par Node devient `C:\c\…` → écrire `C:/…`.
 - **Scripts Node** (`scripts/`) : jamais `spawn(..., { shell: true })`, bloqué par Semgrep ; pour
   un `.cmd` Windows, appeler `cmd.exe /d /c <fichier> <args>` explicitement (cf.
   `update-api-contract.mjs`). Prettier : `npx prettier --config frontend/.prettierrc`, sinon les

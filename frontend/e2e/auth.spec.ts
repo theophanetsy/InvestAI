@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 import { API, PASSWORD, mockApi } from './support/api-mock';
+import { expectFocusRing, expectNoScroll, tabTo } from './support/layout';
 
 async function logIn(page: Page, password: string): Promise<void> {
   await page.getByLabel('Identifiant').fill('owner');
@@ -53,6 +54,18 @@ test.describe('authentication', () => {
 
     await expect(page.getByText("L'identifiant est obligatoire.")).toBeVisible();
     await expect(page.getByText('Le mot de passe est obligatoire.')).toBeVisible();
+  });
+
+  test('fits the login page in the window and shows the keyboard focus', async ({ page }) => {
+    await mockApi(page, { loggedIn: false });
+    await page.goto('/login');
+    const submit = page.getByRole('button', { name: 'Se connecter' });
+    await expect(submit).toBeVisible();
+    await expectNoScroll(page);
+
+    await tabTo(page, submit);
+
+    await expectFocusRing(submit);
   });
 
   test('says when the logout failed, with its reference', async ({ page }) => {
