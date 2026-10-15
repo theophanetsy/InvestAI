@@ -43,6 +43,25 @@ Un package par module métier sous `dev.investai` : `portfolio`, `market`, `assi
 - Javadoc sur les types publics de `src/main`.
 - Limites Checkstyle : méthode ≤ 40 lignes, complexité cyclomatique ≤ 10, ≤ 6 paramètres.
 
+## Contrat OpenAPI (ADR 0004)
+
+- springdoc décrit `/api/**` ; le contrat est versionné dans `api/openapi.json`. Après un
+  changement d'API : `./mvnw verify` puis `npm run api:update` (racine), et committer
+  `api/openapi.json` + `frontend/src/app/api/generated/` avec le code.
+- `operationId` = nom de la méthode du contrôleur : le choisir pour le client TypeScript
+  (`getStatus`, pas `status`), unique dans toute l'API. Un `@Tag(name = "<module>")` par contrôleur.
+- Champs des DTO : `required` par défaut, optionnels seulement si `@Nullable`
+  (`RequiredUnlessNullableConverter`) ; un champ nul est absent du JSON.
+- Les erreurs sont déclarées globalement (schéma `Problem`, `OpenApiConfiguration`) : ne pas
+  ajouter d'`@ApiResponse` d'erreur par endpoint. Un endpoint servi par un filtre (ex. logout)
+  s'ajoute au contrat par un `OpenApiCustomizer` (cf. `LogoutOpenApiConfiguration`) annoté
+  `@Order(HIGHEST_PRECEDENCE)` : il doit passer avant `problemResponses` (dernier), qui ajoute la
+  réponse d'erreur à toutes les opérations.
+- Nouveau module exposé dans l'API : ajouter son tag à la liste fermée de `OpenApiContractIT`
+  (voulu : un tag inattendu échoue).
+- Le build backend lit `../api/openapi.json` et ses tests `../frontend` : un futur `Dockerfile`
+  doit avoir la racine du dépôt comme contexte.
+
 ## Sécurité (ADR 0007)
 
 - API **fermée par défaut** : un nouvel endpoint public s'ajoute explicitement dans
@@ -90,11 +109,27 @@ Un package par module métier sous `dev.investai` : `portfolio`, `market`, `assi
 Format : symptôme → cause → bonne pratique. Compléter à chaque étape (workflow, étape 7).
 
 - **Spring Boot 4** : `server.error.*` sans effet → clés renommées → `spring.web.error.*`.
+- **springdoc** : sans `springdoc.paths-to-match`, `/error` entre dans le contrat avec des
+  `operationId` suffixés `_1` ; sans `default-produces-media-type`, les réponses sont en `*/*` ;
+  springdoc ignore JSpecify (d'où `RequiredUnlessNullableConverter`).
+- **`null` absent d'un corps JSON sortant** : `spring.jackson.default-property-inclusion=non_null`
+  est global, il s'applique aussi aux `RestClient` de Boot → si une API tierce exige un `null`
+  explicite, `@JsonInclude(ALWAYS)` sur le DTO concerné.
+- **AssertJ + Jackson** : `JsonNode` est `Iterable` → `assertThat(node)` fait une assertion de
+  collection ; comparer `node.asString()` ou des `JsonNode` entiers.
 - **Échec de démarrage qui affiche un secret** : les analyseurs de Boot impriment la valeur
   rejetée d'une propriété (Bean Validation, conversion) → valider une valeur sensible dans le
   `@Bean` qui l'utilise, avec un message sans la valeur (cf. `SingleUserConfiguration`).
 - **Test MockMvc en 403 sur un POST** : `csrf()` envoie le jeton en paramètre `_csrf`, refusé
   ici → `with(csrf().asHeader())`.
+- **`AuthApiIT` cassé selon l'ordre des IT (session créée, cookie `XSRF-TOKEN` absent)** :
+  `csrf()` de spring-security-test remplace durablement le dépôt CSRF du filtre partagé par un
+  dépôt en session → dans un `@IntegrationTest`, jamais `csrf()` : GET pour obtenir le cookie
+  `XSRF-TOKEN`, puis le renvoyer en cookie + en-tête `X-XSRF-TOKEN` (cf. `OpenApiContractIT`).
+  Reproduire l'ordre de la CI : `./mvnw verify -Dfailsafe.runOrder=reversealphabetical`.
+- **OSV-Scanner sur une dépendance transitive** (ex. Jackson 2 via springdoc/swagger-core) :
+  version gérée par le BOM de Boot → surcharger la propriété (`jackson-2-bom.version`) dans le
+  bloc « Security overrides » du `pom.xml`, avec les identifiants GHSA.
 - **MockMvc ne voit pas** les cookies de session (posés par Tomcat), `/error`, le pare-feu HTTP
   ni les en-têtes ajoutés par le conteneur → `@IntegrationTest` + `HttpClient` (cf. `AuthApiIT`).
 - **Checkstyle « Hard-coded secret »** : attrape toute constante `password|secret|token = "…"`,

@@ -10,7 +10,8 @@
     "check:backend": "node scripts/backend-verify.mjs",
     "check:frontend": "cd frontend && npm run check",
     "check": "npm run check:backend && npm run check:frontend",
-    "secrets": "gitleaks git --redact --no-banner -v ."
+    "secrets": "gitleaks git --redact --no-banner -v .",
+    "api:update": "node scripts/update-api-contract.mjs"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",

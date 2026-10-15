@@ -59,6 +59,10 @@ jobs:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
           queries: security-extended,security-and-quality
+          # Generated OpenAPI client (ADR-0004): third-party code, already excluded from ESLint and Sonar.
+          config: |
+            paths-ignore:
+              - frontend/src/app/api/generated
       - if: matrix.build-mode == 'manual'
         name: Build backend
         working-directory: backend

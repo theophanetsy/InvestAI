@@ -27,6 +27,14 @@
     <tomcat.version>11.0.27</tomcat.version>
     <!-- GHSA-7hhh-6rmp-j9qf, GHSA-p6pp-m3f8-5c89, GHSA-cxp5-3px4-pw24, GHSA-wv8q-qhhj-9h54 and others -->
     <jackson-bom.version>3.1.7</jackson-bom.version>
+    <!-- Jackson 2, used by swagger-core (springdoc): GHSA-7hhh-6rmp-j9qf, GHSA-p6pp-m3f8-5c89,
+         GHSA-cxp5-3px4-pw24, GHSA-gx83-3vf8-gh7j, GHSA-q4xh-88c3-wmh7, GHSA-wjgm-6hv5-3cvf,
+         GHSA-wv8q-qhhj-9h54 -->
+    <jackson-2-bom.version>2.21.7</jackson-2-bom.version>
+
+    <!-- Spring Boot 4.1 line; not managed by the Spring Boot BOM -->
+    <springdoc.version>3.1.1</springdoc.version>
+    <openapi-generator.version>7.26.0</openapi-generator.version>
 
     <!-- Quality tooling versions: bump through Dependabot only -->
     <spotless.version>3.10.4</spotless.version>
@@ -78,6 +86,12 @@
     <dependency>
       <groupId>org.flywaydb</groupId>
       <artifactId>flyway-database-postgresql</artifactId>
+    </dependency>
+    <!-- OpenAPI contract served on /v3/api-docs, versioned in api/openapi.json (ADR-0004) -->
+    <dependency>
+      <groupId>org.springdoc</groupId>
+      <artifactId>springdoc-openapi-starter-webmvc-api</artifactId>
+      <version>${springdoc.version}</version>
     </dependency>
     <dependency>
       <groupId>org.jspecify</groupId>
@@ -338,6 +352,42 @@
               <goal>check</goal>
             </goals>
             <phase>verify</phase>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- Angular client generated from the versioned contract api/openapi.json (ADR-0004).
+           AngularClientUpToDateTest compares its .ts files with frontend/src/app/api/generated;
+           `npm run api:update` (repository root) refreshes both. -->
+      <plugin>
+        <groupId>org.openapitools</groupId>
+        <artifactId>openapi-generator-maven-plugin</artifactId>
+        <version>${openapi-generator.version}</version>
+        <executions>
+          <execution>
+            <id>angular-client</id>
+            <goals>
+              <goal>generate</goal>
+            </goals>
+            <phase>generate-test-resources</phase>
+            <configuration>
+              <inputSpec>${project.basedir}/../api/openapi.json</inputSpec>
+              <generatorName>typescript-angular</generatorName>
+              <output>${project.build.directory}/angular-client</output>
+              <!-- A schema or tag removed from the contract must not leave a stale file behind. -->
+              <cleanupOutput>true</cleanupOutput>
+              <generateApiTests>false</generateApiTests>
+              <generateModelTests>false</generateModelTests>
+              <generateApiDocumentation>false</generateApiDocumentation>
+              <generateModelDocumentation>false</generateModelDocumentation>
+              <configOptions>
+                <!-- Keep aligned with the Angular major version in frontend/package.json. -->
+                <ngVersion>22.0.0</ngVersion>
+                <fileNaming>kebab-case</fileNaming>
+                <stringEnums>true</stringEnums>
+                <supportsES6>true</supportsES6>
+              </configOptions>
+            </configuration>
           </execution>
         </executions>
       </plugin>

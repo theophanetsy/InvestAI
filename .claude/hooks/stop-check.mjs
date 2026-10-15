@@ -48,7 +48,7 @@ if (formatFiles.length > 0) {
   if (!r.ok) failures.push(`Prettier (frontend):\n${r.output}`);
 }
 if (lintFiles.length > 0) {
-  const r = runNodeTool(['eslint', 'bin', 'eslint.js'], ['--max-warnings=0', ...lintFiles]);
+  const r = runNodeTool(['eslint', 'bin', 'eslint.js'], ['--max-warnings=0', '--no-warn-ignored', ...lintFiles]);
   if (!r.ok) failures.push(`ESLint (frontend):\n${r.output}`);
 }
 if (backendChanged) {

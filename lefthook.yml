@@ -23,7 +23,7 @@ pre-commit:
     frontend-lint:
       root: frontend/
       glob: "*.{ts,html}"
-      run: npx eslint --max-warnings=0 {staged_files}
+      run: npx eslint --max-warnings=0 --no-warn-ignored {staged_files}
     frontend-styles:
       root: frontend/
       glob: "*.scss"

@@ -38,6 +38,9 @@ module.exports = defineConfig([
       // i18n will be handled later through a dedicated ADR.
       '@angular-eslint/require-localize-metadata': 'off',
       '@angular-eslint/use-component-selector': 'error',
+      // Same severity as former tsc noUnusedLocals/noUnusedParameters; generated client is ignored (ADR-0004).
+      '@typescript-eslint/no-unused-vars': ['error', { args: 'all' }],
+      '@typescript-eslint/no-unused-private-class-members': 'error',
       '@typescript-eslint/explicit-function-return-type': [
         'error',
         { allowExpressions: true, allowTypedFunctionExpressions: true },
