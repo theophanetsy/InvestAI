@@ -13,7 +13,8 @@ l'application réelle**, comme le ferait l'utilisateur, avant d'ouvrir la PR.
 1. **Stack isolée en une commande** — **Given** Docker démarré, **when** on lance
    `npm run stack:start` (racine), **then** une base PostgreSQL jetable, le backend et le frontend
    démarrent, et la commande se termine en affichant l'URL (`http://localhost:14200`),
-   l'identifiant et le mot de passe une fois l'application prête (readiness backend `UP`,
+   l'identifiant et l'emplacement du mot de passe (`.local-stack/state.json`, jamais affiché :
+   règle CodeQL `js/clear-text-logging`) une fois l'application prête (readiness backend `UP`,
    frontend servi).
 2. **Isolation** — la stack de vérification n'utilise ni les ports (5432, 8080, 4200), ni la
    base, ni les identifiants de la stack de développement : projet Compose `investai-verify`,

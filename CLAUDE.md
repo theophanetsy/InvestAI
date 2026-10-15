@@ -36,7 +36,7 @@ cd frontend && npm run e2e         # Playwright
 # Après un changement d'API (contrat + client Angular, ADR-0004)
 cd backend && ./mvnw verify && cd .. && npm run api:update
 
-# Application réelle isolée (base jetable, login aléatoire affiché ; Docker requis)
+# Application réelle isolée (base jetable, mot de passe aléatoire dans .local-stack/state.json ; Docker requis)
 npm run stack:start                # http://localhost:14200 ; npm run stack:stop pour tout arrêter
 ```
 
@@ -62,6 +62,8 @@ npm run stack:start                # http://localhost:14200 ; npm run stack:stop
   - Outils `mcp__investai-browser__*` absents → `.mcp.json` n'est chargé qu'au démarrage de
     Claude Code, après approbation du serveur → redémarrer la session ; en attendant, un autre
     Playwright MCP écrit dans `.playwright-mcp/` (ignoré par Git), à supprimer après usage.
+  - Check CodeQL rouge `js/clear-text-logging` → un script affiche un secret (même jetable) →
+    l'écrire dans un fichier ignoré par Git et n'afficher que son emplacement.
 
 ## Workflow obligatoire
 

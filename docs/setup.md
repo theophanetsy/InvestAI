@@ -42,14 +42,15 @@ cd frontend && npm start             # http://localhost:4200 (proxy /api → :80
 
 ```bash
 npm run stack:start    # base jetable + backend :18080 + frontend http://localhost:14200
-npm run stack:status   # rappelle l'URL et le login jetable
+npm run stack:status   # rappelle l'URL et l'identifiant
 npm run stack:stop     # arrête tout, supprime la base jetable
 ```
 
 - Copie **isolée** de l'app (projet Compose `investai-verify`, ports 15432 / 18080 / 14200) :
   elle peut tourner en même temps que la stack de développement, sans toucher à ses données ni
-  à `infra/.env`. Identifiant `verifier` et mot de passe aléatoire, affichés au démarrage et
-  rangés dans `.local-stack/state.json` (ignoré par Git), avec les journaux.
+  à `infra/.env`. Identifiant `verifier` affiché au démarrage ; mot de passe aléatoire
+  jamais affiché, à lire dans le champ `password` de `.local-stack/state.json` (ignoré par Git,
+  avec les journaux).
 - Dans Claude Code : `/verify-app <critères>` lance l'agent `app-verifier`, qui pilote un
   navigateur via le serveur MCP `investai-browser` (`.mcp.json` : Playwright MCP en version
   figée, sans interface, requêtes restreintes à `http://localhost:14200` : un garde-fou, pas une

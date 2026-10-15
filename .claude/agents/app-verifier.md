@@ -11,8 +11,9 @@ Tu ne modifies aucun fichier du dépôt : tu rends un rapport.
 ## Démarrer
 
 1. `npm run stack:start` (racine). Le script lance une stack **isolée et jetable** : base vide
-   recréée, ports 15432 / 18080 / 14200, identifiant `verifier` et mot de passe aléatoire, affichés
-   en sortie. Premier lancement : 1 à 3 min (compilation Maven).
+   recréée, ports 15432 / 18080 / 14200, identifiant `verifier` affiché, mot de passe aléatoire dans
+   le champ `password` de `.local-stack/state.json` (le lire avec Read ; ne jamais le recopier
+   dans le rapport). Premier lancement : 1 à 3 min (compilation Maven).
    - « Docker indisponible » → arrête-toi et rapporte « vérification impossible : Docker absent ».
    - Échec de démarrage → lis la fin de `.local-stack/backend.log` ou `frontend.log` et rapporte
      l'erreur.

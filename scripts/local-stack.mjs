@@ -36,13 +36,14 @@ function readState() {
   return existsSync(stateFile) ? JSON.parse(readFileSync(stateFile, 'utf8')) : null;
 }
 
+/** Never prints the password: console output ends up in terminal history and agent transcripts. */
 function printLogin(state) {
   console.log(
     [
       'Stack de vérification prête (données jetables) :',
       `  URL          ${state.url}`,
       `  Identifiant  ${state.username}`,
-      `  Mot de passe ${state.password}`,
+      '  Mot de passe champ "password" de .local-stack/state.json',
       `  Journaux     .local-stack/backend.log, .local-stack/frontend.log`,
       'Arrêt : npm run stack:stop',
     ].join('\n'),
