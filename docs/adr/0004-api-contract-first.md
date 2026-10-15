@@ -27,7 +27,7 @@ côté backend.
   assouplir une règle tant que le niveau d'exigence reste le même sur notre code :
   `noUnusedLocals` / `noUnusedParameters` sont retirés du `tsconfig` (le code généré est compilé
   avec le reste) et remplacés, avec la même sévérité, par la règle ESLint
-  `@typescript-eslint/no-unused-vars` (`args: all`) et
+  `@typescript-eslint/no-unused-vars` (`args: all`, préfixe `_` toléré comme avec `tsc`) et
   `@typescript-eslint/no-unused-private-class-members` (membres `private`), qui s'appliquent à tout le code sauf
   `src/app/api/generated/`.
 - `src/app/api/generated/**` est du code tiers, jamais édité, hors lint, hors couverture et hors

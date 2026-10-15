@@ -39,8 +39,9 @@ module.exports = defineConfig([
       '@angular-eslint/require-localize-metadata': 'off',
       '@angular-eslint/use-component-selector': 'error',
       // Same severity as former tsc noUnusedLocals/noUnusedParameters; generated client is ignored (ADR-0004).
-      '@typescript-eslint/no-unused-vars': ['error', { args: 'all' }],
+      '@typescript-eslint/no-unused-vars': ['error', { args: 'all', argsIgnorePattern: '^_' }],
       '@typescript-eslint/no-unused-private-class-members': 'error',
+      '@typescript-eslint/no-extraneous-class': ['error', { allowWithDecorator: true }],
       '@typescript-eslint/explicit-function-return-type': [
         'error',
         { allowExpressions: true, allowTypedFunctionExpressions: true },
