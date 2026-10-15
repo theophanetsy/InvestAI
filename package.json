@@ -11,7 +11,10 @@
     "check:frontend": "cd frontend && npm run check",
     "check": "npm run check:backend && npm run check:frontend",
     "secrets": "gitleaks git --redact --no-banner -v .",
-    "api:update": "node scripts/update-api-contract.mjs"
+    "api:update": "node scripts/update-api-contract.mjs",
+    "stack:start": "node scripts/local-stack.mjs start",
+    "stack:status": "node scripts/local-stack.mjs status",
+    "stack:stop": "node scripts/local-stack.mjs stop"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",

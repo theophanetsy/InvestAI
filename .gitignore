@@ -18,6 +18,11 @@ Thumbs.db
 # Node (root tooling)
 /node_modules
 
+# Isolated verification stack (scripts/local-stack.mjs): logs and throwaway login
+/.local-stack/
+# Default output of a Playwright MCP server without --output-dir (snapshots, console logs)
+/.playwright-mcp/
+
 # Backend
 backend/target/
 backend/.mvn/wrapper/maven-wrapper.jar
