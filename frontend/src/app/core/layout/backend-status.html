@@ -1,0 +1,13 @@
+<span data-testid="backend-status">
+  @switch (state()) {
+    @case ('up') {
+      Backend connecté
+    }
+    @case ('down') {
+      Backend indisponible
+    }
+    @default {
+      Connexion au backend…
+    }
+  }
+</span>

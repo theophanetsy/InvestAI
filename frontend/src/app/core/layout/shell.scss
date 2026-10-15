@@ -1,0 +1,30 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+}
+
+.shell__bar {
+  gap: 1rem;
+}
+
+.shell__status,
+.shell__user {
+  font: var(--mat-sys-body-medium);
+}
+
+.shell__spacer {
+  flex: 1;
+}
+
+.shell__body {
+  flex: 1;
+}
+
+.shell__navigation {
+  width: 14rem;
+}
+
+.shell__content {
+  padding: 1.5rem;
+}

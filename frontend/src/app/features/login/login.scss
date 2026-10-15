@@ -1,0 +1,28 @@
+.login {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: 1rem;
+}
+
+.login__form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: min(100%, 22rem);
+}
+
+.login__title {
+  margin: 0;
+  font: var(--mat-sys-headline-medium);
+}
+
+.login__subtitle {
+  margin: 0 0 1rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.login__error {
+  margin: 0 0 0.5rem;
+  color: var(--mat-sys-error);
+}
