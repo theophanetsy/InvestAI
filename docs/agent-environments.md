@@ -49,5 +49,10 @@ La CI les exécute toujours (check requis `Backend verify`) : rien n'est mergé 
 Sans Docker, `npm run api:update` est impossible : le contrat `backend/target/openapi.json` est
 écrit par `OpenApiContractIT`. Un changement d'API se fait donc sur un poste ou un agent avec Docker.
 
+Sans Docker, pas de `npm run stack:start` ni d'agent `app-verifier` (la stack de vérification a
+besoin de PostgreSQL) : l'écrire dans la PR (« vérification dans l'app réelle non faite »). Sur un
+environnement sans Chrome, le serveur MCP `investai-browser` a besoin d'un navigateur :
+`cd frontend && npx playwright install chrome`.
+
 On n'utilise pas `@Testcontainers(disabledWithoutDocker = true)` : un test sauté en silence
 ressemble à un test qui passe.

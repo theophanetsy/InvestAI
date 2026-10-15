@@ -27,8 +27,9 @@ Principe directeur : **chaque phase se termine par une app qui tourne, CI verte,
 | Phase 1.2 — Erreurs RFC 9457 + logs JSON | ✅ Terminée (PR #9) |
 | Phase 1.3 — Authentification mono-utilisateur | ✅ Terminée (PR #10) |
 | Phase 1.4 — Contrat OpenAPI + client Angular généré | ✅ Terminée (PR #11) |
-| Phase 1.5 — Shell Angular | ✅ Terminée |
-| **Phase 1.6 — Agent `app-verifier`** | ⏭️ Prochaine étape |
+| Phase 1.5 — Shell Angular | ✅ Terminée (PR #12) |
+| Phase 1.6 — Agent `app-verifier` | ✅ Terminée |
+| **Phase 2 — Portefeuilles réels & Dashboard** | ⏭️ Prochaine étape |
 
 ---
 
@@ -45,7 +46,7 @@ Objectif : un repo où il est *impossible* de merger du code non formaté, non t
 
 ---
 
-## Phase 1 — Socle technique
+## Phase 1 — Socle technique ✅
 
 Objectif : le minimum de plomberie pour attaquer le métier. Ce qui ne sert qu'à partir de l'IA (observabilité) ou du cloud (images Docker de l'app) est volontairement repoussé.
 
@@ -56,7 +57,7 @@ Objectif : le minimum de plomberie pour attaquer le métier. Ce qui ne sert qu'�
 | 1.3 ✅ | **Auth** mono-utilisateur ([ADR-0007](adr/0007-authentification-mono-utilisateur.md), [spec](specs/phase-1-03-authentication.md)) : session `HttpOnly` + CSRF, identifiants hors du code, 401/403 et `/error` en problem+json, readiness `show-components=when-authorized`. OIDC prévu pour le cloud (Phase 10). |
 | 1.4 ✅ | Contrat OpenAPI versionné (`api/openapi.json`, springdoc) + client Angular généré par openapi-generator, vérifiés en CI ([ADR-0004](adr/0004-api-contract-first.md), [spec](specs/phase-1-04-openapi-contract.md)). |
 | 1.5 ✅ | Shell Angular ([ADR-0008](adr/0008-bibliotheque-ui-angular-material.md) : Angular Material, [spec](specs/phase-1-05-angular-shell.md)) : barre d'application et navigation, routes lazy (dashboard / assistant / actu / simulation, pages « Bientôt disponible »), écran de connexion + gardes, intercepteurs d'erreurs (401 → connexion, 403 CSRF → nouvelle tentative, 5xx → notification). |
-| 1.6 | Agent `app-verifier` : lance la stack locale et explore l'UI avec Playwright. |
+| 1.6 ✅ | Agent `app-verifier` ([spec](specs/phase-1-06-app-verifier.md)) : `npm run stack:start` lance une copie isolée et jetable de l'app (base, backend, frontend, login aléatoire), l'agent la pilote avec Playwright MCP (`/verify-app`). |
 
 En local, l'app tourne avec `./mvnw spring-boot:run` (qui démarre Postgres) et `npm start` : pas d'image Docker de l'app avant la Phase 10.
 
