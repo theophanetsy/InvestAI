@@ -32,6 +32,8 @@ cd frontend && npm start             # http://localhost:4200 (proxy /api → :80
 - `infra/.env` contient `POSTGRES_PASSWORD`, `INVESTAI_USERNAME` et `INVESTAI_PASSWORD_HASH`
   (hash PBKDF2, jamais le mot de passe en clair ; [ADR-0007](adr/0007-authentification-mono-utilisateur.md)).
   Sans eux, le backend refuse de démarrer.
+- Ouvrir http://localhost:4200 : l'écran de connexion demande `INVESTAI_USERNAME` et le mot de
+  passe dont le hash est dans `INVESTAI_PASSWORD_HASH`.
 - Santé : http://localhost:8080/actuator/health/readiness (détail de la base une fois connecté).
 - Arrêter la base : `docker compose -f infra/docker-compose.yml stop` (Spring ne l'arrête pas,
   `lifecycle-management=start-only`). Repartir de zéro : `... down -v` (supprime les données).

@@ -9,5 +9,6 @@
 | [0005](0005-persistance-postgres-flyway.md) | Persistance : PostgreSQL 18, Flyway, Testcontainers | Accepté |
 | [0006](0006-contrat-erreurs-et-logs.md) | Contrat d'erreur (RFC 9457 + `code`) et logs JSON corrélés | Accepté |
 | [0007](0007-authentification-mono-utilisateur.md) | Authentification mono-utilisateur : session, CSRF, identifiants hors du code | Accepté |
+| [0008](0008-bibliotheque-ui-angular-material.md) | Bibliothèque UI : Angular Material | Accepté |
 
 Créer un nouvel ADR : commande `/new-adr <titre>` (modèle : [template.md](template.md)).
