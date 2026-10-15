@@ -35,6 +35,9 @@ cd frontend && npm run e2e         # Playwright
 
 # Après un changement d'API (contrat + client Angular, ADR-0004)
 cd backend && ./mvnw verify && cd .. && npm run api:update
+
+# Application réelle isolée (base jetable, login aléatoire affiché ; Docker requis)
+npm run stack:start                # http://localhost:14200 ; npm run stack:stop pour tout arrêter
 ```
 
 ## Environnement (sandbox / cloud)
@@ -52,6 +55,13 @@ cd backend && ./mvnw verify && cd .. && npm run api:update
   un `.cmd` Windows, appeler `cmd.exe /d /c <fichier> <args>` explicitement (cf.
   `update-api-contract.mjs`). Prettier : `npx prettier --config frontend/.prettierrc`, sinon les
   défauts (guillemets doubles) s'appliquent hors de `frontend/`.
+- **Pièges connus** (stack de vérification) :
+  - `docker compose down` → « required variable POSTGRES_PASSWORD is missing » → le compose
+    interpole ses variables même pour `down` → passer une valeur factice (`removeDatabase()`
+    dans `scripts/local-stack.mjs`).
+  - Outils `mcp__investai-browser__*` absents → `.mcp.json` n'est chargé qu'au démarrage de
+    Claude Code, après approbation du serveur → redémarrer la session ; en attendant, un autre
+    Playwright MCP écrit dans `.playwright-mcp/` (ignoré par Git), à supprimer après usage.
 
 ## Workflow obligatoire
 
@@ -60,6 +70,8 @@ cd backend && ./mvnw verify && cd .. && npm run api:update
 2. **Plan** avant de coder si le changement touche plus d'un fichier ou d'un module.
 3. **Test-first** : écrire le test qui échoue, puis le code. Un bug = un test de non-régression.
 4. **Vérifier localement** avec `/check` (ou `npm run check`) avant de déclarer une tâche finie.
+   Changement visible dans l'UI ou parcours de bout en bout → aussi `/verify-app` (agent
+   `app-verifier` : vraie app, navigateur) ; sans Docker, l'écrire dans la PR.
 5. **Branche + PR** : jamais de commit direct sur `main`. Commits au format Conventional Commits
    (`feat(portfolio): ...`, `fix(frontend): ...`, scopes dans `commitlint.config.mjs`).
 6. **Décision structurante** (lib, pattern, fournisseur, modèle IA) → ADR dans `docs/adr/` (`/new-adr`).
