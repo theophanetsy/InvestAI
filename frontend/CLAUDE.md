@@ -6,11 +6,48 @@ Angular 22 · TypeScript 6 strict · zoneless · Vitest · Playwright. Node 24 (
 
 ```
 src/app/
-  core/            services transverses (HTTP, erreurs, auth), singletons
+  core/            services transverses, singletons
+    api/           provideApiClient() (chemin de base du client généré)
+    auth/          AuthSession (utilisateur connecté), authGuard / guestGuard, safeReturnUrl
+    http/          intercepteurs d'erreurs, toProblem(), jetons HttpContext
+    layout/        Shell (barre + navigation), BackendStatus, NotFound
   shared/          composants/pipes UI réutilisables, sans logique métier
-  features/<nom>/  dashboard, chat, news, simulation — chargés en lazy via le router
+  features/<nom>/  login, dashboard, chat, news, simulation — chargés en lazy via le router
   api/generated/   client OpenAPI généré (ne jamais éditer à la main)
 ```
+
+## Shell, routes et erreurs HTTP (Phase 1.5)
+
+- **UI** : Angular Material + CDK ([ADR-0008](../docs/adr/0008-bibliotheque-ui-angular-material.md)).
+  Importer le composant précis (`MatButton`, `MatFormField`…), pas le module entier quand c'est
+  possible. Couleurs/typo via les variables `--mat-sys-*` (thème unique dans `src/styles.scss`),
+  jamais en surchargeant `.mat-mdc-*`. Pas de police ni d'icône depuis un CDN.
+- **Routes** (`app.routes.ts`) : toute page en `loadComponent` (y compris le `Shell`, pour garder
+  ses composants Material hors du bundle initial ; seuls le snack-bar et l'overlay CDK y restent,
+  via `serverErrorInterceptor`), avec un `title` `<Titre> · InvestAI`. Une nouvelle page de
+  l'app est un enfant de la route `''` (protégée par `authGuard`) et un lien dans
+  `Shell.links`.
+- **Inputs liés au routeur** (`withComponentInputBinding`) : tout `input()` d'un composant routé
+  peut être fixé par l'URL (query param, paramètre de route) → c'est une **entrée non fiable** :
+  la valider, et jamais un input qui déclenche une écriture ou vaut confirmation (un lien piégé
+  `?confirm=true` ne doit rien pouvoir faire).
+- **Session** : `AuthSession` (`user()`, `isAuthenticated()`, `login()`, `logout()`) ; ne jamais
+  appeler `AuthService` directement depuis un composant. Seul un 401 de `me` est mémorisé comme
+  « anonyme » (serveur injoignable → on redemande à la navigation suivante) ; un 401 au logout
+  vaut succès. Les appels d'authentification gèrent leurs erreurs eux-mêmes (`selfHandledErrors`) :
+  l'écran affiche `failureMessage(...)`.
+- **Qui affiche quelle erreur** (`withApiInterceptors()`, ordre fixé dans `api-interceptors.ts`) :
+  - 401 → `unauthorizedInterceptor` oublie l'utilisateur et ouvre `/login?returnUrl=<page>` ;
+  - 403 `auth.csrf-invalid` → `csrfRetryInterceptor` renouvelle le cookie (GET) et rejoue une fois ;
+  - statut 0 ou ≥ 500 → `serverErrorInterceptor` affiche une notification avec le `requestId` ;
+  - 4xx (validation, métier) → **l'écran appelant**, qui convertit avec `toProblem(error)` et
+    décide sur `problem.code`.
+    L'erreur est toujours propagée : un `subscribe` de composant a **toujours** un callback
+    `error` (sinon erreur non gérée dans la console). Un appel qui affiche lui-même ses erreurs se
+    retire via `HttpContext` : `selfHandledErrors()` ou `REDIRECT_ON_UNAUTHORIZED` /
+    `NOTIFY_SERVER_ERRORS` à `false` (ex. `BackendStatus`, appels d'authentification).
+- **Redirection après connexion** : uniquement `router.navigateByUrl(safeReturnUrl(...))` (chemin
+  interne, ni `//hôte`, ni `\`, ni caractère de contrôle) ; jamais `window.location`.
 
 ## Règles de code
 
@@ -49,6 +86,8 @@ src/app/
   recharger le jeton : refaire un GET), `validation.failed` (400, erreurs par champ),
   `http.<statut>` (erreurs génériques), `internal.error` (500), codes métier `<module>.<cas>`.
   Type TypeScript : le modèle généré `Problem` (`api/generated`), jamais une interface à la main.
+  Côté front, `toProblem()` ajoute `network.unavailable` (statut 0, serveur injoignable) et
+  `http.<statut>` pour une réponse qui n'est pas du problem+json (proxy).
 - Publics sans session : `GET /api/v1/status`, `POST /api/v1/auth/login`.
 
 ## Pièges connus
@@ -61,7 +100,30 @@ Format : symptôme → cause → bonne pratique. Compléter à chaque étape (wo
 - **Variable ou membre `private` inutilisé** : vérifié par ESLint (`no-unused-vars`,
   `no-unused-private-class-members` de typescript-eslint), plus par
   `tsc` (désactivé pour tout le projet à cause du code généré, ADR-0004) → `npm run lint` avant
-  de conclure. `args: 'all'` sans exception : un paramètre préfixé `_` est aussi refusé.
+  de conclure. Comme avec `tsc`, un paramètre imposé par une signature mais inutile se préfixe
+  `_` (ex. `(_route, state) =>` dans un garde).
+- **`@typescript-eslint/unbound-method` sur `Validators.required`** : méthode statique passée
+  sans son objet → pour un champ obligatoire, l'attribut `required` du template suffit
+  (`RequiredValidator` s'applique aussi à `formControlName`, et pose `aria-required`).
+- **`no-deprecated` sur `HttpErrorResponse.statusText`** : faux en HTTP/2 → ne jamais l'afficher,
+  passer par `toProblem()`.
+- **`inject-at-top`** : tous les `inject()` en champs `private readonly` en tête de classe, avant
+  `input()` et les champs qui les utilisent.
+- **`component-max-inline-declarations`** : template inline ≤ 3 lignes, sinon `templateUrl`.
+- **Budget `initial` (500 kB) dépassé à l'ajout de composants Material** : un composant chargé
+  par une route `component:` est dans le bundle initial → `loadComponent` partout ; ne jamais
+  relever le budget.
+- **Test de routes : `expectOne('/api/v1/auth/me')` ne trouve rien** : les gardes s'exécutent
+  après le démarrage asynchrone de la navigation → `await vi.waitFor(() => http.expectOne(…))`
+  (cf. `app.spec.ts`).
+- **E2E : formulaire Material** : `page.getByLabel('Identifiant')` fonctionne (le `mat-label`
+  est relié à l'input). **Notification (snack-bar) introuvable par `getByRole('status')`** :
+  le texte n'est pas dans l'élément de rôle `status` → la chercher par son texte (`getByText`).
+- **Requête rejouée dans un intercepteur avec l'ancien jeton CSRF** : `provideHttpClient` place
+  l'intercepteur XSRF d'Angular avant ceux de `withInterceptors` et il n'écrase jamais un
+  en-tête existant → relire `HttpXsrfTokenExtractor.getToken()` et poser `X-XSRF-TOKEN`
+  soi-même (cf. `csrf-retry.interceptor.ts`). Le logout supprime le cookie `XSRF-TOKEN` : le
+  POST de connexion suivant part sans jeton et passe par ce rejeu.
 - **Modifier `api/generated`** : interdit, le build backend le compare au contrat →
   `npm run api:update` depuis la racine.
 - **`eslint --max-warnings=0 <fichiers>` échoue sur « File ignored because of a matching ignore

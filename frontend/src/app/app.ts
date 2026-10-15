@@ -1,26 +1,11 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { catchError, map, of } from 'rxjs';
-import { SystemService } from './api/generated';
 
-type BackendState = 'loading' | 'up' | 'down';
-
+/** Root component: the router decides between the login screen and the application shell. */
 @Component({
   selector: 'inv-root',
   imports: [RouterOutlet],
-  templateUrl: './app.html',
-  styleUrl: './app.scss',
+  template: '<router-outlet />',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class App {
-  protected readonly backendState = toSignal(
-    inject(SystemService)
-      .getStatus()
-      .pipe(
-        map((): BackendState => 'up'),
-        catchError(() => of<BackendState>('down')),
-      ),
-    { initialValue: 'loading' },
-  );
-}
+export class App {}

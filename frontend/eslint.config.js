@@ -38,9 +38,12 @@ module.exports = defineConfig([
       // i18n will be handled later through a dedicated ADR.
       '@angular-eslint/require-localize-metadata': 'off',
       '@angular-eslint/use-component-selector': 'error',
-      // Same severity as former tsc noUnusedLocals/noUnusedParameters; generated client is ignored (ADR-0004).
-      '@typescript-eslint/no-unused-vars': ['error', { args: 'all' }],
+      // Same severity as former tsc noUnusedLocals/noUnusedParameters (`_` prefix = intentionally unused);
+      // generated client is ignored (ADR-0004).
+      '@typescript-eslint/no-unused-vars': ['error', { args: 'all', argsIgnorePattern: '^_' }],
       '@typescript-eslint/no-unused-private-class-members': 'error',
+      // Angular components may be fully declared by their decorator (e.g. template-only pages).
+      '@typescript-eslint/no-extraneous-class': ['error', { allowWithDecorator: true }],
       '@typescript-eslint/explicit-function-return-type': [
         'error',
         { allowExpressions: true, allowTypedFunctionExpressions: true },

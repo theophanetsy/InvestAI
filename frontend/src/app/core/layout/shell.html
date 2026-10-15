@@ -1,0 +1,60 @@
+<header>
+  <mat-toolbar class="shell__bar">
+    @if (narrow()) {
+      <button
+        mat-button
+        type="button"
+        aria-controls="navigation"
+        [attr.aria-expanded]="drawer.opened"
+        (click)="drawer.toggle()"
+      >
+        Menu
+      </button>
+    }
+    <span class="shell__title">InvestAI</span>
+    @if (!narrow()) {
+      <inv-backend-status class="shell__status" />
+    }
+    <span class="shell__spacer"></span>
+    @if (!narrow()) {
+      @if (user(); as current) {
+        <span class="shell__user" data-testid="current-user">{{ current.username }}</span>
+      }
+    }
+    <button mat-button type="button" [disabled]="loggingOut()" (click)="logout()">
+      Se déconnecter
+    </button>
+  </mat-toolbar>
+</header>
+
+<mat-sidenav-container class="shell__body">
+  <mat-sidenav
+    #drawer
+    id="navigation"
+    class="shell__navigation"
+    [mode]="narrow() ? 'over' : 'side'"
+    [opened]="!narrow()"
+  >
+    <!-- mat-nav-list is the navigation landmark (role="navigation"). -->
+    <mat-nav-list aria-label="Navigation principale">
+      @for (link of links; track link.path) {
+        <a
+          #active="routerLinkActive"
+          mat-list-item
+          routerLinkActive
+          ariaCurrentWhenActive="page"
+          [routerLink]="link.path"
+          [activated]="active.isActive"
+          (click)="navigated(drawer)"
+        >
+          {{ link.label }}
+        </a>
+      }
+    </mat-nav-list>
+  </mat-sidenav>
+  <mat-sidenav-content>
+    <main class="shell__content">
+      <router-outlet />
+    </main>
+  </mat-sidenav-content>
+</mat-sidenav-container>

@@ -1,0 +1,34 @@
+<main class="login">
+  <form class="login__form" novalidate [formGroup]="form" (ngSubmit)="submit()">
+    <h1 class="login__title">InvestAI</h1>
+    <p class="login__subtitle">Connectez-vous pour accéder à vos portefeuilles.</p>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Identifiant</mat-label>
+      <input matInput formControlName="username" autocomplete="username" required />
+      @if (form.controls.username.hasError('required')) {
+        <mat-error>L'identifiant est obligatoire.</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Mot de passe</mat-label>
+      <input
+        matInput
+        type="password"
+        formControlName="password"
+        autocomplete="current-password"
+        required
+      />
+      @if (form.controls.password.hasError('required')) {
+        <mat-error>Le mot de passe est obligatoire.</mat-error>
+      }
+    </mat-form-field>
+
+    @if (error(); as message) {
+      <p class="login__error" role="alert">{{ message }}</p>
+    }
+
+    <button mat-flat-button type="submit" [disabled]="pending()">Se connecter</button>
+  </form>
+</main>

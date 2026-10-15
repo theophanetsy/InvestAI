@@ -1,57 +1,97 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { App } from './app';
+import { Title } from '@angular/platform-browser';
+import { Router, provideRouter, withComponentInputBinding } from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
+import { routes } from './app.routes';
 import { provideApiClient } from './core/api/api-client';
+import { withApiInterceptors } from './core/http/api-interceptors';
 
-describe('App', () => {
+describe('App routes', () => {
   let http: HttpTestingController;
 
-  beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      imports: [App],
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideApiClient()],
-    }).compileComponents();
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(withApiInterceptors()),
+        provideHttpClientTesting(),
+        provideApiClient(),
+        provideRouter(routes, withComponentInputBinding()),
+      ],
+    });
     http = TestBed.inject(HttpTestingController);
   });
 
-  function statusText(element: HTMLElement): string {
-    return element.querySelector('[data-testid="backend-status"]')?.textContent.trim() ?? '';
+  afterEach(() => {
+    http.verify();
+  });
+
+  /** Navigates as a logged-in user (or not), answering the session and status calls. */
+  async function open(url: string, loggedIn: boolean): Promise<HTMLElement> {
+    const harness = await RouterTestingHarness.create();
+    const navigation = harness.navigateByUrl(url);
+    // The guard asks for the session once the navigation has started.
+    const me = await vi.waitFor(() => http.expectOne('/api/v1/auth/me'));
+    if (loggedIn) {
+      me.flush({ username: 'owner' });
+    } else {
+      me.flush(null, { status: 401, statusText: 'Unauthorized' });
+    }
+    await navigation;
+    await harness.fixture.whenStable();
+    for (const status of http.match('/api/v1/status')) {
+      status.flush({ application: 'investai-backend', serverTime: '2026-01-02T03:04:05Z' });
+    }
+    await harness.fixture.whenStable();
+    return harness.routeNativeElement ?? (harness.fixture.nativeElement as HTMLElement);
   }
 
-  it('renders the application title', async () => {
-    const fixture = TestBed.createComponent(App);
-    await fixture.whenStable();
+  function heading(element: HTMLElement): string | undefined {
+    return element.querySelector('h1')?.textContent.trim();
+  }
 
-    expect((fixture.nativeElement as HTMLElement).querySelector('h1')?.textContent).toBe(
-      'InvestAI',
-    );
+  it('sends an anonymous user to the login screen, remembering the requested page', async () => {
+    const element = await open('/simulation', false);
+
+    expect(TestBed.inject(Router).url).toBe('/login?returnUrl=%2Fsimulation');
+    expect(heading(element)).toBe('InvestAI');
+    expect(element.querySelector('form')).not.toBeNull();
+    expect(TestBed.inject(Title).getTitle()).toBe('Connexion · InvestAI');
   });
 
-  it('shows a loading state before the backend answers', async () => {
-    const fixture = TestBed.createComponent(App);
-    await fixture.whenStable();
+  it('opens the dashboard by default', async () => {
+    const element = await open('/', true);
 
-    expect(statusText(fixture.nativeElement as HTMLElement)).toBe('Connexion au backend…');
+    expect(TestBed.inject(Router).url).toBe('/dashboard');
+    expect(heading(element)).toBe('Tableau de bord');
+    expect(TestBed.inject(Title).getTitle()).toBe('Tableau de bord · InvestAI');
   });
 
-  it('shows the backend as connected when the status call succeeds', async () => {
-    const fixture = TestBed.createComponent(App);
-    http
-      .expectOne('/api/v1/status')
-      .flush({ application: 'investai-backend', serverTime: '2026-01-02T03:04:05Z' });
-    await fixture.whenStable();
+  it('sends a logged-in user away from the login screen', async () => {
+    await open('/login', true);
 
-    expect(statusText(fixture.nativeElement as HTMLElement)).toBe('Backend connecté');
+    expect(TestBed.inject(Router).url).toBe('/dashboard');
   });
 
-  it('shows the backend as unavailable when the status call fails', async () => {
-    const fixture = TestBed.createComponent(App);
-    http
-      .expectOne('/api/v1/status')
-      .flush('boom', { status: 503, statusText: 'Service Unavailable' });
-    await fixture.whenStable();
+  it.each([
+    ['/dashboard', 'Tableau de bord'],
+    ['/assistant', 'Assistant'],
+    ['/actu', 'Actu'],
+    ['/simulation', 'Simulation'],
+    ['/nope', 'Page introuvable'],
+  ])('shows %s inside the application shell', async (url, title) => {
+    const element = await open(url, true);
 
-    expect(statusText(fixture.nativeElement as HTMLElement)).toBe('Backend indisponible');
+    expect(heading(element)).toBe(title);
+    expect(element.closest('inv-shell')).not.toBeNull();
+    expect(TestBed.inject(Title).getTitle()).toBe(`${title} · InvestAI`);
+  });
+
+  it('marks the current page in the navigation', async () => {
+    const element = await open('/actu', true);
+
+    const current = element.closest('inv-shell')?.querySelector('a[aria-current="page"]');
+    expect(current?.textContent.trim()).toBe('Actu');
   });
 });
