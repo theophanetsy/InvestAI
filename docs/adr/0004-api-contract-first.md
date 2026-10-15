@@ -30,7 +30,8 @@ côté backend.
   `@typescript-eslint/no-unused-vars` (`args: all`) et
   `@typescript-eslint/no-unused-private-class-members` (membres `private`), qui s'appliquent à tout le code sauf
   `src/app/api/generated/`.
-- `src/app/api/generated/**` est du code tiers, jamais édité, hors lint et hors couverture : les
+- `src/app/api/generated/**` est du code tiers, jamais édité, hors lint, hors couverture et hors
+  analyse SonarCloud / CodeQL (`paths-ignore` dans `security.yml`) : les
   interdits du `CLAUDE.md` (`any`, directives qui ignorent une erreur TypeScript…) ne s'y
   appliquent pas. Ne pas le « corriger » ni le signaler en revue ; un problème se règle par la
   configuration du générateur.
