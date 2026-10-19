@@ -153,6 +153,9 @@ function startBackend(databasePassword, password) {
       SPRING_DATASOURCE_PASSWORD: databasePassword,
       INVESTAI_USERNAME: USERNAME,
       INVESTAI_PASSWORD_HASH: hashPassword(password),
+      // Throwaway database: the market data jobs would download the Euronext files again and
+      // spend the EODHD quota at every start (infra/.env may hold the key). Never call providers.
+      INVESTAI_MARKET_JOBS_ENABLED: 'false',
     },
   });
 }
