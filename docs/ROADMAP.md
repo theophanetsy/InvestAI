@@ -6,14 +6,16 @@ InvestAI est un projet perso à double objectif :
 1. **Apprendre** Java / Spring Boot / Angular (compétences manquantes) et le développement assisté par coding agents.
 2. **Intégrer de l'IA dans une web app** de façon "production-grade" : agent conversationnel, tools, MCP, modèles frontier, observabilité LLM, évaluations, tests.
 
-Fonctionnel : suivi PEA + compte-titres (dashboard), agent de conseil toujours disponible (selon horizon court/moyen/long terme), page **Actu** alimentée par un agent planifié qui analyse les news boursières, page **Simulation** (portefeuilles fictifs, achats datés, suivi de performance) — simulations créables par l'agent depuis le chat, pour mesurer la pertinence de ses conseils.
+Fonctionnel : **aide à la décision pour un PEA alimenté par un montant fixe**. L'agent de conseil propose des valeurs (actions, ETF) et une stratégie cohérente avec le profil de risque, à partir de l'historique des cours et des news ; le propriétaire passe lui-même les ordres chez son courtier (BoursoBank). Page **Actu** alimentée par un agent planifié qui analyse les news boursières ; page **Simulation** (portefeuilles fictifs) où chaque recommandation de l'agent est suivie et comparée à un ETF MSCI World, pour mesurer objectivement la pertinence de ses conseils.
+
+Limite assumée : aucun modèle ne prédit de façon fiable quelles actions vont monter. L'application vaut par la cohérence de la stratégie, la mesure du risque sur des chiffres calculés (pas inventés par le modèle) et la notation des conseils dans le temps.
 
 Décisions prises :
 - **Stack** : Java 25 + Spring Boot 4, Angular 22 (standalone, signals, zoneless), PostgreSQL 18, monorepo ([ADR-0001](adr/0001-stack-technique.md)).
 - **IA** : LangChain4j, versions beta acceptées (projet POC) ([ADR-0002](adr/0002-framework-ia-langchain4j.md)). Choix des modèles/fournisseurs reporté à la Phase 3.
 - **Hébergement** : local d'abord, cloud en dernière phase.
 - **Repo/CI** : GitHub + GitHub Actions.
-- **Données de portefeuille** : saisie manuelle + import de documents (CSV, avis d'opéré, relevés). Pas de connexion directe à la banque (voir Phase 9).
+- **Données de portefeuille** : lignes détenues et montant à placer déclarés directement, sans suivi des transactions ni import (recentrage du 2026-10-19). Pas de connexion directe à la banque (voir Phase 9).
 
 Principe directeur : **chaque phase se termine par une app qui tourne, CI verte, quality gate passé**. Aucune ligne de code métier avant que la Phase 0 soit en place.
 
@@ -29,9 +31,9 @@ Principe directeur : **chaque phase se termine par une app qui tourne, CI verte,
 | Phase 1.4 — Contrat OpenAPI + client Angular généré | ✅ Terminée (PR #11) |
 | Phase 1.5 — Shell Angular | ✅ Terminée (PR #12) |
 | Phase 1.6 — Agent `app-verifier` | ✅ Terminée |
-| **Phase 2 — Portefeuilles réels & Dashboard** | 🔄 En cours |
-| Phase 2.0 — Choix des données de marché ([ADR-0009](adr/0009-fournisseur-donnees-marche.md), [spec](specs/phase-2-00-market-data.md)) | ✅ Terminée |
-| Phase 2.1 — Données de marché : référentiel, collecte quotidienne, historique ([spec](specs/phase-2-01-market-data-collection.md)) | 🔄 En revue (PR ouverte, vérification réelle avec la clé EODHD à faire) |
+| **Phase 2 — Données, profil et indicateurs** | 🔄 En cours |
+| Phase 2.0 — Choix des données de marché ([ADR-0009](adr/0009-fournisseur-donnees-marche.md), [spec](specs/phase-2-00-market-data.md)) | ✅ Terminée (PR #16) |
+| Phase 2.1 — Données de marché : référentiel, collecte quotidienne, historique ([spec](specs/phase-2-01-market-data-collection.md)) | ✅ Terminée (PR #17) ; vérification réelle avec la clé EODHD à faire par le propriétaire |
 
 ---
 
@@ -65,49 +67,48 @@ En local, l'app tourne avec `./mvnw spring-boot:run` (qui démarre Postgres) et 
 
 ---
 
-## Phase 2 — Portefeuilles réels & Dashboard
+## Phase 2 — Données, profil et indicateurs
+
+**Recentrage du 2026-10-19** : le propriétaire place un montant fixe sur son PEA et passe ses ordres
+lui-même ; ce qu'il attend de l'application, c'est le conseil (quelles valeurs, quelle stratégie,
+quel risque), pas la comptabilité du portefeuille. La saisie des transactions, le PRU au centime
+près, l'import CSV et l'import de documents par IA sont abandonnés ; la Phase 2 prépare les
+données dont l'agent de conseil (Phase 3) a besoin. Une ébauche de la 2.2 « comptes et
+transactions » est conservée hors de `main` (stash `phase 2.2 accounts/transactions WIP`).
 
 | Étape | Contenu |
 |---|---|
 | 2.0 ✅ | Choix des sources de données de marché ([ADR-0009](adr/0009-fournisseur-donnees-marche.md)). |
-| 2.1 🔄 | Module `market` ([spec](specs/phase-2-01-market-data-collection.md)) : référentiel EODHD de Paris (1 appel/semaine), clôtures quotidiennes depuis les fichiers MiFIR d'Euronext (job horaire 9 h-23 h et au démarrage), 1 an d'historique et rattrapage des jours manqués par EODHD dans un budget de 15 appels/jour, API de lecture et de suivi (`/api/v1/market`). Jobs `@Scheduled` sans ShedLock (une seule instance). |
-| 2.2 | Comptes PEA / CTO et transactions (saisie manuelle), avec la recherche de valeurs dans l'UI. |
-| 2.3 | Positions et valorisation : PRU, plus-values, éligibilité PEA, plafond de versements, attributions gratuites. |
-| 2.4 | Import CSV des transactions. |
-| 2.5 | Dashboard Angular : valeur, répartition, courbe d'évolution comparée aux benchmarks. |
+| 2.1 ✅ | Module `market` ([spec](specs/phase-2-01-market-data-collection.md)) : référentiel EODHD de Paris (1 appel/semaine), clôtures quotidiennes depuis les fichiers MiFIR d'Euronext (job horaire 9 h-23 h et au démarrage), 1 an d'historique et rattrapage des jours manqués par EODHD dans un budget de 15 appels/jour, API de lecture et de suivi (`/api/v1/market`). Jobs `@Scheduled` sans ShedLock (une seule instance). |
+| 2.2 | **Tout Paris** : la clôture de chaque valeur du référentiel (actions et ETF, ~1 300) est gardée chaque jour depuis les fichiers Euronext, sans coût ; l'historique se constitue au fil des séances. L'historique EODHD d'1 an reste réservé aux valeurs suivies (budget de 15 appels/jour). Éligibilité PEA des valeurs (règle à cadrer dans la spec). |
+| 2.3 | **Profil et portefeuille déclaré** : montant fixe à placer et rythme, horizon, tolérance au risque ; lignes détenues saisies directement (valeur, quantité, prix moyen d'achat affiché par le courtier), sans historique de transactions ; valorisation sur la dernière clôture. Recherche de valeurs dans l'UI. |
+| 2.4 | **Indicateurs calculés** (en base, jamais par le modèle) : performance sur 1/3/6/12 mois, volatilité, pire baisse, comparaison au MSCI World (CW8) ; concentration et corrélations du portefeuille déclaré. Dashboard Angular simple : portefeuille, indicateurs, courbe comparée au benchmark. |
 
 - **2.0 ✅ — Données de marché d'abord (ADR + spike)** : c'est la dépendance critique (dashboard, simulations, backtests, tools de l'agent). Valider sur des valeurs d'Euronext Paris : cours actuels, historique profond, couverture des ETF, quotas, conditions d'utilisation. Benchmarks via des ETF cotés (CAC 40, MSCI World) plutôt que des données d'indices, souvent sous licence. Décision ([ADR-0009](adr/0009-fournisseur-donnees-marche.md)) : clôtures quotidiennes depuis les fichiers différés gratuits d'Euronext (MiFIR), référentiel / 1 an d'historique / opérations sur titres depuis l'offre gratuite d'EODHD.
-- **Modèle de domaine** : `Account` (type PEA / CTO, plafond de versements PEA), `Instrument` (ISIN, ticker, place, devise, éligibilité PEA), `Transaction` (achat, vente, dividende, frais, versement), `Position` (calculée), `Valuation`.
-- Règles métier testées unitairement : PRU, plus/moins-values latentes et réalisées, performance (TWR/MWR simple), éligibilité PEA, plafond de versement.
-- **Saisie des données** : manuelle + import CSV. L'import de documents par IA arrive en Phase 3.
 - **Données de marché** : port `MarketDataProvider` (cours actuels + historiques), adaptateurs Euronext MiFIR et EODHD (ADR-0009), cache en base + jobs de collecte planifiés (`@Scheduled`) dans le backend. ShedLock est reporté au déploiement multi-instances (Phase 10) : une seule instance tourne, l'idempotence repose sur les contraintes d'unicité (spec 2.1, critère 20). Le dashboard, les simulations et les tools de l'agent lisent la base, jamais les fournisseurs.
-- **Dashboard Angular** : valeur totale, répartition (par compte, secteur, géographie), courbe d'évolution, tableau des positions, P&L.
-- Tests : unitaires domaine, intégration Testcontainers, E2E Playwright du parcours dashboard.
+- Tests : unitaires domaine, intégration Testcontainers, E2E Playwright des parcours profil / portefeuille / dashboard.
 
 ---
 
-## Phase 3 — Premiers pas IA : import intelligent puis agent conversationnel (LangChain4j)
+## Phase 3 — Agent de conseil (LangChain4j)
 
 ### 3.0 — Socle IA
-- **ADR choix du/des modèle(s) et fournisseur(s)** : qualité, coût, rétention des données (les documents importés contiennent des données personnelles : masquer le numéro de compte avant envoi).
+- **ADR choix du/des modèle(s) et fournisseur(s)** : qualité, coût (budget mensuel à fixer avec le propriétaire), rétention des données (profil et portefeuille sont des données personnelles).
 - LangChain4j confiné à `..infrastructure..` (règle ArchUnit, comme JPA) : le domaine ne dépend jamais du framework.
 - **Observabilité** : Micrometer + OpenTelemetry → Grafana LGTM (un conteneur dans le compose) ; traces corrélées front → back → DB → appels modèle/tools (tokens, latence, coût). Langfuse (self-hosted) pour le suivi des prompts et sessions.
 - **Harnais d'evals dès le départ** : dataset versionné dans le repo, exécuté comme tests taggés (hors CI standard, car payants). Chaque changement de prompt se juge sur les evals, pas au feeling.
 - **Modèle de menace IA** (OWASP Top 10 LLM) rédigé avant le premier tool : données non fiables, tools d'écriture, exfiltration.
 
-### 3.1 — Import de documents par IA (premier cas d'usage)
-- Upload d'un document (avis d'opéré, relevé de portefeuille, export CSV) → appel unique au modèle → **sortie structurée** (transactions candidates).
-- Validation stricte (ISIN, montants `BigDecimal`, devise, dates) puis **écran de confirmation** : rien n'est écrit sans validation de l'utilisateur.
-- Evals naturelles : la vérité terrain est connue pour chaque document (exactitude champ par champ).
-- Remplace la connexion bancaire directe (voir Phase 9).
-
-### 3.2 — Agent conversationnel
-- **Profil investisseur** : objectifs, horizon (court/moyen/long), tolérance au risque, persistés et injectés dans le contexte de l'agent.
+### 3.1 — Agent conversationnel
+- Rôle : proposer des valeurs et une **stratégie cohérente avec le profil** (2.3) pour le montant fixe
+  à placer (répartition, diversification, part d'ETF / d'actions décidée avec l'agent selon le
+  profil), en limitant le risque ; justifier chaque proposition par les indicateurs calculés (2.4),
+  jamais par des chiffres qu'il produirait lui-même.
 - **AI Service LangChain4j** avec :
   - System prompt versionné (fichier ressource, pas en dur), disclaimer "pas un conseil financier".
-  - **Tools** (lecture d'abord) : `getPortfolio`, `getPositions`, `getQuote`, `getPriceHistory`, `getInvestorProfile`, `getLatestNews`.
+  - **Tools** (lecture uniquement) : `getPortfolio`, `getInvestorProfile`, `searchInstruments`, `getQuote`, `getPriceHistory`, `getIndicators`, `getLatestNews` (à partir de la Phase 4).
   - Mémoire de conversation persistée en base (ChatMemoryStore), historique des conversations.
-  - Sortie structurée pour les recommandations (ticker, horizon, rationale, niveau de confiance).
+  - Sortie structurée pour les recommandations (valeur, montant ou poids, horizon, justification, risques, niveau de confiance), **enregistrée et datée** : elle sera notée en Phase 5.
   - **Guardrails** : validation des entrées/sorties, limites de tokens/coût, pas d'action d'écriture sans confirmation utilisateur.
 - **Streaming** des réponses (SSE) vers Angular ; UI chat avec affichage des appels de tools.
 - Chat accessible depuis toute l'app (panneau latéral persistant).
@@ -115,18 +116,7 @@ En local, l'app tourne avec `./mvnw spring-boot:run` (qui démarre Postgres) et 
 
 ---
 
-## Phase 4 — Simulation (portefeuilles fictifs)
-
-- Domaine `SimulatedPortfolio` : capital initial fictif, type (PEA/CTO, avec règles d'éligibilité), ordres datés (dans le passé = backtest sur cours historiques, ou "à partir d'aujourd'hui" = suivi prospectif), frais paramétrables.
-- Moteur de valorisation réutilisant le domaine `portfolio` (pas de duplication de logique).
-- Comparaison à un benchmark (ETF CAC 40, MSCI World) et entre simulations.
-- **Origine tracée** : chaque simulation sait si elle a été créée par l'utilisateur ou par l'agent (+ lien vers la conversation / la recommandation source).
-- **Tools agent en écriture** : `createSimulation`, `addSimulatedOrder`, `getSimulationPerformance` — avec confirmation utilisateur dans l'UI avant exécution (human-in-the-loop).
-- Page Angular : liste, création, détail avec courbe de performance vs benchmark.
-
----
-
-## Phase 5 — Page Actu & agent planifié
+## Phase 4 — Page Actu & agent planifié
 
 - Ingestion de news (sources choisies via ADR : flux RSS financiers, API de news) via un port `NewsProvider`.
 - **Job planifié** (Spring `@Scheduled` + ShedLock, ex. chaque matin avant ouverture) qui lance un agent :
@@ -137,6 +127,17 @@ En local, l'app tourne avec `./mvnw spring-boot:run` (qui démarre Postgres) et 
 - Stockage des rapports, page Actu (rapport du jour, historique, filtres).
 - **Boucle d'évaluation** : chaque "action du moment" peut générer une simulation suivie (créée par le code applicatif, pas par l'agent) → mesure objective de la pertinence dans le temps.
 - Coût maîtrisé : budget tokens par exécution, modèle moins cher pour le tri, frontier pour la synthèse.
+
+---
+
+## Phase 5 — Simulation et notation des conseils (portefeuilles fictifs)
+
+- Domaine `SimulatedPortfolio` : capital initial fictif (par défaut le montant fixe du profil), règles d'éligibilité PEA, ordres datés (dans le passé = backtest sur cours historiques, limité par la profondeur d'historique ; ou "à partir d'aujourd'hui" = suivi prospectif), frais paramétrables.
+- Valorisation partagée avec le portefeuille déclaré (2.3), sans duplication de logique.
+- **Chaque recommandation de l'agent (3.1) devient un portefeuille fictif suivi**, comparé à l'ETF MSCI World acheté au même moment avec le même montant : c'est la mesure objective de sa valeur.
+- **Origine tracée** : chaque simulation sait si elle a été créée par l'utilisateur, par l'agent ou par le code applicatif (+ lien vers la conversation / la recommandation source).
+- **Tools agent en écriture** : `createSimulation`, `addSimulatedOrder`, `getSimulationPerformance` — avec confirmation utilisateur dans l'UI avant exécution (human-in-the-loop).
+- Page Angular : liste, création, détail avec courbe de performance vs benchmark.
 
 ---
 
@@ -172,7 +173,7 @@ Non prioritaire, et peut-être jamais :
 - la DSP2 n'impose l'accès qu'aux **comptes de paiement** : les PEA et comptes-titres n'en font pas partie, un agrégateur ne garantit donc pas l'accès aux positions ;
 - le scraping de l'espace client est exclu (conditions d'utilisation, double authentification, fragilité, stockage des identifiants bancaires).
 
-L'import de documents (Phase 3.1) couvre le besoin. Si une API officielle apparaît : adaptateur derrière un port `BrokerSyncProvider`, le domaine ne change pas.
+Le portefeuille déclaré (2.3) couvre le besoin. Si une API officielle apparaît : adaptateur derrière un port `BrokerSyncProvider`, le domaine ne change pas.
 
 ## Phase 10 — Déploiement cloud (à cadrer le moment venu)
 

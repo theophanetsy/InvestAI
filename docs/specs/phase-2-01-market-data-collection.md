@@ -28,6 +28,9 @@ Périmètre de place : **Euronext Paris** (actions du marché réglementé `XPAR
 | 2.4 | Import CSV des transactions. |
 | 2.5 | Dashboard Angular : valeur, répartition, courbe d'évolution comparée aux benchmarks. |
 
+> Découpage revu le 2026-10-19 après la livraison de la 2.1 (recentrage sur le conseil, sans suivi
+> des transactions) : voir la Phase 2 de la [ROADMAP](../ROADMAP.md).
+
 ## Critères d'acceptation
 
 ### 1. Modèle et schéma
