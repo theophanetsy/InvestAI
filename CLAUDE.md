@@ -56,7 +56,7 @@ npm run stack:start                # http://localhost:14200 ; npm run stack:stop
   un `.cmd` Windows, appeler `cmd.exe /d /c <fichier> <args>` explicitement (cf.
   `update-api-contract.mjs`). Prettier : `npx prettier --config frontend/.prettierrc`, sinon les
   défauts (guillemets doubles) s'appliquent hors de `frontend/`.
-- **Pièges connus** (stack de vérification) :
+- **Pièges connus** (stack de vérification, scripts ponctuels) :
   - `docker compose down` → « required variable POSTGRES_PASSWORD is missing » → le compose
     interpole ses variables même pour `down` → passer une valeur factice (`removeDatabase()`
     dans `scripts/local-stack.mjs`).
@@ -65,6 +65,12 @@ npm run stack:start                # http://localhost:14200 ; npm run stack:stop
     Playwright MCP écrit dans `.playwright-mcp/` (ignoré par Git), à supprimer après usage.
   - Check CodeQL rouge `js/clear-text-logging` → un script affiche un secret (même jetable) →
     l'écrire dans un fichier ignoré par Git et n'afficher que son emplacement.
+  - Clé d'API affichée en inspectant un dossier rempli à la main (`for f in dir/*; do head …`) →
+    un fichier de clé y avait été rangé par erreur → ne lire que les fichiers attendus (`*.csv`),
+    vérifier un fichier de secret par `test -f` / `grep -c`, jamais en l'affichant.
+  - Script ponctuel ayant besoin d'une clé d'API → `node --env-file=<fichier hors du dépôt>`
+    écrit par le propriétaire ; masquer la clé dans toute URL ou erreur affichée (EODHD la passe
+    en paramètre `api_token=`).
 
 ## Workflow obligatoire
 

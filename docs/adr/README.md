@@ -10,5 +10,6 @@
 | [0006](0006-contrat-erreurs-et-logs.md) | Contrat d'erreur (RFC 9457 + `code`) et logs JSON corrélés | Accepté |
 | [0007](0007-authentification-mono-utilisateur.md) | Authentification mono-utilisateur : session, CSRF, identifiants hors du code | Accepté |
 | [0008](0008-bibliotheque-ui-angular-material.md) | Bibliothèque UI : Angular Material | Accepté |
+| [0009](0009-fournisseur-donnees-marche.md) | Données de marché : fichiers différés Euronext (MiFIR) + EODHD gratuit | Proposé |
 
 Créer un nouvel ADR : commande `/new-adr <titre>` (modèle : [template.md](template.md)).

@@ -10,7 +10,9 @@ suivante). Cette étape **décide** sur des données réelles plutôt que sur la
 commerciale ; elle ne produit **aucun code de production**.
 
 Usage cible : une seule personne, un PEA et un compte-titres, quelques dizaines de lignes au plus,
-cours rafraîchis quelques fois par jour (pas de temps réel), historique quotidien profond.
+placement à moyen / long terme (horizon de plusieurs mois) : un cours de clôture quotidien suffit,
+un différé d'une heure est acceptable, le temps réel est inutile ; 1 à 2 ans d'historique
+quotidien suffisent (l'historique s'allonge ensuite par la collecte quotidienne).
 Benchmarks via des ETF cotés (CAC 40, MSCI World), pas via des données d'indices, souvent sous
 licence.
 
@@ -19,10 +21,11 @@ Contraintes du propriétaire :
 - **Budget : 0 €.** Seules les offres gratuites sont candidates ; un tarif payant est noté pour
   information (porte de sortie), il ne départage pas.
 - **Univers d'un PEA chez un courtier en ligne**, pas seulement les grandes valeurs : toutes les
-  actions d'Euronext Paris (CAC 40, SBF 120, petites valeurs, Euronext Growth), les actions
-  européennes éligibles PEA cotées sur d'autres places (Amsterdam, Bruxelles, Francfort,
-  Milan…) et les ETF éligibles PEA. On doit pouvoir retrouver une valeur par son nom ou son ISIN,
-  comme dans le moteur de recherche d'un courtier.
+  actions d'Euronext Paris (CAC 40, SBF 120, petites valeurs, Euronext Growth) et les ETF
+  éligibles PEA cotés à Paris sont **indispensables** ; les autres places Euronext (Amsterdam,
+  Bruxelles, Milan…) sont un plus ; Xetra, Madrid et les autres places hors Euronext ne sont pas
+  requises. On doit pouvoir retrouver une valeur par son nom ou son ISIN, comme dans le moteur de
+  recherche d'un courtier.
 
 ## Critères d'acceptation
 
@@ -33,8 +36,8 @@ Contraintes du propriétaire :
      fin de journée) ;
    - historique quotidien : profondeur, cours bruts et/ou ajustés, dividendes et opérations sur
      titres (divisions, attributions gratuites) ;
-   - couverture de l'univers PEA : petites valeurs et Euronext Growth, autres places européennes,
-     ETF éligibles PEA dont les benchmarks CAC 40 et MSCI World ;
+   - couverture de l'univers PEA : petites valeurs et Euronext Growth Paris, ETF éligibles PEA dont
+     les benchmarks CAC 40 et MSCI World ; autres places Euronext en bonus ;
    - identification : par ISIN, par ticker (et suffixe de place), recherche ISIN → ticker et
      recherche par nom ;
    - quotas de l'offre gratuite (appels par minute / jour / mois, requêtes groupées possibles ?)
@@ -63,8 +66,8 @@ Contraintes du propriétaire :
    - un ETF CAC 40 (benchmark) : Amundi CAC 40 UCITS ETF Dist (`FR0007052782`) ;
    - une petite valeur peu liquide d'Euronext Growth Paris, choisie au début du spike (couverture
      hors grandes capitalisations, jours sans échange) ;
-   - une action européenne éligible PEA cotée hors de Paris : ASML (`NL0010273215`, Euronext
-     Amsterdam).
+   - une action européenne éligible PEA cotée hors de Paris, pour le critère « bonus » : ASML
+     (`NL0010273215`, Euronext Amsterdam).
 
 3. **Spike sur 1 ou 2 fournisseurs** — les mieux classés du comparatif. Pour chaque valeur du
    panel, l'ADR consigne (section « Résultats du spike », date d'exécution) :
@@ -72,8 +75,9 @@ Contraintes du propriétaire :
    - le cours actuel renvoyé : prix, devise, horodatage, délai constaté ;
    - la plus ancienne date d'historique quotidien disponible ;
    - l'exactitude : clôture **non ajustée** comparée à la clôture officielle Euronext sur
-     5 dates réparties sur plusieurs années (écart toléré : 0 au centime ; tout écart est noté et
-     expliqué) ;
+     5 dates réparties sur les 2 dernières années (profondeur de l'export Euronext, téléchargé à la
+     main par le propriétaire : les conditions d'utilisation du site interdisent l'accès
+     automatisé) ; écart toléré : 0 au centime ; tout écart est noté et expliqué ;
    - la présence de cours ajustés et des dividendes / opérations sur titres ;
    - le nombre d'appels consommés et les quotas observés (en-têtes, erreurs 429).
 
@@ -81,7 +85,8 @@ Contraintes du propriétaire :
    - Le code du spike vit hors du dépôt (répertoire temporaire de la session), sans dépendance
      (script Node, `fetch` natif) ; il n'est ni commité ni référencé par le code de production.
    - Une clé d'API éventuelle est créée par le propriétaire, transmise uniquement par une
-     variable d'environnement (`MARKET_DATA_SPIKE_API_KEY`) et n'apparaît ni dans un fichier du
+     variable d'environnement (`MARKET_DATA_SPIKE_API_KEY`, chargée par `node --env-file` depuis
+     un fichier hors du dépôt que seul le propriétaire écrit) et n'apparaît ni dans un fichier du
      dépôt, ni dans une sortie de commande, ni dans une conversation avec l'agent. Une URL qui
      porte la clé en paramètre n'est jamais affichée telle quelle (clé masquée).
    - Les réponses brutes des fournisseurs ne sont pas commitées (redistribution) : l'ADR n'en
