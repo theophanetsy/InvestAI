@@ -6,7 +6,7 @@ InvestAI est un projet perso à double objectif :
 1. **Apprendre** Java / Spring Boot / Angular (compétences manquantes) et le développement assisté par coding agents.
 2. **Intégrer de l'IA dans une web app** de façon "production-grade" : agent conversationnel, tools, MCP, modèles frontier, observabilité LLM, évaluations, tests.
 
-Fonctionnel : **aide à la décision pour un PEA alimenté par un montant fixe**. L'agent de conseil propose des valeurs (actions, ETF) et une stratégie cohérente avec le profil de risque, à partir de l'historique des cours et des news ; le propriétaire passe lui-même les ordres chez son courtier (BoursoBank). Page **Actu** alimentée par un agent planifié qui analyse les news boursières ; page **Simulation** (portefeuilles fictifs) où chaque recommandation de l'agent est suivie et comparée à un ETF MSCI World, pour mesurer objectivement la pertinence de ses conseils.
+Fonctionnel : **aide à la décision pour placer une somme unique sur un PEA**. L'agent de conseil propose des valeurs (actions, ETF) et une stratégie cohérente avec le profil de risque, à partir de l'historique des cours et des news ; le propriétaire passe lui-même les ordres chez son courtier (BoursoBank). Page **Actu** alimentée par un agent planifié qui analyse les news boursières ; page **Simulation** (portefeuilles fictifs) où chaque recommandation de l'agent est suivie et comparée à un ETF MSCI World, pour mesurer objectivement la pertinence de ses conseils.
 
 Limite assumée : aucun modèle ne prédit de façon fiable quelles actions vont monter. L'application vaut par la cohérence de la stratégie, la mesure du risque sur des chiffres calculés (pas inventés par le modèle) et la notation des conseils dans le temps.
 
@@ -35,6 +35,7 @@ Principe directeur : **chaque phase se termine par une app qui tourne, CI verte,
 | Phase 2.0 — Choix des données de marché ([ADR-0009](adr/0009-fournisseur-donnees-marche.md), [spec](specs/phase-2-00-market-data.md)) | ✅ Terminée (PR #16) |
 | Phase 2.1 — Données de marché : référentiel, collecte quotidienne, historique ([spec](specs/phase-2-01-market-data-collection.md)) | ✅ Terminée (PR #17) ; vérification réelle avec la clé EODHD à faire par le propriétaire |
 | Phase 2.2 — Clôtures de toutes les valeurs de Paris ([spec](specs/phase-2-02-all-paris-closes.md)) | ✅ Terminée (PR #19) |
+| Phase 2.3 — Profil investisseur, portefeuille déclaré, éligibilité PEA ([spec](specs/phase-2-03-profile-portfolio.md)) | 🔄 En cours |
 
 ---
 
@@ -70,7 +71,7 @@ En local, l'app tourne avec `./mvnw spring-boot:run` (qui démarre Postgres) et 
 
 ## Phase 2 — Données, profil et indicateurs
 
-**Recentrage du 2026-10-19** : le propriétaire place un montant fixe sur son PEA et passe ses ordres
+**Recentrage du 2026-10-19** : le propriétaire place une somme unique sur son PEA et passe ses ordres
 lui-même ; ce qu'il attend de l'application, c'est le conseil (quelles valeurs, quelle stratégie,
 quel risque), pas la comptabilité du portefeuille. La saisie des transactions, le PRU au centime
 près, l'import CSV et l'import de documents par IA sont abandonnés ; la Phase 2 prépare les
@@ -82,7 +83,7 @@ transactions » est conservée hors de `main` (stash `phase 2.2 accounts/transac
 | 2.0 ✅ | Choix des sources de données de marché ([ADR-0009](adr/0009-fournisseur-donnees-marche.md)). |
 | 2.1 ✅ | Module `market` ([spec](specs/phase-2-01-market-data-collection.md)) : référentiel EODHD de Paris (1 appel/semaine), clôtures quotidiennes depuis les fichiers MiFIR d'Euronext (job horaire 9 h-23 h et au démarrage), 1 an d'historique et rattrapage des jours manqués par EODHD dans un budget de 15 appels/jour, API de lecture et de suivi (`/api/v1/market`). Jobs `@Scheduled` sans ShedLock (une seule instance). |
 | 2.2 ✅ | **Tout Paris** ([spec](specs/phase-2-02-all-paris-closes.md)) : la clôture de chaque valeur du référentiel (actions et ETF, ~1 300) est gardée chaque jour depuis les fichiers Euronext, sans coût, avec le volume et le nombre de transactions de la séance ; l'historique se constitue au fil des séances (trous les jours sans collecte). L'historique EODHD d'1 an et le rattrapage restent réservés aux valeurs suivies (budget de 15 appels/jour). |
-| 2.3 | **Éligibilité PEA** des valeurs (déplacée de la 2.2, règle validée par le propriétaire). **Profil et portefeuille déclaré** : montant fixe à placer et rythme, horizon, tolérance au risque ; lignes détenues saisies directement (valeur, quantité, prix moyen d'achat affiché par le courtier), sans historique de transactions ; valorisation sur la dernière clôture. Recherche de valeurs dans l'UI. |
+| 2.3 🔄 | **Éligibilité PEA** des valeurs (déplacée de la 2.2, règle validée par le propriétaire). **Profil et portefeuille déclaré** : somme unique à placer (en une fois, sans versements réguliers), horizon, profil de risque choisi parmi quatre (prudent, équilibré, dynamique, offensif), préférences, date d'ouverture du PEA ; lignes détenues saisies directement (valeur, quantité, prix moyen d'achat affiché par le courtier), sans historique de transactions ; valorisation sur la dernière clôture. Recherche de valeurs dans l'UI. |
 | 2.4 | **Indicateurs calculés** (en base, jamais par le modèle) : performance sur 1/3/6/12 mois, volatilité, pire baisse, comparaison au MSCI World (CW8) ; concentration et corrélations du portefeuille déclaré. Dashboard Angular simple : portefeuille, indicateurs, courbe comparée au benchmark. |
 
 - **2.0 ✅ — Données de marché d'abord (ADR + spike)** : c'est la dépendance critique (dashboard, simulations, backtests, tools de l'agent). Valider sur des valeurs d'Euronext Paris : cours actuels, historique profond, couverture des ETF, quotas, conditions d'utilisation. Benchmarks via des ETF cotés (CAC 40, MSCI World) plutôt que des données d'indices, souvent sous licence. Décision ([ADR-0009](adr/0009-fournisseur-donnees-marche.md)) : clôtures quotidiennes depuis les fichiers différés gratuits d'Euronext (MiFIR), référentiel / 1 an d'historique / opérations sur titres depuis l'offre gratuite d'EODHD.
@@ -101,7 +102,7 @@ transactions » est conservée hors de `main` (stash `phase 2.2 accounts/transac
 - **Modèle de menace IA** (OWASP Top 10 LLM) rédigé avant le premier tool : données non fiables, tools d'écriture, exfiltration.
 
 ### 3.1 — Agent conversationnel
-- Rôle : proposer des valeurs et une **stratégie cohérente avec le profil** (2.3) pour le montant fixe
+- Rôle : proposer des valeurs et une **stratégie cohérente avec le profil** (2.3) pour la somme unique
   à placer (répartition, diversification, part d'ETF / d'actions décidée avec l'agent selon le
   profil), en limitant le risque ; justifier chaque proposition par les indicateurs calculés (2.4),
   jamais par des chiffres qu'il produirait lui-même.
@@ -133,7 +134,7 @@ transactions » est conservée hors de `main` (stash `phase 2.2 accounts/transac
 
 ## Phase 5 — Simulation et notation des conseils (portefeuilles fictifs)
 
-- Domaine `SimulatedPortfolio` : capital initial fictif (par défaut le montant fixe du profil), règles d'éligibilité PEA, ordres datés (dans le passé = backtest sur cours historiques, limité par la profondeur d'historique ; ou "à partir d'aujourd'hui" = suivi prospectif), frais paramétrables.
+- Domaine `SimulatedPortfolio` : capital initial fictif (par défaut la somme unique du profil), règles d'éligibilité PEA, ordres datés (dans le passé = backtest sur cours historiques, limité par la profondeur d'historique ; ou "à partir d'aujourd'hui" = suivi prospectif), frais paramétrables.
 - Valorisation partagée avec le portefeuille déclaré (2.3), sans duplication de logique.
 - **Chaque recommandation de l'agent (3.1) devient un portefeuille fictif suivi**, comparé à l'ETF MSCI World acheté au même moment avec le même montant : c'est la mesure objective de sa valeur.
 - **Origine tracée** : chaque simulation sait si elle a été créée par l'utilisateur, par l'agent ou par le code applicatif (+ lien vers la conversation / la recommandation source).
