@@ -29,7 +29,8 @@ Principe directeur : **chaque phase se termine par une app qui tourne, CI verte,
 | Phase 1.4 — Contrat OpenAPI + client Angular généré | ✅ Terminée (PR #11) |
 | Phase 1.5 — Shell Angular | ✅ Terminée (PR #12) |
 | Phase 1.6 — Agent `app-verifier` | ✅ Terminée |
-| **Phase 2 — Portefeuilles réels & Dashboard** | ⏭️ Prochaine étape |
+| **Phase 2 — Portefeuilles réels & Dashboard** | 🔄 En cours |
+| Phase 2.0 — Choix des données de marché ([ADR-0009](adr/0009-fournisseur-donnees-marche.md), [spec](specs/phase-2-00-market-data.md)) | ✅ Terminée |
 
 ---
 
@@ -65,11 +66,11 @@ En local, l'app tourne avec `./mvnw spring-boot:run` (qui démarre Postgres) et 
 
 ## Phase 2 — Portefeuilles réels & Dashboard
 
-- **2.0 — Données de marché d'abord (ADR + spike)** : c'est la dépendance critique (dashboard, simulations, backtests, tools de l'agent). Valider sur des valeurs d'Euronext Paris : cours actuels, historique profond, couverture des ETF, quotas, conditions d'utilisation. Benchmarks via des ETF cotés (CAC 40, MSCI World) plutôt que des données d'indices, souvent sous licence.
+- **2.0 ✅ — Données de marché d'abord (ADR + spike)** : c'est la dépendance critique (dashboard, simulations, backtests, tools de l'agent). Valider sur des valeurs d'Euronext Paris : cours actuels, historique profond, couverture des ETF, quotas, conditions d'utilisation. Benchmarks via des ETF cotés (CAC 40, MSCI World) plutôt que des données d'indices, souvent sous licence. Décision ([ADR-0009](adr/0009-fournisseur-donnees-marche.md)) : clôtures quotidiennes depuis les fichiers différés gratuits d'Euronext (MiFIR), référentiel / 1 an d'historique / opérations sur titres depuis l'offre gratuite d'EODHD.
 - **Modèle de domaine** : `Account` (type PEA / CTO, plafond de versements PEA), `Instrument` (ISIN, ticker, place, devise, éligibilité PEA), `Transaction` (achat, vente, dividende, frais, versement), `Position` (calculée), `Valuation`.
 - Règles métier testées unitairement : PRU, plus/moins-values latentes et réalisées, performance (TWR/MWR simple), éligibilité PEA, plafond de versement.
 - **Saisie des données** : manuelle + import CSV. L'import de documents par IA arrive en Phase 3.
-- **Données de marché** : port `MarketDataProvider` (cours actuels + historiques), adaptateur retenu en 2.0, cache en base + job de rafraîchissement planifié (`@Scheduled` + ShedLock).
+- **Données de marché** : port `MarketDataProvider` (cours actuels + historiques), adaptateurs Euronext MiFIR et EODHD (ADR-0009), cache en base + job de rafraîchissement planifié (`@Scheduled` + ShedLock) dans le backend. Le dashboard, les simulations et les tools de l'agent lisent la base, jamais les fournisseurs.
 - **Dashboard Angular** : valeur totale, répartition (par compte, secteur, géographie), courbe d'évolution, tableau des positions, P&L.
 - Tests : unitaires domaine, intégration Testcontainers, E2E Playwright du parcours dashboard.
 
