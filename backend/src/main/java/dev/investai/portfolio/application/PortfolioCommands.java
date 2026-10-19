@@ -90,9 +90,9 @@ public class PortfolioCommands {
           DUPLICATE_INSTRUMENT, "Instrument already in the portfolio: " + instrumentId);
     }
     tracking.track(instrumentId);
+    // The line only: the instrument would tell what the owner holds once logs are centralised.
     String lineId = LogSanitizer.oneLine(line.id());
-    String instrumentText = LogSanitizer.oneLine(instrumentId);
-    LOG.info("Portfolio line added: line={}, instrument={}", lineId, instrumentText);
+    LOG.info("Portfolio line added: line={}", lineId);
     return line;
   }
 

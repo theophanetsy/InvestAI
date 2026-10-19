@@ -48,7 +48,7 @@ public class PortfolioQueries {
   }
 
   /**
-   * Values the declared PEA; lines sorted by instrument name.
+   * Values the declared PEA; lines sorted by instrument name, then ISIN and venue.
    *
    * @return the valuation and the held instruments
    */
@@ -65,8 +65,9 @@ public class PortfolioQueries {
             .map(line -> new PricedLine(line, quoteOf(details.get(line.instrumentId()))))
             .sorted(
                 Comparator.comparing(
-                    (PricedLine line) -> nameOf(instruments, line.line()),
-                    String.CASE_INSENSITIVE_ORDER))
+                        (PricedLine line) -> nameOf(instruments, line.line()),
+                        String.CASE_INSENSITIVE_ORDER)
+                    .thenComparing(line -> listingOf(instruments, line.line())))
             .toList();
     return new PortfolioOverview(
         Valuation.of(priced, portfolio.findCash().orElse(null)), instruments);
@@ -84,6 +85,11 @@ public class PortfolioQueries {
       return null;
     }
     return new Quote(close.close(), close.tradingDate());
+  }
+
+  private static String listingOf(Map<InstrumentId, Instrument> instruments, PortfolioLine line) {
+    Instrument instrument = instruments.get(line.instrumentId());
+    return instrument == null ? "" : instrument.listing().toString();
   }
 
   private static String nameOf(Map<InstrumentId, Instrument> instruments, PortfolioLine line) {

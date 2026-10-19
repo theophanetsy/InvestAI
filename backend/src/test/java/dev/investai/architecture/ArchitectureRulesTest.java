@@ -5,11 +5,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.lang.ArchRule;
 import dev.investai.architecture.fixture.application.LeakyUseCase;
+import dev.investai.portfolio.fixture.LeakyPortfolioAdapter;
 import org.junit.jupiter.api.Test;
 
 /**
- * Proves that persistence rules actually detect violations: with no entity in the codebase yet,
- * they would otherwise pass vacuously.
+ * Proves that the rules actually detect violations: with no entity in the codebase yet, the
+ * persistence rules would otherwise pass vacuously.
  */
 class ArchitectureRulesTest {
 
@@ -26,6 +27,17 @@ class ArchitectureRulesTest {
   @Test
   void rejectsJpaUsageInApplicationLayer() {
     assertViolated(ArchitectureTest.ONLY_INFRASTRUCTURE_USES_JPA, "EntityManager");
+  }
+
+  @Test
+  void rejectsPortfolioCodeReachingIntoMarketAdaptersOrControllers() {
+    var leaky = new ClassFileImporter().importClasses(LeakyPortfolioAdapter.class);
+
+    assertThatThrownBy(
+            () -> ArchitectureTest.PORTFOLIO_USES_MARKET_THROUGH_ITS_APPLICATION.check(leaky))
+        .isInstanceOf(AssertionError.class)
+        .hasMessageContaining("MarketConfiguration")
+        .hasMessageContaining("MarketController");
   }
 
   private static void assertViolated(ArchRule rule, String expectedViolation) {

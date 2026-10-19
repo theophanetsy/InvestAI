@@ -1,6 +1,7 @@
 package dev.investai.portfolio.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTimeout;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -8,11 +9,13 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 
 import dev.investai.portfolio.application.InvestorProfiles;
 import dev.investai.portfolio.application.ProfileChange;
+import dev.investai.portfolio.domain.InvalidProfileException;
 import dev.investai.portfolio.domain.InvestorProfile;
 import dev.investai.portfolio.domain.RiskProfile;
 import dev.investai.shared.domain.ResourceNotFoundException;
 import dev.investai.support.SecuredWebMvcTest;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -34,6 +37,7 @@ class ProfileControllerTest {
 
   private static final String PROFILE = "/api/v1/profile";
   private static final String USER = "someone";
+  private static final String FIELD = "$.errors[0].field";
   private static final String VALID =
       """
       {"amountToInvest":"20000","horizonYears":10,"riskProfile":"DYNAMIC","exclusions":[]}
@@ -123,7 +127,7 @@ class ProfileControllerTest {
   @CsvSource(
       delimiter = '|',
       value = {
-        "\"amountToInvest\":\"0\"                 | amountToInvest | DecimalMin",
+        "\"amountToInvest\":\"0\"                 | amountToInvest | Pattern",
         "\"amountToInvest\":\"10,5\"              | amountToInvest | Pattern",
         "\"amountToInvest\":\"10.001\"            | amountToInvest | Pattern",
         "\"amountToInvest\":null                  | amountToInvest | NotNull",
@@ -133,7 +137,13 @@ class ProfileControllerTest {
         "\"exclusions\":[\" \"]                   | exclusions[0]  | NotBlank",
         "\"exclusions\":[\"a\\nb\"]               | exclusions[0]  | Pattern",
         "\"objectives\":\"bell\\u0007\"           | objectives     | Pattern",
-        "\"peaOpenedOn\":\"2999-01-01\"           | peaOpenedOn    | PastOrPresent",
+        "\"objectives\":\"next\\u0085line\"       | objectives     | Pattern",
+        "\"objectives\":\"zero\\u200bwidth\"      | objectives     | Pattern",
+        "\"objectives\":\"bidi\\u202eevil\"       | objectives     | Pattern",
+        "\"objectives\":\"tag\\udb40\\udc41\"     | objectives     | Pattern",
+        "\"objectives\":\"private\\ue000\"        | objectives     | Pattern",
+        "\"exclusions\":[\"line\\u2028break\"]    | exclusions[0]  | Pattern",
+        "\"exclusions\":[\"tab\\tinside\"]        | exclusions[0]  | Pattern",
       })
   void invalidFieldIsRejectedWithItsName(String override, String field, String constraint) {
     String body = withField(override);
@@ -142,7 +152,7 @@ class ProfileControllerTest {
 
     assertThat(response).hasStatus(HttpStatus.BAD_REQUEST);
     assertThat(response).bodyJson().extractingPath("$.code").isEqualTo("validation.failed");
-    assertThat(response).bodyJson().extractingPath("$.errors[0].field").isEqualTo(field);
+    assertThat(response).bodyJson().extractingPath(FIELD).isEqualTo(field);
     assertThat(response)
         .bodyJson()
         .extractingPath("$.errors[*].code")
@@ -155,8 +165,36 @@ class ProfileControllerTest {
     var tooLong = put(withField("\"objectives\":\"" + "x".repeat(501) + "\""), true);
     var tooMany = put(withField("\"exclusions\":[" + "\"a\",".repeat(20) + "\"a\"]"), true);
 
-    assertThat(tooLong).bodyJson().extractingPath("$.errors[0].field").isEqualTo("objectives");
-    assertThat(tooMany).bodyJson().extractingPath("$.errors[0].field").isEqualTo("exclusions");
+    assertThat(tooLong).bodyJson().extractingPath(FIELD).isEqualTo("objectives");
+    assertThat(tooMany).bodyJson().extractingPath(FIELD).isEqualTo("exclusions");
+  }
+
+  @Test
+  void openingDateInTheFutureIsAValidationErrorOnTheField() {
+    given(profiles.save(any()))
+        .willThrow(
+            new InvalidProfileException(
+                InvalidProfileException.PEA_OPENED_ON, InvalidProfileException.PAST_OR_PRESENT));
+
+    var response = put(withField("\"peaOpenedOn\":\"2999-01-01\""), true);
+
+    assertThat(response).hasStatus(HttpStatus.BAD_REQUEST);
+    assertThat(response).bodyJson().extractingPath("$.code").isEqualTo("validation.failed");
+    assertThat(response).bodyJson().extractingPath(FIELD).isEqualTo("peaOpenedOn");
+    assertThat(response).bodyJson().extractingPath("$.errors[0].code").isEqualTo("PastOrPresent");
+  }
+
+  @Test
+  void hugeAmountIsRejectedQuicklyWithoutParsingIt() {
+    String huge = "1".repeat(1_000_000);
+
+    var response =
+        assertTimeout(
+            Duration.ofSeconds(2),
+            () -> put(withField("\"amountToInvest\":\"" + huge + "\""), true));
+
+    assertThat(response).hasStatus(HttpStatus.BAD_REQUEST);
+    assertThat(response).bodyJson().extractingPath(FIELD).isEqualTo("amountToInvest");
   }
 
   @Test

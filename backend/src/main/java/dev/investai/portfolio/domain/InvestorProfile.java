@@ -3,7 +3,11 @@ package dev.investai.portfolio.domain;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -14,9 +18,10 @@ import org.jspecify.annotations.Nullable;
  * @param horizonYears investment horizon, {@value #MIN_HORIZON_YEARS} to {@value
  *     #MAX_HORIZON_YEARS} years
  * @param riskProfile risk profile chosen by the owner
- * @param exclusions sectors or instruments to avoid, at most {@value #MAX_EXCLUSIONS}
+ * @param exclusions sectors or instruments to avoid, at most {@value #MAX_EXCLUSIONS}; trimmed,
+ *     duplicates ignoring case dropped
  * @param objectives free text, at most {@value #MAX_OBJECTIVES_LENGTH} characters, {@code null}
- *     when not given
+ *     when not given or blank
  * @param peaOpenedOn opening date of the PEA (its age drives the taxation), {@code null} when not
  *     given
  * @param updatedAt last change
@@ -47,21 +52,48 @@ public record InvestorProfile(
 
   /** Checks the invariants; the messages never echo the values. */
   public InvestorProfile {
-    if (amountToInvest.signum() <= 0) {
-      throw new IllegalArgumentException("Amount to invest not positive");
-    }
-    amountToInvest = Amounts.exact(amountToInvest, Amounts.CENTS);
+    amountToInvest = positiveCents(amountToInvest);
     if (horizonYears < MIN_HORIZON_YEARS || horizonYears > MAX_HORIZON_YEARS) {
       throw new IllegalArgumentException("Horizon out of range");
     }
-    exclusions = List.copyOf(exclusions);
+    exclusions = List.copyOf(normalized(exclusions));
+    checkExclusions(exclusions);
+    objectives = validObjectives(objectives);
+  }
+
+  private static BigDecimal positiveCents(BigDecimal amount) {
+    if (amount.signum() <= 0) {
+      throw new IllegalArgumentException("Amount to invest not positive");
+    }
+    return Amounts.exact(amount, Amounts.CENTS);
+  }
+
+  private static void checkExclusions(List<String> exclusions) {
     if (exclusions.size() > MAX_EXCLUSIONS
         || exclusions.stream().anyMatch(InvestorProfile::invalidExclusion)) {
       throw new IllegalArgumentException("Invalid exclusions");
     }
-    if (objectives != null && objectives.length() > MAX_OBJECTIVES_LENGTH) {
+  }
+
+  /** Blank means not given. */
+  private static @Nullable String validObjectives(@Nullable String objectives) {
+    if (objectives == null || objectives.isBlank()) {
+      return null;
+    }
+    if (objectives.length() > MAX_OBJECTIVES_LENGTH) {
       throw new IllegalArgumentException("Objectives too long");
     }
+    return objectives;
+  }
+
+  /** Trimmed, duplicates (ignoring case) dropped, first spelling kept, order kept. */
+  private static List<String> normalized(List<String> exclusions) {
+    Map<String, String> byKey = new LinkedHashMap<>();
+    for (String exclusion : exclusions) {
+      String trimmed = exclusion.strip();
+      byKey.putIfAbsent(trimmed.toLowerCase(Locale.ROOT), trimmed);
+    }
+    return new ArrayList<>(byKey.values());
   }
 
   private static boolean invalidExclusion(String exclusion) {

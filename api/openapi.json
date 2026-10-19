@@ -855,7 +855,7 @@
           "averagePrice" : {
             "type" : "string",
             "example" : "150.1234",
-            "pattern" : "^\\d{1,15}(\\.\\d{1,4})?$"
+            "pattern" : "^(?!0+(\\.0+)?$)\\d{1,15}(\\.\\d{1,4})?$"
           },
           "instrumentId" : {
             "type" : "string",
@@ -920,7 +920,7 @@
           "averagePrice" : {
             "type" : "string",
             "example" : "150.1234",
-            "pattern" : "^\\d{1,15}(\\.\\d{1,4})?$"
+            "pattern" : "^(?!0+(\\.0+)?$)\\d{1,15}(\\.\\d{1,4})?$"
           },
           "quantity" : {
             "type" : "integer",
@@ -1000,7 +1000,7 @@
           "amountToInvest" : {
             "type" : "string",
             "example" : "20000.00",
-            "pattern" : "^\\d{1,13}(\\.\\d{1,2})?$"
+            "pattern" : "^(?!0+(\\.0+)?$)\\d{1,13}(\\.\\d{1,2})?$"
           },
           "exclusions" : {
             "type" : "array",
@@ -1008,7 +1008,7 @@
               "type" : "string",
               "maxLength" : 100,
               "minLength" : 0,
-              "pattern" : "^[^\\x00-\\x1F\\x7F]*$"
+              "pattern" : "^[^\\p{Cc}\\p{Cf}\\p{Co}\\p{Cn}\\p{Zl}\\p{Zp}]*$"
             },
             "maxItems" : 20,
             "minItems" : 0
@@ -1023,7 +1023,7 @@
             "type" : "string",
             "maxLength" : 500,
             "minLength" : 0,
-            "pattern" : "^[^\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]*$"
+            "pattern" : "^[\\t\\n\\r[^\\p{Cc}\\p{Cf}\\p{Co}\\p{Cn}\\p{Zl}\\p{Zp}]]*$"
           },
           "peaOpenedOn" : {
             "type" : "string",

@@ -48,6 +48,7 @@ class PortfolioApiIT {
   private static final String CODE = "$.code";
   private static final String NO_AVERAGE_PRICE = "null";
   private static final LocalDate FRIDAY = LocalDate.parse("2026-10-16");
+  private static final Instant NOW = Instant.parse("2026-10-19T08:00:00Z");
 
   @Autowired private MockMvcTester mvc;
   @Autowired private JdbcClient jdbc;
@@ -64,7 +65,7 @@ class PortfolioApiIT {
     total = load(listed(isin("FR000012027"), "TTE", "TotalEnergies"));
     prices.save(
         List.of(close(airLiquide, FRIDAY.minusDays(1), "170"), close(airLiquide, FRIDAY, "173.16")),
-        Instant.now());
+        NOW);
   }
 
   @Test
@@ -111,8 +112,9 @@ class PortfolioApiIT {
 
   @Test
   void portfolioIsValuedOnTheLastCloseWithCashAndFlagsLinesWithoutClose() {
-    addLine(airLiquide, "10", "\"150.1234\"");
+    // Added in the reverse of the expected (alphabetical) order.
     addLine(total, "5", NO_AVERAGE_PRICE);
+    addLine(airLiquide, "10", "\"150.1234\"");
     send(HttpMethod.PUT, PORTFOLIO + "/cash", "{\"amount\":\"268.40\"}");
 
     var portfolio = get(PORTFOLIO);
@@ -134,6 +136,26 @@ class PortfolioApiIT {
     json.extractingPath("$.lines[1].instrument.name").isEqualTo("TotalEnergies");
     json.doesNotHavePath("$.lines[1].value");
     json.doesNotHavePath("$.lines[1].lastClose");
+  }
+
+  @Test
+  void closeInAnotherCurrencyIsNeverMixedIntoTheTotalInEuros() {
+    prices.save(
+        List.of(
+            new DailyClose(
+                total.id(),
+                FRIDAY,
+                new BigDecimal("60"),
+                Currency.getInstance("USD"),
+                PriceSource.EODHD)),
+        NOW);
+    addLine(total, "5", NO_AVERAGE_PRICE);
+
+    var portfolio = get(PORTFOLIO);
+
+    assertThat(portfolio).bodyJson().extractingPath("$.total").isEqualTo("0.00");
+    assertThat(portfolio).bodyJson().extractingPath("$.unpricedLines").isEqualTo(1);
+    assertThat(portfolio).bodyJson().doesNotHavePath("$.lines[0].value");
   }
 
   @Test
@@ -191,6 +213,9 @@ class PortfolioApiIT {
     assertThat(send(HttpMethod.DELETE, LINES + "/" + id, "")).hasStatus(HttpStatus.NO_CONTENT);
     var again = send(HttpMethod.DELETE, LINES + "/" + id, "");
     assertThat(again).hasStatus(HttpStatus.NOT_FOUND);
+    assertThat(instruments.findById(airLiquide.id()))
+        .as("still followed after the removal of its line")
+        .hasValueSatisfying(found -> assertThat(found.tracked()).isTrue());
     assertThat(again).bodyJson().extractingPath(CODE).isEqualTo("portfolio.line.not-found");
     assertThat(send(HttpMethod.PUT, LINES + "/" + id, "{\"quantity\":1}"))
         .hasStatus(HttpStatus.NOT_FOUND);
@@ -229,7 +254,7 @@ class PortfolioApiIT {
   }
 
   private Instrument load(ListedInstrument entry) {
-    instruments.upsertReference(List.of(entry), Instant.now());
+    instruments.upsertReference(List.of(entry), NOW);
     return instruments.findByListing(entry.listing()).orElseThrow();
   }
 

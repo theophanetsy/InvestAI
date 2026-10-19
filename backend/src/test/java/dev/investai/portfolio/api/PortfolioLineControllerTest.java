@@ -80,7 +80,7 @@ class PortfolioLineControllerTest {
       value = {
         "\"quantity\":0                | quantity     | Min",
         "\"quantity\":1000000001       | quantity     | Max",
-        "\"averagePrice\":\"0\"        | averagePrice | DecimalMin",
+        "\"averagePrice\":\"0\"        | averagePrice | Pattern",
         "\"averagePrice\":\"1.00001\"  | averagePrice | Pattern",
         "\"averagePrice\":\"1e3\"      | averagePrice | Pattern",
         "\"instrumentId\":null         | instrumentId | NotNull",

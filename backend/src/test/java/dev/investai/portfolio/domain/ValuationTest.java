@@ -67,6 +67,18 @@ class ValuationTest {
   }
 
   @Test
+  void weightsAndGainPercentagesAreRoundedHalfEvenToo() {
+    // 1 / 800 = 0.125 % -> 0.12 (2 is even), never 0.13 as half-up would give.
+    var weights = Valuation.of(List.of(priced(line(1, null), "1")), cash("799"));
+    // (8.01 - 8) / 8 = 0.125 % -> 0.12.
+    var gains = Valuation.of(List.of(priced(line(1, "8"), "8.01")), null);
+
+    assertThat(weights.lines().getFirst().weightPercent()).isEqualTo(new BigDecimal("0.12"));
+    assertThat(weights.cashWeightPercent()).isEqualTo(new BigDecimal("99.88"));
+    assertThat(gains.lines().getFirst().unrealizedGainPercent()).isEqualTo(new BigDecimal("0.12"));
+  }
+
+  @Test
   void lineWithoutCloseIsFlaggedNeverValuedAtZero() {
     var valuation =
         Valuation.of(
@@ -115,5 +127,9 @@ class ValuationTest {
 
   private static PricedLine priced(PortfolioLine line, String close) {
     return new PricedLine(line, new Quote(new BigDecimal(close), FRIDAY));
+  }
+
+  private static Cash cash(String amount) {
+    return new Cash(new BigDecimal(amount), NOW);
   }
 }

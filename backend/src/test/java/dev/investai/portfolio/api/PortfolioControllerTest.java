@@ -115,6 +115,19 @@ class PortfolioControllerTest {
   }
 
   @Test
+  void cashRequiresTheCsrfToken() {
+    var response =
+        mvc.put()
+            .uri(PORTFOLIO + "/cash")
+            .with(user(USER))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"amount\":\"1\"}")
+            .exchange();
+
+    assertThat(response).hasStatus(HttpStatus.FORBIDDEN);
+  }
+
+  @Test
   void invalidCashIsRejected() {
     for (String body : List.of("{\"amount\":\"-1\"}", "{\"amount\":\"1.005\"}", "{}")) {
       var response = putCash(body);

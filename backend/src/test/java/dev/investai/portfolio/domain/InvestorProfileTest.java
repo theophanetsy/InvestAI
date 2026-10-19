@@ -6,8 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.stream.IntStream;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -67,14 +67,21 @@ class InvestorProfileTest {
 
   @Test
   void exclusionsAreBounded() {
-    assertThatThrownBy(() -> profile(AMOUNT, 5, Collections.nCopies(21, "Tabac"), null))
+    assertThatThrownBy(() -> profile(AMOUNT, 5, distinct(21, 5), null))
         .isInstanceOf(IllegalArgumentException.class);
     assertThatThrownBy(() -> profile(AMOUNT, 5, List.of(" "), null))
         .isInstanceOf(IllegalArgumentException.class);
     assertThatThrownBy(() -> profile(AMOUNT, 5, List.of("x".repeat(101)), null))
         .isInstanceOf(IllegalArgumentException.class);
-    assertThat(profile(AMOUNT, 5, Collections.nCopies(20, "x".repeat(100)), null).exclusions())
-        .hasSize(20);
+    assertThat(profile(AMOUNT, 5, distinct(20, 100), null).exclusions()).hasSize(20);
+  }
+
+  @Test
+  void exclusionsAreTrimmedAndDeduplicatedIgnoringCaseBlankObjectivesAreAbsent() {
+    var profile = profile(AMOUNT, 5, List.of(" Tabac ", "tabac", "Armement", "TABAC"), "  \n ");
+
+    assertThat(profile.exclusions()).containsExactly("Tabac", "Armement");
+    assertThat(profile.objectives()).isNull();
   }
 
   @Test
@@ -90,5 +97,12 @@ class InvestorProfileTest {
       String amount, int years, List<String> exclusions, @Nullable String objectives) {
     return new InvestorProfile(
         new BigDecimal(amount), years, RiskProfile.BALANCED, exclusions, objectives, null, NOW);
+  }
+
+  /** Distinct exclusions of the given length: "000…", "001…"… */
+  private static List<String> distinct(int count, int length) {
+    return IntStream.range(0, count)
+        .mapToObj(index -> String.format("%03d", index) + "x".repeat(length - 3))
+        .toList();
   }
 }
