@@ -31,6 +31,7 @@ Principe directeur : **chaque phase se termine par une app qui tourne, CI verte,
 | Phase 1.6 — Agent `app-verifier` | ✅ Terminée |
 | **Phase 2 — Portefeuilles réels & Dashboard** | 🔄 En cours |
 | Phase 2.0 — Choix des données de marché ([ADR-0009](adr/0009-fournisseur-donnees-marche.md), [spec](specs/phase-2-00-market-data.md)) | ✅ Terminée |
+| Phase 2.1 — Données de marché : référentiel, collecte quotidienne, historique ([spec](specs/phase-2-01-market-data-collection.md)) | 🔄 En cours |
 
 ---
 
@@ -66,11 +67,20 @@ En local, l'app tourne avec `./mvnw spring-boot:run` (qui démarre Postgres) et 
 
 ## Phase 2 — Portefeuilles réels & Dashboard
 
+| Étape | Contenu |
+|---|---|
+| 2.0 ✅ | Choix des sources de données de marché ([ADR-0009](adr/0009-fournisseur-donnees-marche.md)). |
+| 2.1 🔄 | Module `market` : référentiel d'instruments, collecte des clôtures, historique, API de lecture et de suivi ([spec](specs/phase-2-01-market-data-collection.md)). |
+| 2.2 | Comptes PEA / CTO et transactions (saisie manuelle), avec la recherche de valeurs dans l'UI. |
+| 2.3 | Positions et valorisation : PRU, plus-values, éligibilité PEA, plafond de versements, attributions gratuites. |
+| 2.4 | Import CSV des transactions. |
+| 2.5 | Dashboard Angular : valeur, répartition, courbe d'évolution comparée aux benchmarks. |
+
 - **2.0 ✅ — Données de marché d'abord (ADR + spike)** : c'est la dépendance critique (dashboard, simulations, backtests, tools de l'agent). Valider sur des valeurs d'Euronext Paris : cours actuels, historique profond, couverture des ETF, quotas, conditions d'utilisation. Benchmarks via des ETF cotés (CAC 40, MSCI World) plutôt que des données d'indices, souvent sous licence. Décision ([ADR-0009](adr/0009-fournisseur-donnees-marche.md)) : clôtures quotidiennes depuis les fichiers différés gratuits d'Euronext (MiFIR), référentiel / 1 an d'historique / opérations sur titres depuis l'offre gratuite d'EODHD.
 - **Modèle de domaine** : `Account` (type PEA / CTO, plafond de versements PEA), `Instrument` (ISIN, ticker, place, devise, éligibilité PEA), `Transaction` (achat, vente, dividende, frais, versement), `Position` (calculée), `Valuation`.
 - Règles métier testées unitairement : PRU, plus/moins-values latentes et réalisées, performance (TWR/MWR simple), éligibilité PEA, plafond de versement.
 - **Saisie des données** : manuelle + import CSV. L'import de documents par IA arrive en Phase 3.
-- **Données de marché** : port `MarketDataProvider` (cours actuels + historiques), adaptateurs Euronext MiFIR et EODHD (ADR-0009), cache en base + job de rafraîchissement planifié (`@Scheduled` + ShedLock) dans le backend. Le dashboard, les simulations et les tools de l'agent lisent la base, jamais les fournisseurs.
+- **Données de marché** : port `MarketDataProvider` (cours actuels + historiques), adaptateurs Euronext MiFIR et EODHD (ADR-0009), cache en base + jobs de collecte planifiés (`@Scheduled`) dans le backend. ShedLock est reporté au déploiement multi-instances (Phase 10) : une seule instance tourne, l'idempotence repose sur les contraintes d'unicité (spec 2.1, critère 20). Le dashboard, les simulations et les tools de l'agent lisent la base, jamais les fournisseurs.
 - **Dashboard Angular** : valeur totale, répartition (par compte, secteur, géographie), courbe d'évolution, tableau des positions, P&L.
 - Tests : unitaires domaine, intégration Testcontainers, E2E Playwright du parcours dashboard.
 
@@ -168,6 +178,7 @@ L'import de documents (Phase 3.1) couvre le besoin. Si une API officielle appara
 
 - Images Docker du backend et du frontend (hadolint, Trivy), signées.
 - Choix hébergeur via ADR, IaC, HTTPS, OIDC, sauvegardes Postgres, secrets managés, CD GitHub Actions avec environnements protégés.
+- ShedLock sur les jobs planifiés (collecte des données de marché, agent Actu) dès que plusieurs instances tournent.
 
 ---
 

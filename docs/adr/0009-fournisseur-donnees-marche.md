@@ -147,7 +147,8 @@ MSCI World Swap PEA (`IE0002XZSHO1`, WPEA, XPAR), Amundi CAC 40 Dist (`FR0007052
 
 ### Exigences pour le `MarketDataProvider` (étape suivante)
 
-- **Seuls les jobs planifiés du backend** (`@Scheduled` + ShedLock, en Java, pas de script à côté)
+- **Seuls les jobs planifiés du backend** (`@Scheduled`, en Java, pas de script à côté ; ShedLock
+  reporté au déploiement multi-instances, voir la [spec 2.1](../specs/phase-2-01-market-data-collection.md), critère 20)
   appellent les fournisseurs et écrivent en base. Dashboard, simulations et tools de l'agent
   (`getQuote`, `getPriceHistory`) **lisent la base** : quota protégé, chiffres identiques partout,
   aucun appel réseau déclenchable par une injection de prompt.
