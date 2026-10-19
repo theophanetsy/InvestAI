@@ -197,7 +197,7 @@ MSCI World Swap PEA (`IE0002XZSHO1`, WPEA, XPAR), Amundi CAC 40 Dist (`FR0007052
   - Fichier Euronext indisponible, protégé (anti-robots) ou format modifié ; refus d'Euronext.
   - Écart de clôture détecté entre les deux sources.
   - Changement des conditions ou du quota gratuit d'EODHD.
-  - Besoin d'historique > 2 ans (backtests, Phase 4) ou de places hors Euronext → option D.
+  - Besoin d'historique > 2 ans (backtests, Phase 5) ou de places hors Euronext → option D.
 
 ## Sources (consultées le 2026-10-19)
 
