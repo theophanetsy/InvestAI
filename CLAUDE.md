@@ -68,6 +68,11 @@ npm run stack:start                # http://localhost:14200 ; npm run stack:stop
   - Clé d'API affichée en inspectant un dossier rempli à la main (`for f in dir/*; do head …`) →
     un fichier de clé y avait été rangé par erreur → ne lire que les fichiers attendus (`*.csv`),
     vérifier un fichier de secret par `test -f` / `grep -c`, jamais en l'affichant.
+  - ESLint `no-irregular-whitespace` (ou caractère invisible dans un `.java`) sur un fichier écrit
+    par l'agent → une séquence d'échappement Unicode (barre oblique inverse + `u00a0`) tapée dans
+    Write/Edit ou une commande est enregistrée comme le caractère lui-même → la produire par un
+    script Node (`String.fromCharCode(0x5c) + 'u00a0'`) et vérifier qu'aucun caractère invisible
+    ne reste (`node -e` qui liste les codes > 127 du fichier).
   - Script ponctuel ayant besoin d'une clé d'API → `node --env-file=<fichier hors du dépôt>`
     écrit par le propriétaire ; masquer la clé dans toute URL ou erreur affichée (EODHD la passe
     en paramètre `api_token=`).

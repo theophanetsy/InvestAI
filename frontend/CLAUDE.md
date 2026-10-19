@@ -12,7 +12,9 @@ src/app/
     http/          intercepteurs d'erreurs, toProblem(), jetons HttpContext
     layout/        Shell (barre + navigation), BackendStatus, NotFound
   shared/          composants/pipes UI réutilisables, sans logique métier
-  features/<nom>/  login, dashboard, chat, news, simulation — chargés en lazy via le router
+    format/        decimal.ts : montants en chaînes décimales, format français (jamais de float)
+    pea-eligibility/, confirm-dialog/
+  features/<nom>/  login, dashboard, profile, portfolio, chat, news, simulation — lazy (router)
   api/generated/   client OpenAPI généré (ne jamais éditer à la main)
 ```
 
@@ -115,10 +117,39 @@ src/app/
     jamais fourni par EODHD) ; ne jamais afficher 0 à la place. Définitions différentes selon
     `source` (Euronext : carnet central sur le lieu de cotation ; EODHD : non documentée) : ne pas
     comparer ni additionner des volumes de sources différentes.
+  - **Éligibilité PEA** (Phase 2.3) : `peaEligibility: { status, source }` dans
+    `InstrumentSummaryResponse` et `InstrumentDetailsResponse`. `status` : `ELIGIBLE`,
+    `NOT_ELIGIBLE`, `UNKNOWN` ; `source` : `RULE` (règle UE/EEE, à afficher « probable : vérifier
+    chez le courtier ») ou `OWNER` (correction du propriétaire). Badge :
+    `shared/pea-eligibility` (texte, jamais la couleur seule).
+    `correctPeaEligibility(id, { status })` → `PUT …/{id}/pea-eligibility` : 200
+    `PeaEligibilityResponse` (source `OWNER`), jamais écrasé ensuite par la règle.
   - Toutes les valeurs du référentiel de Paris ont des clôtures `EURONEXT` depuis leur collecte
     (suivies ou non) ; seules les valeurs suivies ont 1 an d'historique et le rattrapage des jours
     manqués : une valeur non suivie peut avoir des **trous** (jours où l'application était
     éteinte). Ne jamais interpoler.
+- **Profil et portefeuille** (Phase 2.3, service généré `PortfolioService`, tag `portfolio`) :
+  - `getProfile()` → `GET /api/v1/profile` : `ProfileResponse` ; **404 `profile.not-found`** tant
+    qu'il n'est pas rempli (état « vide », pas une erreur). `saveProfile(ProfileRequest)` → `PUT`,
+    idempotent, renvoie le profil. `listRiskProfiles()` → `[{ code, label, description }]` :
+    libellés et descriptions à afficher tels quels (même texte que pour l'agent).
+  - `objectives` : texte libre **non fiable** (≤ 500), à afficher par interpolation uniquement.
+  - `getPortfolio()` → `PortfolioResponse` : `lines` triées par nom, `total` (espèces comprises),
+    `cash?`, `complete` / `unpricedLines`. Une ligne sans clôture n'a ni `lastClose`, ni `value`,
+    ni `weightPercent`, ni plus-value : afficher « Cours indisponible », jamais 0.
+    `unrealizedGain*` absents sans prix moyen. `instrument` est un `InstrumentSummaryResponse`.
+  - `addPortfolioLine({ instrumentId, quantity, averagePrice? })` → 201 ; 422
+    `portfolio.line.duplicate-instrument` ou `portfolio.line.currency-not-supported`, 404
+    `instrument.not-found`. `updatePortfolioLine(id, { quantity, averagePrice? })` (prix absent =
+    effacé), `deletePortfolioLine(id)` → 204 ; 404 `portfolio.line.not-found`.
+    `setPortfolioCash({ amount })` → 200.
+  - **Montants envoyés en chaînes décimales** (`"20000.50"`, point décimal, ≤ 2 décimales ; prix
+    ≤ 4), quantité entière (un `1.5` est un 400). Saisie française → `normalizeDecimal`
+    (`shared/format/decimal.ts`) ; affichage → `formatAmount`/`formatPercent`/`formatDate`.
+    Jamais `Number(...)`/`parseFloat` sur un montant.
+- **Enums générés** : un enum TypeScript par DTO (`RiskProfileResponseCodeEnum`,
+  `ProfileRequestRiskProfileEnum`…) pour les mêmes valeurs, non assignables entre eux → garder la
+  valeur en `string` dans le formulaire et la reconvertir avant l'envoi (`toRequestRiskProfile`).
 
 ## Pièges connus
 
@@ -159,6 +190,21 @@ Format : symptôme → cause → bonne pratique. Compléter à chaque étape (wo
   test e2e `expectNoScroll` (`e2e/support/layout.ts`).
 - **Modifier `api/generated`** : interdit, le build backend le compare au contrat →
   `npm run api:update` depuis la racine.
+- **`template/cyclomatic-complexity` (> 5)** : compte chaque `@if`/`@else if`/`@else`/`@for` du
+  template entier → découper en sous-composants (`portfolio-table`, `portfolio-summary`,
+  `risk-profile-field`…), calculer les textes dans la classe (`gain(line)`, `searchHint()`) et ne
+  pas entourer un `<mat-error>` d'un `@if` : Material ne l'affiche qu'en erreur.
+- **`template/attributes-order`** : directive structurelle d'abord
+  (`<td *matCellDef="let line" mat-cell>`) ; **`prefer-template-literal`** : littéral de gabarit
+  (backquotes) dans `[attr.aria-label]` plutôt qu'une concaténation `'Supprimer ' + name`.
+- **`(ngSubmit)` jamais appelé** : un `<form>` sans `[formGroup]` (contrôle seul en
+  `[formControl]`) n'a pas de directive de formulaire → toujours un `FormGroup` (`cash-form`).
+- **Test d'un texte formaté** : `/\s+/` capture aussi les espaces insécables des montants
+  (U+00A0 avant `€` et `%`, U+202F entre milliers) → normaliser avec `/[ \n]+/`.
+- **`Intl.NumberFormat.format("1234.56")`** refusé par TypeScript (surcharge chaîne : lib ES2023,
+  absente) → formater le texte soi-même (`formatDecimal`), sans passer par un `number`.
+- **`[maxlength]` sur un `<input>` sans contrôle de formulaire** : NG8002 → attribut statique
+  `maxlength="100"`.
 - **`eslint --max-warnings=0 <fichiers>` échoue sur « File ignored because of a matching ignore
   pattern »** : un fichier ignoré (ex. `api/generated`) passé explicitement produit un
   avertissement → toujours ajouter `--no-warn-ignored` quand on lint une liste de fichiers

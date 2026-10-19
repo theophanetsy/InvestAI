@@ -91,3 +91,59 @@ courtier les affiche.
 - Compte-titres ordinaire (CTO) : PEA seul.
 - Plafond de versements de 150 000 € : non suivi, faute de transactions.
 - Indicateurs (volatilité, pire baisse…) et dashboard : 2.4.
+
+## Écarts et précisions d'implémentation
+
+Aucun choix produit n'a changé. Précisions techniques prises pendant l'implémentation :
+
+- **Modules** : profil et portefeuille déclaré dans le seul module `portfolio` (aucune dépendance
+  entre eux, un seul propriétaire) ; l'éligibilité est un attribut de l'instrument dans `market`.
+  `portfolio` n'appelle `market` que par `market.application` (`MarketQueries.details`,
+  `InstrumentTracking.track`) et réutilise ses types du domaine (`InstrumentId`, `Instrument`).
+  L'API `portfolio` réutilise `InstrumentSummaryResponse` / `PeaEligibilityResponse` de
+  `market.api` : un seul type dans le client généré pour la recherche et les lignes.
+- **API** : un seul tag `portfolio` (convention « un tag par module ») pour `/api/v1/profile` et
+  `/api/v1/portfolio` ; la correction d'éligibilité est sous le tag `market`
+  (`PUT /api/v1/market/instruments/{id}/pea-eligibility`, contrôleur séparé à cause de la limite
+  Checkstyle de couplage). Ajout de `GET /api/v1/profile/risk-profiles` : les libellés et
+  descriptions des profils de risque viennent du backend (enum `RiskProfile`), seule source du
+  texte transmis à l'agent. Codes d'erreur : `profile.not-found` (404),
+  `portfolio.line.not-found` (404), `portfolio.line.duplicate-instrument` (422),
+  `portfolio.line.currency-not-supported` (422), `instrument.not-found` (404).
+- **Éligibilité** : seule la correction du propriétaire est stockée
+  (`instrument.pea_eligibility_correction`, V4) ; la règle est appliquée **à la lecture**. Ni le
+  rafraîchissement hebdomadaire du référentiel (dont l'upsert n'écrit pas ces colonnes) ni une
+  évolution de la règle ne peuvent donc écraser une correction (testé par
+  `PeaEligibilityPersistenceIT`). La liste `investai.market.benchmarks` sert aussi de liste d'ETF
+  éligibles : n'y mettre que des ETF éligibles au PEA. Pas de retour à la règle une fois corrigé
+  (le propriétaire peut répondre « Je ne sais pas » = `UNKNOWN` / `OWNER`) : point ouvert.
+- **Persistance** : `JdbcClient`, comme le module `market` (pas d'entité JPA, ADR-0005 respecté :
+  Flyway, `numeric(19, 4)` + devise). Le profil et les espèces sont une ligne unique de clé
+  constante (`singleton boolean PRIMARY KEY CHECK (singleton)`) au lieu d'un `uuid` : la base
+  garantit l'unicité et le PUT est un upsert atomique.
+- **Montants** : chaînes décimales dans les requêtes comme dans les réponses (`"20000.50"`),
+  jamais de nombre JSON flottant. Bornes : somme et espèces 13 chiffres entiers et 2 décimales,
+  prix moyen 15 + 4 décimales, quantité entière ≤ 1 000 000 000. Un nombre décimal envoyé pour un
+  entier (`"quantity": 1.5`) est refusé en 400 au lieu d'être tronqué
+  (`spring.jackson.deserialization.accept-float-as-int=false`, global).
+- **Valeurs en euros seulement** : une valeur qui ne cote pas en euros est refusée à l'ajout
+  (422) ; une clôture dans une autre devise est laissée hors de la valorisation (« cours
+  indisponible »), jamais mélangée au total en euros.
+- **Valorisation** : valeur d'une ligne arrondie une fois (HALF_EVEN, au centime) ; total = somme
+  des valeurs arrondies + espèces ; plus-value = quantité × (clôture − prix moyen), arrondie une
+  fois (elle peut différer d'un centime de la différence de deux montants arrondis) ; poids en %
+  à 2 décimales (leur somme peut ne pas faire exactement 100) et absents si le total est nul. Ajout
+  de la plus-value en % (`unrealizedGainPercent`). Une ligne sans clôture est exclue du total,
+  comptée dans `unpricedLines`, et `complete` vaut `false`. Lignes triées par nom de valeur.
+- **Profil** : exclusions bornées à 20 × 100 caractères, liste absente = aucune ; caractères de
+  contrôle refusés (sauf retour à la ligne et tabulation dans les objectifs : PostgreSQL refuse le
+  caractère nul, et un caractère invisible n'a rien à faire dans un texte relu par l'agent) ; le
+  texte reste sinon stocké tel quel. Date d'ouverture du PEA : pas dans le futur
+  (`@PastOrPresent`, horloge système du validateur, et contrôle du formulaire).
+- **Suppression d'une ligne** : la valeur reste suivie par le module `market` (pas de « désuivi »).
+- **UI** : routes `/profil` et `/portefeuille`. Les montants sont formatés et analysés comme du
+  texte (`shared/format/decimal.ts`, espace fine insécable, virgule) : `Intl.NumberFormat`
+  n'accepte une chaîne qu'à partir de la lib TypeScript ES2023, non activée (`tsconfig` protégé).
+- **Vérifications** : E2E Playwright sur API simulée (convention du dépôt) ; la vérification dans
+  la vraie application (`/verify-app`) n'a pas pu être faite, le serveur MCP du navigateur ne
+  répondant pas dans cette session.

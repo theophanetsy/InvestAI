@@ -107,7 +107,8 @@ Un package par module métier sous `dev.investai` : `portfolio`, `market`, `assi
   aussi la clause `WHERE` de l'upsert SQL).
 - Persistance en **`JdbcClient`** (pas d'entité JPA) : upserts `ON CONFLICT` idempotents en lot,
   réservation atomique du budget (`INSERT … ON CONFLICT … WHERE calls < :limit RETURNING`).
-  `timestamptz` lié en `OffsetDateTime` (`Timestamps`) : le driver PostgreSQL ne lie pas `Instant`.
+  `timestamptz` lié en `OffsetDateTime` (`shared.persistence.Timestamps`, partagé par les modules) :
+  le driver PostgreSQL ne lie pas `Instant`.
 - Fuseaux : séances en `Europe/Paris` (`EuronextCalendar.ZONE`), budget EODHD en
   jours **UTC** (comme le quota).
 - **Budget EODHD** : `CallBudget.tryReserve(...)` **avant** chaque appel ; ordre de priorité dans
@@ -160,6 +161,43 @@ Un package par module métier sous `dev.investai` : `portfolio`, `market`, `assi
 - **Données de test synthétiques** uniquement (`MifirFixtures`, JSON écrit à la main) : publier
   des fichiers Euronext ou des réponses EODHD réels serait une redistribution. Un fichier réel ne
   sert qu'à valider le lecteur **hors du dépôt** (scratchpad), test temporaire jamais commité.
+
+- **Éligibilité PEA (Phase 2.3)** : `Instrument.peaEligibility()` = correction du propriétaire
+  (`instrument.pea_eligibility_correction`, source `OWNER`) sinon `PeaEligibilityRule` (source
+  `RULE`), **résolue à la lecture** dans `JdbcInstrumentRepository.map` : toute nouvelle requête
+  sur `instrument` doit sélectionner `pea_eligibility_correction`, et l'upsert du référentiel ne
+  doit jamais écrire ces colonnes (test `PeaEligibilityPersistenceIT`). Règle : action dont le pays
+  de l'ISIN est dans `EU_EEA_COUNTRIES` (27 + IS, NO, LI) → `ELIGIBLE`, autre action →
+  `NOT_ELIGIBLE`, ETF/fonds/autre → `UNKNOWN`, `investai.market.benchmarks` → `ELIGIBLE` (n'y
+  mettre que des ETF éligibles au PEA).
+- **Lecture groupée** : `MarketQueries.details(Collection<InstrumentId>)` (2 requêtes quel que soit
+  le nombre de valeurs) pour le portefeuille et, plus tard, les tools de l'agent.
+
+## Module `portfolio` (Phase 2.3, [spec](../docs/specs/phase-2-03-profile-portfolio.md))
+
+- Profil investisseur (`InvestorProfile`, `RiskProfile`) et PEA déclaré (`PortfolioLine`, `Cash`,
+  `Valuation`) : lus en Phase 3 par les tools de l'agent via `InvestorProfiles.get()` et
+  `PortfolioQueries.overview()` (lecture seule, aucun appel externe).
+- **Textes des profils de risque** : libellé et description français dans l'enum `RiskProfile`,
+  transmis tels quels à l'agent ; les modifier change ce que l'agent reçoit (repasser les evals).
+- **Objectifs** (`InvestorProfile.objectives`) : texte libre **non fiable**, stocké tel quel (≤ 500,
+  sans caractère de contrôle hors retour à la ligne/tabulation) ; en Phase 3, le transmettre comme
+  donnée délimitée, jamais comme instruction. Jamais dans un log (comme les montants).
+- `portfolio` appelle `market` **uniquement** par `market.application` (`MarketQueries`,
+  `InstrumentTracking`) ; il réutilise les types de `market.domain` et, côté API, les DTO
+  `InstrumentSummaryResponse` / `PeaEligibilityResponse` (un seul type dans le client généré).
+  Ajouter une ligne suit la valeur (`track`), la supprimer ne la « désuit » pas.
+- **Argent** : `Amounts` (EUR, `toCents` HALF_EVEN, `exact` qui refuse les décimales en trop sans
+  arrondir). Valorisation : valeur par ligne arrondie une fois, total = somme des valeurs arrondies
+  + espèces, ligne sans clôture exclue et comptée (`unpricedLines`, `complete`), jamais à 0 ;
+  seules les clôtures en euros sont valorisées.
+- **API** : montants en **chaînes décimales** dans les requêtes (`@Pattern` de `InputFormats`,
+  conversion par `InputFormats.parse`, qui attrape `NumberFormatException` pour CodeQL) et les
+  réponses (`toPlainString`). Un seul tag `portfolio` pour `/api/v1/profile` et
+  `/api/v1/portfolio`. Profil et espèces : ligne unique de clé `singleton boolean` (upsert
+  `ON CONFLICT (singleton)`).
+- Tests : vider `portfolio_line` avant `instrument` (clé étrangère) : `MarketTestData.clearTables`
+  le fait, `PortfolioTestData.clearTables` vide aussi le profil et les espèces.
 
 ## Tests
 
@@ -286,6 +324,17 @@ Format : symptôme → cause → bonne pratique. Compléter à chaque étape (wo
 - **Champ optionnel d'une API tierce qui fait échouer tout l'appel** : Jackson rejette la réponse
   entière si un champ typé (`BigDecimal`, `Long`) reçoit une valeur inattendue → lire un champ
   accessoire (ex. `volume` EODHD) en `String` et le convertir soi-même (nul si illisible).
+- **Nombre décimal accepté pour un entier** (`"quantity": 1.5` devenait 1) : Jackson
+  `ACCEPT_FLOAT_AS_INT` actif par défaut → `spring.jackson.deserialization.accept-float-as-int=false`
+  (global), test `fractionalQuantityIsRejectedNotTruncated`.
+- **Champ `List` d'un record DTO** : SpotBugs `EI_EXPOSE_REP` → constructeur compact
+  `List.copyOf` ; pour une requête, `null` → `List.of()` (sinon NPE dans Jackson = 400 sans champ).
+- **Corps JSON de test construit avec `replaceFirst`** : les `\` de la chaîne de remplacement sont
+  des échappements (`a\nb` devient `anb`, le test passe à côté) → concaténer (`withField` dans
+  `ProfileControllerTest`).
+- **`MarketController` / contrôleur qui grossit** : `ClassFanOutComplexity` > 20 → un contrôleur
+  par responsabilité sous le même chemin et le même tag (`PeaEligibilityController`,
+  `PortfolioLineController`).
 - **`@RequestParam LocalDate`** : sans `@DateTimeFormat(iso = ISO.DATE)`, le format attendu dépend
   de la locale → toujours l'annoter. Une URL de test avec `/` final (`/instruments/?query=`) donne 404.
 
