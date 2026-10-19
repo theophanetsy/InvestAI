@@ -135,12 +135,26 @@ Aucun choix produit n'a changé. Précisions techniques prises pendant l'implém
   à 2 décimales (leur somme peut ne pas faire exactement 100) et absents si le total est nul. Ajout
   de la plus-value en % (`unrealizedGainPercent`). Une ligne sans clôture est exclue du total,
   comptée dans `unpricedLines`, et `complete` vaut `false`. Lignes triées par nom de valeur.
-- **Profil** : exclusions bornées à 20 × 100 caractères, liste absente = aucune ; caractères de
-  contrôle refusés (sauf retour à la ligne et tabulation dans les objectifs : PostgreSQL refuse le
-  caractère nul, et un caractère invisible n'a rien à faire dans un texte relu par l'agent) ; le
-  texte reste sinon stocké tel quel. Date d'ouverture du PEA : pas dans le futur
-  (`@PastOrPresent`, horloge système du validateur, et contrôle du formulaire).
+- **Profil** : exclusions bornées à 20 × 100 caractères, liste absente = aucune, espaces de bord
+  retirés et doublons (casse ignorée) supprimés ; objectifs vides = absents. Caractères invisibles
+  refusés dans les exclusions et les objectifs (contrôle, y compris C1, format : bidi, largeur
+  nulle, « tags » Unicode, usage privé, non attribués, séparateurs de ligne ; seuls retour à la
+  ligne et tabulation sont admis dans les objectifs) : du texte que l'agent lirait sans que le
+  propriétaire le voie (injection de prompt en Phase 3). Le texte reste sinon stocké tel quel (pas
+  de normalisation NFC). Date d'ouverture du PEA : pas dans le futur, vérifiée par le cas d'usage
+  avec l'horloge de l'application en heure de Paris (400 `validation.failed`, champ
+  `peaOpenedOn`, code `PastOrPresent`) et par le formulaire.
 - **Suppression d'une ligne** : la valeur reste suivie par le module `market` (pas de « désuivi »).
+- **Revues** (`java-reviewer`, `angular-reviewer`, `security-reviewer`) : un `@DecimalMin` sur
+  une chaîne analysait un texte de n'importe quelle longueur en temps quadratique (déni de
+  service) → positivité dans le motif ; logs réduits à l'identifiant de la ligne (ni valeur
+  détenue, ni profil de risque) ; ordre des lignes déterministe (nom, ISIN, MIC) ; règle ArchUnit
+  `PORTFOLIO_USES_MARKET_THROUGH_ITS_APPLICATION`.
+- **Points ouverts** : retour à la règle après une correction d'éligibilité ; limite de taille
+  des corps JSON (Jackson `StreamReadConstraints`) ; en Phase 3, règle ArchUnit interdisant au
+  module `assistant` les cas d'usage d'écriture (`PortfolioCommands`, `InvestorProfiles.save`,
+  `PeaEligibilityCorrection`) ; `POST /portfolio/lines` avec un instrument inconnu répond 404
+  (cohérent avec `trackInstrument`), un 422 se discuterait.
 - **UI** : routes `/profil` et `/portefeuille`. Les montants sont formatés et analysés comme du
   texte (`shared/format/decimal.ts`, espace fine insécable, virgule) : `Intl.NumberFormat`
   n'accepte une chaîne qu'à partir de la lib TypeScript ES2023, non activée (`tsconfig` protégé).

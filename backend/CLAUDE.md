@@ -180,11 +180,19 @@ Un package par module métier sous `dev.investai` : `portfolio`, `market`, `assi
   `PortfolioQueries.overview()` (lecture seule, aucun appel externe).
 - **Textes des profils de risque** : libellé et description français dans l'enum `RiskProfile`,
   transmis tels quels à l'agent ; les modifier change ce que l'agent reçoit (repasser les evals).
-- **Objectifs** (`InvestorProfile.objectives`) : texte libre **non fiable**, stocké tel quel (≤ 500,
-  sans caractère de contrôle hors retour à la ligne/tabulation) ; en Phase 3, le transmettre comme
-  donnée délimitée, jamais comme instruction. Jamais dans un log (comme les montants).
-- `portfolio` appelle `market` **uniquement** par `market.application` (`MarketQueries`,
-  `InstrumentTracking`) ; il réutilise les types de `market.domain` et, côté API, les DTO
+- **Données non fiables pour l'agent (Phase 3)** : `objectives` (≤ 500) et `exclusions` (20 × 100)
+  sont du texte libre ; les noms d'instruments viennent d'EODHD/Euronext. Les transmettre comme
+  données délimitées, jamais comme instructions (neutraliser les délimiteurs dans le texte). Les
+  motifs `InputFormats.SINGLE_LINE`/`MULTILINE` refusent déjà les caractères invisibles
+  (catégories Unicode Cc, Cf, Co, Cn, Zl, Zp). Jamais dans un log (comme
+  les montants, la valeur détenue et le profil de risque). Les tools de l'agent n'utilisent que
+  `InvestorProfiles.get`, `PortfolioQueries` et `MarketQueries`, jamais les cas d'usage d'écriture.
+- **Date du jour** : `InvestorProfiles.save` vérifie la date d'ouverture du PEA avec le `Clock`
+  injecté en `Europe/Paris` (`InvalidProfileException` → 400 sur le champ), pas `@PastOrPresent`
+  (horloge et fuseau de la JVM).
+- `portfolio` appelle `market` **uniquement** par `market.application` (règle ArchUnit
+  `PORTFOLIO_USES_MARKET_THROUGH_ITS_APPLICATION`, prouvée par `LeakyPortfolioAdapter`) :
+  `MarketQueries`, `InstrumentTracking` ; il réutilise les types de `market.domain` et, côté API, les DTO
   `InstrumentSummaryResponse` / `PeaEligibilityResponse` (un seul type dans le client généré).
   Ajouter une ligne suit la valeur (`track`), la supprimer ne la « désuit » pas.
 - **Argent** : `Amounts` (EUR, `toCents` HALF_EVEN, `exact` qui refuse les décimales en trop sans
@@ -324,6 +332,14 @@ Format : symptôme → cause → bonne pratique. Compléter à chaque étape (wo
 - **Champ optionnel d'une API tierce qui fait échouer tout l'appel** : Jackson rejette la réponse
   entière si un champ typé (`BigDecimal`, `Long`) reçoit une valeur inattendue → lire un champ
   accessoire (ex. `volume` EODHD) en `String` et le convertir soi-même (nul si illisible).
+- **Déni de service par `@DecimalMin` sur un `String`** : Hibernate Validator analyse le texte
+  entier en `BigDecimal` (temps quadratique, toutes les contraintes sont évaluées même si le
+  `@Pattern` échoue) → positivité dans un motif ancré (`InputFormats.POSITIVE_AMOUNT`), test
+  `hugeAmountIsRejectedQuicklyWithoutParsingIt`. Un motif avec alternance répétée
+  (`(?:a|b)*`) est récursif sur un long texte → une seule classe de caractères (union de classes,
+  cf. `InputFormats.MULTILINE`).
+- **SpotBugs `EI_EXPOSE_REP`** revient si le `List.copyOf` d'un record est déplacé dans une
+  méthode d'aide : le garder dans le constructeur compact.
 - **Nombre décimal accepté pour un entier** (`"quantity": 1.5` devenait 1) : Jackson
   `ACCEPT_FLOAT_AS_INT` actif par défaut → `spring.jackson.deserialization.accept-float-as-int=false`
   (global), test `fractionalQuantityIsRejectedNotTruncated`.
