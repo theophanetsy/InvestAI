@@ -77,7 +77,7 @@ class OpenApiContractIT {
       assertThat(operation.get("tags").valueStream().map(JsonNode::asString))
           .as("tags of %s", id)
           .singleElement()
-          .isIn("system", "auth");
+          .isIn("system", "auth", "market");
       assertThat(
               operation
                   .at("/responses/default/content/application~1problem+json/schema/$ref")
@@ -85,7 +85,17 @@ class OpenApiContractIT {
           .as("default error response of %s", id)
           .isEqualTo(PROBLEM_REF);
     }
-    assertThat(operationIds).doesNotHaveDuplicates().contains("getStatus", "login", "logout", "me");
+    assertThat(operationIds)
+        .doesNotHaveDuplicates()
+        .contains(
+            "getStatus",
+            "login",
+            "logout",
+            "me",
+            "searchInstruments",
+            "getInstrument",
+            "getInstrumentPrices",
+            "trackInstrument");
   }
 
   @Test

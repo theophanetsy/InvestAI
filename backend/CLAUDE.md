@@ -84,6 +84,51 @@ Un package par module métier sous `dev.investai` : `portfolio`, `market`, `assi
 - Aucun identifiant de connexion dans le code : `SPRING_DATASOURCE_*`, Docker Compose (profil
   `local`) ou Testcontainers (tests).
 
+## Module `market` (Phase 2.1, ADR-0009)
+
+- **Seuls les jobs** (`market.infrastructure.MarketJobs`) appellent les fournisseurs (Euronext,
+  EODHD) ; l'API, et plus tard le dashboard, les simulations et les tools de l'agent, **lisent la
+  base** (`MarketQueries`). Aucun endpoint ne déclenche un appel externe (suivre une valeur ne fait
+  que poser `tracked_since`, l'historique arrive au passage suivant du job EODHD).
+- Collecte Euronext : toutes les heures de 9 h à 23 h (Paris) **et** 1 min après
+  `ApplicationReadyEvent` (`MarketJobs.collectShortlyAfterStartup`, même méthode que le cron,
+  planifiée sur le `TaskScheduler`, jamais exécutée dans le thread de démarrage). Idempotente :
+  aucun téléchargement si la séance est déjà complète.
+- Jobs coupés par `investai.market.jobs.enabled=false` : c'est le cas dans **tout**
+  `@IntegrationTest` (avec `investai.market.eodhd.api-key=` vide) et dans `npm run stack:start`.
+  Les tests déclenchent les cas d'usage eux-mêmes, avec de faux fournisseurs (`FakeTradeFiles`,
+  `FakeEodhd`, `MutableClock`) et les vrais adaptateurs : construire le service à la main
+  (`MaintenanceFactory`) plutôt que `@MockitoBean` (nouveau contexte).
+- Identifiant pivot **`Listing` (ISIN + MIC)** ; le symbole EODHD (`AI.PA`) est calculé dans
+  l'adaptateur (`EodhdSymbols.symbolOf`). Règle MIC de Paris : code EODHD `AL…` → `ALXP`, sinon `XPAR`.
+- Prix : `BigDecimal` lu depuis le texte, ramené à 4 décimales **sans arrondi** par `Prices.exact`
+  (vide si impossible) ; `DailyClose` refuse tout le reste. Clôtures brutes (`close`), jamais
+  `adjusted_close`. Une clôture `EURONEXT` n'est jamais remplacée par `EODHD` (`PriceMerge`, et
+  aussi la clause `WHERE` de l'upsert SQL).
+- Persistance en **`JdbcClient`** (pas d'entité JPA) : upserts `ON CONFLICT` idempotents en lot,
+  réservation atomique du budget (`INSERT … ON CONFLICT … WHERE calls < :limit RETURNING`).
+  `timestamptz` lié en `OffsetDateTime` (`Timestamps`) : le driver PostgreSQL ne lie pas `Instant`.
+- Fuseaux : séances en `Europe/Paris` (`EuronextCalendar.ZONE`), budget EODHD en
+  jours **UTC** (comme le quota).
+- **Budget EODHD** : `CallBudget.tryReserve(...)` **avant** chaque appel ; ordre de priorité dans
+  `EodhdMaintenance` (rattrapage, historique, référentiel). Un échec arrête le passage et reporte
+  la valeur (ou le référentiel) **au lendemain UTC** : une erreur permanente (valeur radiée) ne doit
+  ni consommer tout le budget ni bloquer les autres ; le travail reste en file (`price_catch_up`,
+  `history_loaded = false`).
+- **Séance complète** = ses deux fichiers collectés, ou rattrapée par EODHD (`segment` nul). Une
+  séance à un seul fichier est rattrapée comme une séance manquée (`CollectionJournal.catchUpStart`).
+- **Les deux jobs peuvent tourner en même temps** (planificateur sur threads virtuels,
+  `spring.threads.virtual.enabled=true`) : un verrou par cas d'usage ne les sérialise pas entre
+  eux → transitions d'état sûres en base (`CatchUpQueue.remove` ne supprime qu'une entrée non
+  élargie entre-temps).
+- **Clé EODHD** : uniquement `INVESTAI_EODHD_API_KEY`, ajoutée sur la requête envoyée par
+  `ApiTokenInterceptor` (l'URI connue de `RestClient` ne la contient jamais) ; tout appel passe par
+  `HttpCalls.call`, qui ne garde ni message Spring, ni corps, ni cause (`RedactedCause` conserve la
+  pile sans le message). Test de non-régression : `EodhdKeyLeakTest`.
+- **Données de test synthétiques** uniquement (`MifirFixtures`, JSON écrit à la main) : publier
+  des fichiers Euronext ou des réponses EODHD réels serait une redistribution. Un fichier réel ne
+  sert qu'à valider le lecteur **hors du dépôt** (scratchpad), test temporaire jamais commité.
+
 ## Tests
 
 - Unitaires : `*Test.java` (Surefire), JUnit 5 + AssertJ + Mockito. Domaine testé sans Spring.
@@ -154,6 +199,48 @@ Format : symptôme → cause → bonne pratique. Compléter à chaque étape (wo
 - **`@WebMvcTest` avec contrôleur imbriqué** : exclu du scan → `@Import(LeController.class)`.
 - **CodeQL** signale `case X _` (variable non lue) et bloque le merge (fil de revue à
   résoudre) → un handler explicite par type plutôt qu'un `switch` à motifs anonymes.
+- **Clé d'API dans un message d'exception** : `ResourceAccessException` (« I/O error on GET request
+  for "<url complète>" ») et les erreurs du client HTTP du JDK recopient l'URL, query string
+  comprise → clé ajoutée par un intercepteur (`ApiTokenInterceptor`), erreurs converties par
+  `HttpCalls` sans message ni cause d'origine ; PMD `PreserveStackTrace` → passer
+  `RedactedCause.of(ex)`, pas `ex`.
+- **Serveur HTTP de test** : `com.sun.net.httpserver` interdit (Checkstyle `IllegalImport`
+  `com.sun`, tests compris) → `MockRestServiceServer.bindTo(RestClient.Builder)` ; l'adaptateur
+  prend un `RestClient.Builder` en paramètre (`EodhdClient.create`).
+- **Pas de `RestClient.Builder` auto-configuré** (module `spring-boot-restclient` absent, ne pas
+  l'ajouter) → `RestClient.builder()` + `JdkClientHttpRequestFactory` ; le `HttpClient` du JDK est
+  un `@Bean` (fermé par Spring, sinon PMD `CloseResource`), sans redirection.
+- **FindSecBugs `IMPROPER_UNICODE`** sur `java.text.Normalizer` → normaliser en SQL
+  (`unaccent(lower(...))`, extension créée par Flyway).
+- **FindSecBugs `CRLF_INJECTION_LOGS`** sur tout argument de log non constant (chaîne, enum,
+  `LocalDate`, identifiant) → variable locale `LogSanitizer.oneLine(...)` avant l'appel (règle aussi
+  PMD `GuardLogStatement`). PMD prend toute méthode nommée `warn`/`info` pour un logger → nommer
+  autrement les méthodes utilitaires (`logEach`).
+- **Record avec constantes de son propre type** (`Mic.XPAR`) : un `static final Pattern` déclaré
+  après (ordre imposé par Checkstyle `DeclarationOrder`) vaut `null` quand le constructeur des
+  constantes s'exécute → `NoClassDefFoundError` → valider sans champ statique non constant.
+- **Error Prone** (avertissement = erreur) : `LoopOverCharArray` (`toCharArray` en boucle),
+  `OperatorPrecedence` (`a && b || c`), `EnumOrdinal`, `TimeInStaticInitializer`
+  (`LocalDate.now()` en `static final` de test) → `charAt`, méthodes intermédiaires, `EnumMap`,
+  champ d'instance.
+- **Checkstyle** `BooleanExpressionComplexity` (> 3 opérateurs) et `ClassFanOutComplexity` des
+  `*IT` → extraire des méthodes ou des fabriques de test (`MaintenanceFactory`) ; règle « Hard-coded
+  secret » déclenchée par `"api_token=" + key + "…"` dans un test → `String.join("=", "api_token", key)`.
+- **PMD `UnitTestShouldIncludeAssert`** ne voit pas `then(mock).should()` (BDDMockito) →
+  `Mockito.verify(...)` quand le test n'a pas d'autre assertion.
+- **Clé EODHD visible par une instrumentation du client HTTP du JDK** : l'intercepteur la cache à
+  `RestClient`, pas à la requête envoyée → en Phase 3 (OpenTelemetry), masquer `api_token` dans
+  `url.full` ou désactiver l'instrumentation `java-http-client`, avec un test sur un span exporté ;
+  ne jamais activer `-Djdk.httpclient.HttpClient.log`.
+- **`@Scheduled` en parallèle** : avec les threads virtuels, Boot fournit un
+  `SimpleAsyncTaskScheduler` → deux tâches planifiées s'exécutent simultanément (pas de thread
+  unique) → protéger chaque cas d'usage et rendre les écritures concurrentes sûres.
+- **CI Semgrep rouge `investai-no-string-concatenated-sql`** (Semgrep ne tourne qu'en CI) : littéraux SQL
+  concaténés par `+`, même entre constantes (`SELECT + "WHERE …"`) → une requête = un seul text
+  block `"""…"""` (répéter la liste de colonnes) ; vérifier en local avec Docker :
+  `docker run --rm -v "$PWD:/src" -w /src semgrep/semgrep semgrep scan --config .semgrep/ --error`.
+- **`@RequestParam LocalDate`** : sans `@DateTimeFormat(iso = ISO.DATE)`, le format attendu dépend
+  de la locale → toujours l'annoter. Une URL de test avec `/` final (`/instruments/?query=`) donne 404.
 
 ## Outils qualité (tous bloquants dans `./mvnw verify`)
 

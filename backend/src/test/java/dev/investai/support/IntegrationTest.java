@@ -20,7 +20,14 @@ import org.springframework.context.annotation.Import;
 @Documented
 @SpringBootTest(
     webEnvironment = WebEnvironment.RANDOM_PORT,
-    properties = {FixtureCredentials.USERNAME_PROPERTY, FixtureCredentials.PASSWORD_HASH_PROPERTY})
+    properties = {
+      FixtureCredentials.USERNAME_PROPERTY,
+      FixtureCredentials.PASSWORD_HASH_PROPERTY,
+      // Scheduled jobs off and no EODHD key, even if the developer has one in the environment:
+      // tests never call a provider, they trigger the use cases with fakes.
+      "investai.market.jobs.enabled=false",
+      "investai.market.eodhd.api-key="
+    })
 @AutoConfigureMockMvc
 @Import(PostgresTestcontainersConfiguration.class)
 public @interface IntegrationTest {}

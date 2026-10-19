@@ -31,10 +31,34 @@ cd frontend && npm start             # http://localhost:4200 (proxy /api → :80
 
 - `infra/.env` contient `POSTGRES_PASSWORD`, `INVESTAI_USERNAME` et `INVESTAI_PASSWORD_HASH`
   (hash PBKDF2, jamais le mot de passe en clair ; [ADR-0007](adr/0007-authentification-mono-utilisateur.md)).
-  Sans eux, le backend refuse de démarrer.
+  Sans eux, le backend refuse de démarrer. Il contient aussi `INVESTAI_EODHD_API_KEY`, facultative
+  (données de marché, voir plus bas).
 - Ouvrir http://localhost:4200 : l'écran de connexion demande `INVESTAI_USERNAME` et le mot de
   passe dont le hash est dans `INVESTAI_PASSWORD_HASH`.
 - Santé : http://localhost:8080/actuator/health/readiness (détail de la base une fois connecté).
+
+### Données de marché (EODHD, Euronext)
+
+Le backend collecte seul les données de marché ([ADR-0009](adr/0009-fournisseur-donnees-marche.md),
+[spec 2.1](specs/phase-2-01-market-data-collection.md)) :
+
+- **Clôtures quotidiennes** : fichiers différés gratuits d'Euronext, sans clé. Job toutes les
+  heures de 9 h à 23 h (heure de Paris) et 1 min après le démarrage, séance précédente, un seul
+  téléchargement réussi par
+  fichier et par séance.
+- **Référentiel, 1 an d'historique, rattrapage des jours manqués** : offre gratuite d'EODHD.
+  Créer un compte sur https://eodhd.com/register, copier la clé d'API du tableau de bord et
+  l'ajouter à `infra/.env` : `INVESTAI_EODHD_API_KEY=<clé>` (jamais ailleurs, jamais commitée).
+  Job au démarrage (après 30 s) puis toutes les heures ; budget de 15 appels par jour UTC
+  (quota gratuit : 20), consommation visible dans les logs (`calls=3/15`).
+- **Sans clé** : l'application démarre, la collecte Euronext tourne, les fonctions EODHD sont
+  désactivées (un seul avertissement au démarrage). Sans référentiel, aucune valeur n'est suivie :
+  la clé est nécessaire pour un usage réel.
+- Premier démarrage avec la clé : référentiel de Paris (1 appel), suivi automatique des
+  benchmarks (CAC, CW8, WPEA) et de leur historique (3 appels). Au démarrage suivant (ou à la
+  prochaine heure pleine entre 9 h et 23 h), la collecte ajoute la clôture de la séance précédente.
+- Couper les jobs (dépannage) : `INVESTAI_MARKET_JOBS_ENABLED=false`. La stack de vérification
+  (`npm run stack:start`) les coupe toujours.
 - Arrêter la base : `docker compose -f infra/docker-compose.yml stop` (Spring ne l'arrête pas,
   `lifecycle-management=start-only`). Repartir de zéro : `... down -v` (supprime les données).
 

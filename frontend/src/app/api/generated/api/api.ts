@@ -1,5 +1,7 @@
 export * from './auth.service';
 import { AuthService } from './auth.service';
+export * from './market.service';
+import { MarketService } from './market.service';
 export * from './system.service';
 import { SystemService } from './system.service';
-export const APIS = [AuthService, SystemService];
+export const APIS = [AuthService, MarketService, SystemService];

@@ -91,6 +91,24 @@ src/app/
   Côté front, `toProblem()` ajoute `network.unavailable` (statut 0, serveur injoignable) et
   `http.<statut>` pour une réponse qui n'est pas du problem+json (proxy).
 - Publics sans session : `GET /api/v1/status`, `POST /api/v1/auth/login`.
+- **Données de marché** (Phase 2.1, service généré `MarketService`, tag `market`, session requise).
+  Tout est lu en base : ces appels ne déclenchent jamais d'appel à un fournisseur.
+  - `searchInstruments(query)` → `GET /api/v1/market/instruments?query=` : ISIN exact, ticker exact
+    ou fragment du nom (casse et accents ignorés), 20 résultats max, valeurs suivies d'abord.
+    `query` vide ou > 100 caractères → 400 `validation.failed` (`field: "query"`).
+  - `getInstrument(id)` → `GET /api/v1/market/instruments/{id}` : `InstrumentDetailsResponse`,
+    `lastClose` et `trackedSince` **absents** tant qu'il n'y en a pas.
+  - `getInstrumentPrices(id, from?, to?)` → `GET …/{id}/prices` : clôtures par date croissante,
+    dates ISO (`2026-10-16`). Par défaut 1 an jusqu'à aujourd'hui ; 400 `validation.failed` avec
+    `errors: [{ field: "from", code: "NotAfterTo" | "MaxFiveYears" }]`. Une séance sans échange n'a
+    pas de clôture (trou dans la série, ne rien inventer).
+  - `trackInstrument(id)` → `PUT …/{id}/tracking` : 204, idempotent (CSRF géré par `HttpClient`).
+    L'historique arrive plus tard (job), `historyLoaded` passe alors à `true`.
+  - Instrument inconnu → 404 `instrument.not-found`.
+  - **Prix** : `close` est une **chaîne décimale** à 4 décimales (`"173.1600"`) avec `currency`
+    (ISO 4217) : l'afficher avec `CurrencyPipe`/`Intl`, ne jamais la convertir en `number` pour
+    calculer. `source` : `EURONEXT` (officiel) ou `EODHD` (historique, rattrapage). Clôtures
+    brutes, non ajustées des dividendes ni des divisions.
 
 ## Pièges connus
 

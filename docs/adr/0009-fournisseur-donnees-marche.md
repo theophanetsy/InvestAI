@@ -147,7 +147,8 @@ MSCI World Swap PEA (`IE0002XZSHO1`, WPEA, XPAR), Amundi CAC 40 Dist (`FR0007052
 
 ### Exigences pour le `MarketDataProvider` (étape suivante)
 
-- **Seuls les jobs planifiés du backend** (`@Scheduled` + ShedLock, en Java, pas de script à côté)
+- **Seuls les jobs planifiés du backend** (`@Scheduled`, en Java, pas de script à côté ; ShedLock
+  reporté au déploiement multi-instances, voir la [spec 2.1](../specs/phase-2-01-market-data-collection.md), critère 20)
   appellent les fournisseurs et écrivent en base. Dashboard, simulations et tools de l'agent
   (`getQuote`, `getPriceHistory`) **lisent la base** : quota protégé, chiffres identiques partout,
   aucun appel réseau déclenchable par une injection de prompt.
@@ -165,6 +166,9 @@ MSCI World Swap PEA (`IE0002XZSHO1`, WPEA, XPAR), Amundi CAC 40 Dist (`FR0007052
   première ligne (copyright) ignorée, horodatages UTC.
 - Clé EODHD : variable d'environnement (`INVESTAI_EODHD_API_KEY`), jamais dans une URL
   journalisée (logs HTTP client, messages d'exception, traces OpenTelemetry en Phase 3).
+  Phase 2.1 : la clé est ajoutée à la requête envoyée par un intercepteur, invisible pour
+  `RestClient` ; une instrumentation du client HTTP du JDK (agent OpenTelemetry) la verrait
+  encore : la masquer (`api_token`) avant de l'activer en Phase 3.
 - Budget d'appels EODHD tenu par l'application (compteur quotidien, refus au-delà de ~15 appels
   pour garder une marge), consommation visible dans les logs.
 - **Tests sans données réelles commitées** : publier des fichiers Euronext ou des réponses EODHD

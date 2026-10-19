@@ -90,6 +90,170 @@
         "tags" : [ "auth" ]
       }
     },
+    "/api/v1/market/instruments" : {
+      "get" : {
+        "operationId" : "searchInstruments",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 100,
+            "minLength" : 0
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/InstrumentSummaryResponse"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Erreur (RFC 9457) : voir `code`"
+          }
+        },
+        "tags" : [ "market" ]
+      }
+    },
+    "/api/v1/market/instruments/{id}" : {
+      "get" : {
+        "operationId" : "getInstrument",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InstrumentDetailsResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Erreur (RFC 9457) : voir `code`"
+          }
+        },
+        "tags" : [ "market" ]
+      }
+    },
+    "/api/v1/market/instruments/{id}/prices" : {
+      "get" : {
+        "operationId" : "getInstrumentPrices",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "query",
+          "name" : "from",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "date"
+          }
+        }, {
+          "in" : "query",
+          "name" : "to",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "date"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/DailyCloseResponse"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Erreur (RFC 9457) : voir `code`"
+          }
+        },
+        "tags" : [ "market" ]
+      }
+    },
+    "/api/v1/market/instruments/{id}/tracking" : {
+      "put" : {
+        "operationId" : "trackInstrument",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Erreur (RFC 9457) : voir `code`"
+          }
+        },
+        "tags" : [ "market" ]
+      }
+    },
     "/api/v1/status" : {
       "get" : {
         "operationId" : "getStatus",
@@ -130,6 +294,28 @@
         },
         "required" : [ "username" ]
       },
+      "DailyCloseResponse" : {
+        "type" : "object",
+        "properties" : {
+          "close" : {
+            "type" : "string",
+            "example" : "173.1600",
+            "pattern" : "^\\d+\\.\\d{4}$"
+          },
+          "currency" : {
+            "type" : "string"
+          },
+          "date" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "source" : {
+            "type" : "string",
+            "enum" : [ "EURONEXT", "EODHD" ]
+          }
+        },
+        "required" : [ "close", "currency", "date", "source" ]
+      },
       "FieldViolation" : {
         "type" : "object",
         "properties" : {
@@ -141,6 +327,77 @@
           }
         },
         "required" : [ "code", "field" ]
+      },
+      "InstrumentDetailsResponse" : {
+        "type" : "object",
+        "properties" : {
+          "currency" : {
+            "type" : "string"
+          },
+          "historyLoaded" : {
+            "type" : "boolean"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "isin" : {
+            "type" : "string"
+          },
+          "lastClose" : {
+            "$ref" : "#/components/schemas/DailyCloseResponse"
+          },
+          "mic" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "ticker" : {
+            "type" : "string"
+          },
+          "trackedSince" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "type" : {
+            "type" : "string",
+            "enum" : [ "STOCK", "ETF", "FUND", "OTHER" ]
+          }
+        },
+        "required" : [ "currency", "historyLoaded", "id", "isin", "mic", "name", "ticker", "type" ]
+      },
+      "InstrumentSummaryResponse" : {
+        "type" : "object",
+        "properties" : {
+          "currency" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "isin" : {
+            "type" : "string"
+          },
+          "mic" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "ticker" : {
+            "type" : "string"
+          },
+          "tracked" : {
+            "type" : "boolean"
+          },
+          "type" : {
+            "type" : "string",
+            "enum" : [ "STOCK", "ETF", "FUND", "OTHER" ]
+          }
+        },
+        "required" : [ "currency", "id", "isin", "mic", "name", "ticker", "tracked", "type" ]
       },
       "LoginRequest" : {
         "type" : "object",
