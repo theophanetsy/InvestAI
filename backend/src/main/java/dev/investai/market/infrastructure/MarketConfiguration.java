@@ -5,6 +5,7 @@ import dev.investai.market.domain.Isin;
 import dev.investai.market.domain.Listing;
 import dev.investai.market.domain.MarketDataProvider;
 import dev.investai.market.domain.Mic;
+import dev.investai.market.domain.PeaEligibilityRule;
 import dev.investai.market.domain.TradeFileSource;
 import java.net.http.HttpClient;
 import java.util.List;
@@ -44,6 +45,17 @@ public class MarketConfiguration {
         properties.eodhd().dailyCallBudget(),
         properties.eodhd().referenceMaxAge(),
         benchmarks(properties.benchmarks()));
+  }
+
+  /**
+   * PEA eligibility rule: the configured benchmarks are PEA-eligible ETFs (spec 2.3, criterion 7).
+   *
+   * @param settings market settings
+   * @return the rule
+   */
+  @Bean
+  PeaEligibilityRule peaEligibilityRule(MarketSettings settings) {
+    return new PeaEligibilityRule(settings.benchmarks());
   }
 
   /**

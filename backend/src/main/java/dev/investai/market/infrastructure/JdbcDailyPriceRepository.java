@@ -5,6 +5,7 @@ import dev.investai.market.domain.DailyPriceRepository;
 import dev.investai.market.domain.InstrumentId;
 import dev.investai.market.domain.PriceKey;
 import dev.investai.market.domain.PriceSource;
+import dev.investai.shared.persistence.Timestamps;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
@@ -50,6 +51,14 @@ class JdbcDailyPriceRepository implements DailyPriceRepository {
       SELECT instrument_id, trading_date, close, currency, source, volume, trade_count
       FROM daily_price
       WHERE instrument_id = :instrument ORDER BY trading_date DESC LIMIT 1
+      """;
+
+  private static final String FIND_LATEST_OF_EACH =
+      """
+      SELECT DISTINCT ON (instrument_id)
+             instrument_id, trading_date, close, currency, source, volume, trade_count
+      FROM daily_price
+      WHERE instrument_id IN (:ids) ORDER BY instrument_id, trading_date DESC
       """;
 
   /** The WHERE clause keeps the source priority even if a caller forgot {@code PriceMerge}. */
@@ -132,6 +141,21 @@ class JdbcDailyPriceRepository implements DailyPriceRepository {
         .param(INSTRUMENT, instrument.value())
         .query((rs, row) -> map(rs))
         .optional();
+  }
+
+  @Override
+  public Map<InstrumentId, DailyClose> findLatest(Collection<InstrumentId> instruments) {
+    if (instruments.isEmpty()) {
+      return Map.of();
+    }
+    List<UUID> ids = instruments.stream().map(InstrumentId::value).toList();
+    return jdbc
+        .sql(FIND_LATEST_OF_EACH)
+        .param("ids", ids)
+        .query((rs, row) -> map(rs))
+        .list()
+        .stream()
+        .collect(Collectors.toMap(DailyClose::instrumentId, Function.identity()));
   }
 
   @Override

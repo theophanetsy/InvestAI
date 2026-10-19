@@ -8,23 +8,31 @@ import dev.investai.market.domain.Isin;
 import dev.investai.market.domain.ListedInstrument;
 import dev.investai.market.domain.Listing;
 import dev.investai.market.domain.Mic;
+import dev.investai.market.domain.PeaEligibilityRule;
+import dev.investai.market.domain.PeaEligibilityStatus;
+import dev.investai.shared.persistence.Timestamps;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.util.Collection;
 import java.util.Currency;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-/** {@link InstrumentRepository} on the {@code instrument} table. */
+/**
+ * {@link InstrumentRepository} on the {@code instrument} table. The PEA eligibility is resolved
+ * when reading: the owner's correction when stored, the {@link PeaEligibilityRule} otherwise.
+ */
 @Repository
 class JdbcInstrumentRepository implements InstrumentRepository {
 
@@ -32,25 +40,36 @@ class JdbcInstrumentRepository implements InstrumentRepository {
   // repeated.
   private static final String FIND_BY_ID =
       """
-      SELECT id, isin, mic, ticker, name, type, currency, tracked_since, history_loaded
+      SELECT id, isin, mic, ticker, name, type, currency, tracked_since, history_loaded,
+             pea_eligibility_correction
       FROM instrument WHERE id = :id
+      """;
+
+  private static final String FIND_ALL_BY_ID =
+      """
+      SELECT id, isin, mic, ticker, name, type, currency, tracked_since, history_loaded,
+             pea_eligibility_correction
+      FROM instrument WHERE id IN (:ids)
       """;
 
   private static final String FIND_BY_LISTING =
       """
-      SELECT id, isin, mic, ticker, name, type, currency, tracked_since, history_loaded
+      SELECT id, isin, mic, ticker, name, type, currency, tracked_since, history_loaded,
+             pea_eligibility_correction
       FROM instrument WHERE isin = :isin AND mic = :mic
       """;
 
   private static final String FIND_ALL =
       """
-      SELECT id, isin, mic, ticker, name, type, currency, tracked_since, history_loaded
+      SELECT id, isin, mic, ticker, name, type, currency, tracked_since, history_loaded,
+             pea_eligibility_correction
       FROM instrument ORDER BY isin, mic
       """;
 
   private static final String FIND_TRACKED =
       """
-      SELECT id, isin, mic, ticker, name, type, currency, tracked_since, history_loaded
+      SELECT id, isin, mic, ticker, name, type, currency, tracked_since, history_loaded,
+             pea_eligibility_correction
       FROM instrument WHERE tracked_since IS NOT NULL
       ORDER BY tracked_since, isin, mic
       """;
@@ -61,6 +80,14 @@ class JdbcInstrumentRepository implements InstrumentRepository {
       WHERE id = :id AND tracked_since IS NULL
       """;
 
+  private static final String CORRECT_PEA_ELIGIBILITY =
+      """
+      UPDATE instrument
+      SET pea_eligibility_correction = :status, pea_eligibility_corrected_at = :at, updated_at = :at
+      WHERE id = :id
+      """;
+
+  /** Never writes the PEA eligibility correction: a refresh cannot overwrite the owner's choice. */
   private static final String UPSERT =
       """
       INSERT INTO instrument (id, isin, mic, ticker, name, type, currency,
@@ -75,7 +102,8 @@ class JdbcInstrumentRepository implements InstrumentRepository {
 
   private static final String SEARCH =
       """
-          SELECT id, isin, mic, ticker, name, type, currency, tracked_since, history_loaded
+          SELECT id, isin, mic, ticker, name, type, currency, tracked_since, history_loaded,
+                 pea_eligibility_correction
           FROM instrument
           WHERE isin = :exact OR upper(ticker) = :exact
              OR unaccent(lower(name)) LIKE '%' || replace(replace(replace(
@@ -90,15 +118,27 @@ class JdbcInstrumentRepository implements InstrumentRepository {
 
   private final JdbcClient jdbc;
   private final NamedParameterJdbcTemplate batch;
+  private final PeaEligibilityRule eligibilityRule;
 
-  JdbcInstrumentRepository(JdbcClient jdbc, NamedParameterJdbcTemplate batch) {
+  JdbcInstrumentRepository(
+      JdbcClient jdbc, NamedParameterJdbcTemplate batch, PeaEligibilityRule eligibilityRule) {
     this.jdbc = jdbc;
     this.batch = batch;
+    this.eligibilityRule = eligibilityRule;
   }
 
   @Override
   public Optional<Instrument> findById(InstrumentId id) {
     return jdbc.sql(FIND_BY_ID).param(ID, id.value()).query((rs, row) -> map(rs)).optional();
+  }
+
+  @Override
+  public List<Instrument> findAllById(Collection<InstrumentId> ids) {
+    if (ids.isEmpty()) {
+      return List.of();
+    }
+    List<UUID> values = ids.stream().map(InstrumentId::value).toList();
+    return jdbc.sql(FIND_ALL_BY_ID).param("ids", values).query((rs, row) -> map(rs)).list();
   }
 
   @Override
@@ -162,6 +202,16 @@ class JdbcInstrumentRepository implements InstrumentRepository {
   }
 
   @Override
+  public boolean correctPeaEligibility(InstrumentId id, PeaEligibilityStatus status, Instant at) {
+    return jdbc.sql(CORRECT_PEA_ELIGIBILITY)
+            .param(ID, id.value())
+            .param("status", status.name())
+            .param("at", Timestamps.of(at))
+            .update()
+        == 1;
+  }
+
+  @Override
   public void markHistoryLoaded(InstrumentId id, Instant at) {
     jdbc.sql("UPDATE instrument SET history_loaded = true, updated_at = :at WHERE id = :id")
         .param(ID, id.value())
@@ -177,15 +227,23 @@ class JdbcInstrumentRepository implements InstrumentRepository {
         .map(OffsetDateTime::toInstant);
   }
 
-  private static Instrument map(ResultSet rs) throws SQLException {
+  private Instrument map(ResultSet rs) throws SQLException {
+    Listing listing = new Listing(new Isin(rs.getString("isin")), new Mic(rs.getString("mic")));
+    InstrumentType type = InstrumentType.valueOf(rs.getString("type"));
     return new Instrument(
         new InstrumentId(rs.getObject(ID, UUID.class)),
-        new Listing(new Isin(rs.getString("isin")), new Mic(rs.getString("mic"))),
+        listing,
         rs.getString("ticker"),
         rs.getString("name"),
-        InstrumentType.valueOf(rs.getString("type")),
+        type,
         Currency.getInstance(rs.getString("currency")),
         Timestamps.nullable(rs, "tracked_since"),
-        rs.getBoolean("history_loaded"));
+        rs.getBoolean("history_loaded"),
+        eligibilityRule.resolve(listing, type, correction(rs)));
+  }
+
+  private static @Nullable PeaEligibilityStatus correction(ResultSet rs) throws SQLException {
+    String value = rs.getString("pea_eligibility_correction");
+    return value == null ? null : PeaEligibilityStatus.valueOf(value);
   }
 }

@@ -77,7 +77,7 @@ class OpenApiContractIT {
       assertThat(operation.get("tags").valueStream().map(JsonNode::asString))
           .as("tags of %s", id)
           .singleElement()
-          .isIn("system", "auth", "market");
+          .isIn("system", "auth", "market", "portfolio");
       assertThat(
               operation
                   .at("/responses/default/content/application~1problem+json/schema/$ref")
@@ -95,7 +95,16 @@ class OpenApiContractIT {
             "searchInstruments",
             "getInstrument",
             "getInstrumentPrices",
-            "trackInstrument");
+            "trackInstrument",
+            "correctPeaEligibility",
+            "getProfile",
+            "saveProfile",
+            "listRiskProfiles",
+            "getPortfolio",
+            "setPortfolioCash",
+            "addPortfolioLine",
+            "updatePortfolioLine",
+            "deletePortfolioLine");
   }
 
   @Test

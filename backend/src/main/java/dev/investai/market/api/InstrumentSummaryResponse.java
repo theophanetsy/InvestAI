@@ -14,7 +14,8 @@ import java.util.UUID;
  * @param name name
  * @param type kind of instrument
  * @param currency trading currency (ISO 4217)
- * @param tracked whether its closes are collected
+ * @param tracked whether it is followed (one year of history and catch-up of missed sessions)
+ * @param peaEligibility PEA eligibility
  */
 public record InstrumentSummaryResponse(
     UUID id,
@@ -24,9 +25,16 @@ public record InstrumentSummaryResponse(
     String name,
     InstrumentType type,
     String currency,
-    boolean tracked) {
+    boolean tracked,
+    PeaEligibilityResponse peaEligibility) {
 
-  static InstrumentSummaryResponse from(Instrument instrument) {
+  /**
+   * Converts an instrument; also used by the portfolio API (one type in the generated client).
+   *
+   * @param instrument the instrument
+   * @return the summary
+   */
+  public static InstrumentSummaryResponse from(Instrument instrument) {
     return new InstrumentSummaryResponse(
         instrument.id().value(),
         instrument.listing().isin().value(),
@@ -35,6 +43,7 @@ public record InstrumentSummaryResponse(
         instrument.name(),
         instrument.type(),
         instrument.currency().getCurrencyCode(),
-        instrument.tracked());
+        instrument.tracked(),
+        PeaEligibilityResponse.from(instrument.peaEligibility()));
   }
 }

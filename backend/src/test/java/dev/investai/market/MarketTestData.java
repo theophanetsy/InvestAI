@@ -5,6 +5,8 @@ import dev.investai.market.domain.Isin;
 import dev.investai.market.domain.ListedInstrument;
 import dev.investai.market.domain.Listing;
 import dev.investai.market.domain.Mic;
+import dev.investai.market.domain.PeaEligibility;
+import dev.investai.market.domain.PeaEligibilityStatus;
 import java.util.Currency;
 import java.util.stream.IntStream;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -14,6 +16,10 @@ public final class MarketTestData {
 
   /** Euro. */
   public static final Currency EUR = Currency.getInstance("EUR");
+
+  /** Eligibility of an instrument the rule cannot classify. */
+  public static final PeaEligibility UNKNOWN_BY_RULE =
+      PeaEligibility.byRule(PeaEligibilityStatus.UNKNOWN);
 
   private MarketTestData() {}
 
@@ -51,7 +57,9 @@ public final class MarketTestData {
    * @param jdbc the database
    */
   public static void clearTables(JdbcClient jdbc) {
-    // Literal statements only (Semgrep investai-no-string-concatenated-sql).
+    // Literal statements only (Semgrep investai-no-string-concatenated-sql). Declared portfolio
+    // lines reference instruments (portfolio module): removed first.
+    jdbc.sql("DELETE FROM portfolio_line").update();
     jdbc.sql("DELETE FROM price_catch_up").update();
     jdbc.sql("DELETE FROM daily_price").update();
     jdbc.sql("DELETE FROM market_collection").update();

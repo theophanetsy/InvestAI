@@ -2,6 +2,7 @@ package dev.investai.market.infrastructure;
 
 import dev.investai.market.domain.CollectionJournal;
 import dev.investai.market.domain.TradeFileSegment;
+import dev.investai.shared.persistence.Timestamps;
 import java.sql.Date;
 import java.time.Instant;
 import java.time.LocalDate;

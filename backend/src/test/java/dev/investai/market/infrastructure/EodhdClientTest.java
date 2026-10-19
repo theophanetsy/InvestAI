@@ -10,6 +10,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import dev.investai.market.MarketTestData;
 import dev.investai.market.domain.HistoricalClose;
 import dev.investai.market.domain.Instrument;
 import dev.investai.market.domain.InstrumentId;
@@ -56,7 +57,8 @@ class EodhdClientTest {
           InstrumentType.STOCK,
           Currency.getInstance("EUR"),
           null,
-          false);
+          false,
+          MarketTestData.UNKNOWN_BY_RULE);
 
   @Test
   void referenceDataComesFromTheParisSymbolListWithTheKeyAndUserAgent() {
@@ -178,7 +180,8 @@ class EodhdClientTest {
             InstrumentType.STOCK,
             Currency.getInstance("EUR"),
             null,
-            false);
+            false,
+            MarketTestData.UNKNOWN_BY_RULE);
 
     assertThat(catchThrowable(() -> client.dailyCloses(asml, LocalDate.MIN, LocalDate.MAX)))
         .isInstanceOf(MarketDataUnavailableException.class)

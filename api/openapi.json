@@ -168,6 +168,53 @@
         "tags" : [ "market" ]
       }
     },
+    "/api/v1/market/instruments/{id}/pea-eligibility" : {
+      "put" : {
+        "operationId" : "correctPeaEligibility",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PeaEligibilityRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PeaEligibilityResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Erreur (RFC 9457) : voir `code`"
+          }
+        },
+        "tags" : [ "market" ]
+      }
+    },
     "/api/v1/market/instruments/{id}/prices" : {
       "get" : {
         "operationId" : "getInstrumentPrices",
@@ -254,6 +301,280 @@
         "tags" : [ "market" ]
       }
     },
+    "/api/v1/portfolio" : {
+      "get" : {
+        "operationId" : "getPortfolio",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PortfolioResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Erreur (RFC 9457) : voir `code`"
+          }
+        },
+        "tags" : [ "portfolio" ]
+      }
+    },
+    "/api/v1/portfolio/cash" : {
+      "put" : {
+        "operationId" : "setPortfolioCash",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CashRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CashResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Erreur (RFC 9457) : voir `code`"
+          }
+        },
+        "tags" : [ "portfolio" ]
+      }
+    },
+    "/api/v1/portfolio/lines" : {
+      "post" : {
+        "operationId" : "addPortfolioLine",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PortfolioLineRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DeclaredLineResponse"
+                }
+              }
+            },
+            "description" : "Created"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Erreur (RFC 9457) : voir `code`"
+          }
+        },
+        "tags" : [ "portfolio" ]
+      }
+    },
+    "/api/v1/portfolio/lines/{id}" : {
+      "delete" : {
+        "operationId" : "deletePortfolioLine",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Erreur (RFC 9457) : voir `code`"
+          }
+        },
+        "tags" : [ "portfolio" ]
+      },
+      "put" : {
+        "operationId" : "updatePortfolioLine",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PortfolioLineUpdateRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DeclaredLineResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Erreur (RFC 9457) : voir `code`"
+          }
+        },
+        "tags" : [ "portfolio" ]
+      }
+    },
+    "/api/v1/profile" : {
+      "get" : {
+        "operationId" : "getProfile",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProfileResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Erreur (RFC 9457) : voir `code`"
+          }
+        },
+        "tags" : [ "portfolio" ]
+      },
+      "put" : {
+        "operationId" : "saveProfile",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ProfileRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProfileResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Erreur (RFC 9457) : voir `code`"
+          }
+        },
+        "tags" : [ "portfolio" ]
+      }
+    },
+    "/api/v1/profile/risk-profiles" : {
+      "get" : {
+        "operationId" : "listRiskProfiles",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/RiskProfileResponse"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Erreur (RFC 9457) : voir `code`"
+          }
+        },
+        "tags" : [ "portfolio" ]
+      }
+    },
     "/api/v1/status" : {
       "get" : {
         "operationId" : "getStatus",
@@ -285,6 +606,36 @@
   },
   "components" : {
     "schemas" : {
+      "CashRequest" : {
+        "type" : "object",
+        "properties" : {
+          "amount" : {
+            "type" : "string",
+            "example" : "350.00",
+            "pattern" : "^\\d{1,13}(\\.\\d{1,2})?$"
+          }
+        },
+        "required" : [ "amount" ]
+      },
+      "CashResponse" : {
+        "type" : "object",
+        "properties" : {
+          "amount" : {
+            "type" : "string",
+            "example" : "350.00",
+            "pattern" : "^\\d+\\.\\d{2}$"
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "weightPercent" : {
+            "type" : "string",
+            "example" : "12.50"
+          }
+        },
+        "required" : [ "amount", "updatedAt" ]
+      },
       "CurrentUserResponse" : {
         "type" : "object",
         "properties" : {
@@ -328,6 +679,33 @@
         },
         "required" : [ "close", "currency", "date", "source" ]
       },
+      "DeclaredLineResponse" : {
+        "type" : "object",
+        "properties" : {
+          "averagePrice" : {
+            "type" : "string",
+            "example" : "150.1234",
+            "pattern" : "^\\d+\\.\\d{4}$"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "instrumentId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "quantity" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "id", "instrumentId", "quantity", "updatedAt" ]
+      },
       "FieldViolation" : {
         "type" : "object",
         "properties" : {
@@ -365,6 +743,9 @@
           "name" : {
             "type" : "string"
           },
+          "peaEligibility" : {
+            "$ref" : "#/components/schemas/PeaEligibilityResponse"
+          },
           "ticker" : {
             "type" : "string"
           },
@@ -377,7 +758,7 @@
             "enum" : [ "STOCK", "ETF", "FUND", "OTHER" ]
           }
         },
-        "required" : [ "currency", "historyLoaded", "id", "isin", "mic", "name", "ticker", "type" ]
+        "required" : [ "currency", "historyLoaded", "id", "isin", "mic", "name", "peaEligibility", "ticker", "type" ]
       },
       "InstrumentSummaryResponse" : {
         "type" : "object",
@@ -398,6 +779,9 @@
           "name" : {
             "type" : "string"
           },
+          "peaEligibility" : {
+            "$ref" : "#/components/schemas/PeaEligibilityResponse"
+          },
           "ticker" : {
             "type" : "string"
           },
@@ -409,7 +793,21 @@
             "enum" : [ "STOCK", "ETF", "FUND", "OTHER" ]
           }
         },
-        "required" : [ "currency", "id", "isin", "mic", "name", "ticker", "tracked", "type" ]
+        "required" : [ "currency", "id", "isin", "mic", "name", "peaEligibility", "ticker", "tracked", "type" ]
+      },
+      "LastCloseResponse" : {
+        "type" : "object",
+        "properties" : {
+          "close" : {
+            "type" : "string",
+            "example" : "173.1600"
+          },
+          "date" : {
+            "type" : "string",
+            "format" : "date"
+          }
+        },
+        "required" : [ "close", "date" ]
       },
       "LoginRequest" : {
         "type" : "object",
@@ -426,6 +824,142 @@
           }
         },
         "required" : [ "password", "username" ]
+      },
+      "PeaEligibilityRequest" : {
+        "type" : "object",
+        "properties" : {
+          "status" : {
+            "type" : "string",
+            "enum" : [ "ELIGIBLE", "NOT_ELIGIBLE", "UNKNOWN" ]
+          }
+        },
+        "required" : [ "status" ]
+      },
+      "PeaEligibilityResponse" : {
+        "type" : "object",
+        "properties" : {
+          "source" : {
+            "type" : "string",
+            "enum" : [ "RULE", "OWNER" ]
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "ELIGIBLE", "NOT_ELIGIBLE", "UNKNOWN" ]
+          }
+        },
+        "required" : [ "source", "status" ]
+      },
+      "PortfolioLineRequest" : {
+        "type" : "object",
+        "properties" : {
+          "averagePrice" : {
+            "type" : "string",
+            "example" : "150.1234",
+            "pattern" : "^\\d{1,15}(\\.\\d{1,4})?$"
+          },
+          "instrumentId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "quantity" : {
+            "type" : "integer",
+            "format" : "int64",
+            "maximum" : 1000000000,
+            "minimum" : 1
+          }
+        },
+        "required" : [ "instrumentId", "quantity" ]
+      },
+      "PortfolioLineResponse" : {
+        "type" : "object",
+        "properties" : {
+          "averagePrice" : {
+            "type" : "string",
+            "example" : "150.1234"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "instrument" : {
+            "$ref" : "#/components/schemas/InstrumentSummaryResponse"
+          },
+          "lastClose" : {
+            "$ref" : "#/components/schemas/LastCloseResponse"
+          },
+          "quantity" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "unrealizedGain" : {
+            "type" : "string",
+            "example" : "230.37"
+          },
+          "unrealizedGainPercent" : {
+            "type" : "string",
+            "example" : "15.35"
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "value" : {
+            "type" : "string",
+            "example" : "1731.60"
+          },
+          "weightPercent" : {
+            "type" : "string",
+            "example" : "42.10"
+          }
+        },
+        "required" : [ "id", "instrument", "quantity", "updatedAt" ]
+      },
+      "PortfolioLineUpdateRequest" : {
+        "type" : "object",
+        "properties" : {
+          "averagePrice" : {
+            "type" : "string",
+            "example" : "150.1234",
+            "pattern" : "^\\d{1,15}(\\.\\d{1,4})?$"
+          },
+          "quantity" : {
+            "type" : "integer",
+            "format" : "int64",
+            "maximum" : 1000000000,
+            "minimum" : 1
+          }
+        },
+        "required" : [ "quantity" ]
+      },
+      "PortfolioResponse" : {
+        "type" : "object",
+        "properties" : {
+          "cash" : {
+            "$ref" : "#/components/schemas/CashResponse"
+          },
+          "complete" : {
+            "type" : "boolean"
+          },
+          "currency" : {
+            "type" : "string"
+          },
+          "lines" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PortfolioLineResponse"
+            }
+          },
+          "total" : {
+            "type" : "string",
+            "example" : "12500.40",
+            "pattern" : "^\\d+\\.\\d{2}$"
+          },
+          "unpricedLines" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "complete", "currency", "lines", "total", "unpricedLines" ]
       },
       "Problem" : {
         "type" : "object",
@@ -459,6 +993,103 @@
           }
         },
         "required" : [ "code", "requestId", "status", "title" ]
+      },
+      "ProfileRequest" : {
+        "type" : "object",
+        "properties" : {
+          "amountToInvest" : {
+            "type" : "string",
+            "example" : "20000.00",
+            "pattern" : "^\\d{1,13}(\\.\\d{1,2})?$"
+          },
+          "exclusions" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "maxLength" : 100,
+              "minLength" : 0,
+              "pattern" : "^[^\\x00-\\x1F\\x7F]*$"
+            },
+            "maxItems" : 20,
+            "minItems" : 0
+          },
+          "horizonYears" : {
+            "type" : "integer",
+            "format" : "int32",
+            "maximum" : 40,
+            "minimum" : 1
+          },
+          "objectives" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0,
+            "pattern" : "^[^\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]*$"
+          },
+          "peaOpenedOn" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "riskProfile" : {
+            "type" : "string",
+            "enum" : [ "PRUDENT", "BALANCED", "DYNAMIC", "AGGRESSIVE" ]
+          }
+        },
+        "required" : [ "amountToInvest", "exclusions", "horizonYears", "riskProfile" ]
+      },
+      "ProfileResponse" : {
+        "type" : "object",
+        "properties" : {
+          "amountToInvest" : {
+            "type" : "string",
+            "example" : "20000.00",
+            "pattern" : "^\\d+\\.\\d{2}$"
+          },
+          "currency" : {
+            "type" : "string"
+          },
+          "exclusions" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "horizonYears" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "objectives" : {
+            "type" : "string"
+          },
+          "peaOpenedOn" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "riskProfile" : {
+            "type" : "string",
+            "enum" : [ "PRUDENT", "BALANCED", "DYNAMIC", "AGGRESSIVE" ]
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "amountToInvest", "currency", "exclusions", "horizonYears", "riskProfile", "updatedAt" ]
+      },
+      "RiskProfileResponse" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "string",
+            "enum" : [ "PRUDENT", "BALANCED", "DYNAMIC", "AGGRESSIVE" ]
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "code", "description", "label" ]
       },
       "StatusResponse" : {
         "type" : "object",

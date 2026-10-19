@@ -9,6 +9,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import dev.investai.market.MarketTestData;
 import dev.investai.market.application.CallBudget;
 import dev.investai.market.application.MarketSettings;
 import dev.investai.market.application.PriceHistoryLoader;
@@ -74,7 +75,8 @@ class EodhdKeyLeakTest {
             InstrumentType.STOCK,
             Currency.getInstance("EUR"),
             Instant.EPOCH,
-            false);
+            false,
+            MarketTestData.UNKNOWN_BY_RULE);
     given(counter.reserve(any(), anyInt())).willReturn(OptionalInt.of(1));
     given(instruments.findTracked()).willReturn(List.of(instrument));
     given(instruments.lastReferenceRefresh()).willReturn(Optional.empty());

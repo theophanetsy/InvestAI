@@ -2,6 +2,7 @@ package dev.investai.market.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.investai.market.MarketTestData;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -310,6 +311,7 @@ class SessionCloseCalculatorTest {
         InstrumentType.STOCK,
         EUR,
         tracked ? Instant.parse("2026-01-01T00:00:00Z") : null,
-        tracked);
+        tracked,
+        MarketTestData.UNKNOWN_BY_RULE);
   }
 }

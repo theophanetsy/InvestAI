@@ -8,6 +8,7 @@
  * Do not edit the class manually.
  */
 import { DailyCloseResponse } from './daily-close-response';
+import { PeaEligibilityResponse } from './pea-eligibility-response';
 
 
 export interface InstrumentDetailsResponse { 
@@ -18,6 +19,7 @@ export interface InstrumentDetailsResponse {
     lastClose?: DailyCloseResponse;
     mic: string;
     name: string;
+    peaEligibility: PeaEligibilityResponse;
     ticker: string;
     trackedSince?: string;
     type: InstrumentDetailsResponseTypeEnum;
