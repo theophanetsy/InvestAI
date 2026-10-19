@@ -193,3 +193,21 @@ Périmètre de place : **Euronext Paris** (actions du marché réglementé `XPAR
 - Cours en séance (`real-time`), taux de change, import manuel des exports Euronext au-delà
   d'1 an.
 - Valeurs sorties de la cote : elles restent en base, sans marquage particulier.
+
+## Écarts et précisions d'implémentation
+
+Constatés pendant l'implémentation (PR de la phase 2.1) ; le reste de la spec est appliqué tel quel.
+
+| Critère | Écart ou précision | Raison |
+|---|---|---|
+| 17 | Endpoints sous **`/api/v1/market/...`** et non `/api/market/...`. | Convention de l'API (`/api/v1/`, vérifiée par `OpenApiContractIT`). |
+| 17 | Période de plus de 5 ans → **400** `validation.failed`, `errors: [{ field: "from", code: "MaxFiveYears" }]` ; `from` après `to` → `code: "NotAfterTo"`. | La spec fixait le maximum sans dire s'il fallait tronquer : un refus explicite évite un historique coupé en silence. |
+| 1, 13 | 5ᵉ table **`price_catch_up`** (file du rattrapage, une ligne par valeur) ; `market_collection` a une colonne `source` et un `segment` nul pour une séance rattrapée par EODHD ; `instrument.reference_seen_at` date le dernier référentiel qui listait la valeur. | Avec 1 appel par valeur et 15 appels par jour, un rattrapage de ~50 valeurs prend plusieurs jours : il doit reprendre là où le budget l'a arrêté. |
+| 13 | Rattrapage seulement pour les valeurs **dont l'historique est déjà chargé** (les autres reçoivent 1 an d'historique, séances manquées comprises) ; fenêtre bornée à 1 an. | Pas d'appel en double ; l'offre gratuite d'EODHD ne remonte qu'à 1 an. |
+| 11 | La règle « 4 décimales sans arrondi » s'applique à la **clôture retenue**, pas à chaque ligne : une clôture à plus de 4 décimales n'est pas enregistrée et un avertissement est journalisé. | Rejeter la ligne aurait fait retenir en silence une transaction antérieure (mauvaise clôture). Fichiers réels du 16/10/2026 : 7 lignes sur 483 023 à 5 décimales, aucune clôture concernée. |
+| 9, 11 | Un fichier sans aucune transaction valide (séance indéterminable) est traité comme « pas encore régénéré ». | Impossible de vérifier la séance ; on réessaie à l'heure suivante. |
+| 6 | Recherche insensible aux accents par l'extension PostgreSQL **`unaccent`** (créée par `V2__market_data.sql`) plutôt qu'en Java. | FindSecBugs (`IMPROPER_UNICODE`) refuse `java.text.Normalizer` ; une seule règle, côté base. |
+| 5 | Règles MIC et type testées sur les **6 valeurs parisiennes** du panel. ASML (`XAMS`) n'apparaît pas dans la liste `PA` : `symbolOf` refuse les autres places (hors périmètre). | Les autres places Euronext sont hors périmètre. |
+| 7 | Benchmarks configurés au format `ISIN:MIC` (`investai.market.benchmarks`). | Le MIC fait partie de l'identifiant pivot. |
+| 9, 14 | Tant que le fichier contient l'ancienne séance, chaque essai horaire le télécharge à nouveau (au plus 10 par jour et par segment). | Pas de requête conditionnelle (`ETag` / `If-None-Match`) dans cette étape : point ouvert. |
+| 18 | Les jobs sont aussi coupés dans la stack de vérification (`npm run stack:start`, `INVESTAI_MARKET_JOBS_ENABLED=false`). | Base jetable : sinon chaque démarrage retéléchargerait les fichiers et consommerait le quota EODHD. |
