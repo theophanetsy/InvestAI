@@ -143,7 +143,17 @@ Un package par module métier sous `dev.investai` : `portfolio`, `market`, `assi
   Les définitions diffèrent selon `source` : ne pas comparer des volumes de sources différentes.
   `PriceMerge` et l'upsert déplacent volume et nombre de transactions avec la clôture.
 - **Anomalies** (`AnomalyReport`) : une ligne par type et par fichier (nombre + 10 cotations
-  au plus), plus une ligne par valeur (~1 300 valeurs).
+  au plus), au lieu d'une ligne par valeur (~1 300 valeurs) ; idem pour les écarts
+  Euronext/EODHD (`PriceRecorder`, une ligne par écriture).
+- **Référentiel vide** (premier démarrage, EODHD pas encore chargé) : la collecte ne télécharge
+  rien et ne marque rien (`Outcome.NO_REFERENCE_DATA`) ; elle reprend au passage horaire suivant
+  tant que le fichier est publié (jusqu'au lendemain matin). Sinon la séance serait perdue pour
+  toutes les valeurs non suivies.
+- **Fichiers non fiables, garde-fous ajoutés en 2.2** : nombres de plus de 32 caractères jamais
+  parsés (`Decimals`, le parsing d'un `BigDecimal` est quadratique), au plus 10 000 ISIN inconnus
+  distincts mémorisés (`SessionCloseCalculator.MAX_UNKNOWN_ISINS`, la valeur loguée devient un
+  minimum), `Prices.exact` calcule en `long` (un exposant extrême débordait l'`int`).
+  `trade_count` est refusé pour `EODHD` par le domaine et par une contrainte SQL.
 - **Performance** (`ParisFilePerformanceIT`, fichier synthétique de 483 000 transactions) :
   ~2,5 s par fichier, dominé par la lecture ; l'upsert des 1 300 clôtures prend ~0,15 s. Le test
   échoue au-delà de 2 min (régression grossière seulement) ; détail dans la spec 2.2.
@@ -261,6 +271,8 @@ Format : symptôme → cause → bonne pratique. Compléter à chaque étape (wo
   concaténés par `+`, même entre constantes (`SELECT + "WHERE …"`) → une requête = un seul text
   block `"""…"""` (répéter la liste de colonnes) ; vérifier en local avec Docker :
   `docker run --rm -v "$PWD:/src" -w /src semgrep/semgrep semgrep scan --config .semgrep/ --error`.
+  Sous Git Bash (Windows), « the working directory 'C:/Program Files/Git/src' is invalid » : MSYS
+  convertit `/src` → préfixer `MSYS_NO_PATHCONV=1` et monter `C:/dev/InvestAI:/src`.
 - **Flyway « Found more than one migration with version N » en local** : `target/classes` garde
   une migration d'une autre branche (ou d'un stash) → `./mvnw clean` après un changement de
   branche qui touche `db/migration`.

@@ -11,15 +11,4 @@ import org.jspecify.annotations.Nullable;
  * @param close the raw ("as traded") close
  * @param volume units traded as published, {@code null} when not given
  */
-public record HistoricalClose(LocalDate date, BigDecimal close, @Nullable BigDecimal volume) {
-
-  /**
-   * Creates a close without volume.
-   *
-   * @param date the session
-   * @param close the raw close
-   */
-  public HistoricalClose(LocalDate date, BigDecimal close) {
-    this(date, close, null);
-  }
-}
+public record HistoricalClose(LocalDate date, BigDecimal close, @Nullable BigDecimal volume) {}

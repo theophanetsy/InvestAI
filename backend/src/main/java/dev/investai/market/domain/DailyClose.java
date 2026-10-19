@@ -28,7 +28,10 @@ public record DailyClose(
     @Nullable Long volume,
     @Nullable Integer tradeCount) {
 
-  /** Checks the price is storable as is (positive, at most 4 decimal places) and the activity. */
+  /**
+   * Checks the price is storable as is (positive, at most 4 decimal places) and the activity
+   * (non-negative, no trade count from EODHD).
+   */
   public DailyClose {
     close =
         Prices.exact(close)
@@ -38,6 +41,9 @@ public record DailyClose(
     }
     if (tradeCount != null && tradeCount < 0) {
       throw new IllegalArgumentException("Negative trade count");
+    }
+    if (tradeCount != null && source == PriceSource.EODHD) {
+      throw new IllegalArgumentException("EODHD gives no trade count");
     }
   }
 

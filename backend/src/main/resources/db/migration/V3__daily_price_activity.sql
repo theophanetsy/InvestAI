@@ -4,7 +4,10 @@
 
 ALTER TABLE daily_price
     ADD COLUMN volume      bigint  CHECK (volume >= 0),
-    ADD COLUMN trade_count integer CHECK (trade_count >= 0);
+    ADD COLUMN trade_count integer CHECK (trade_count >= 0),
+    -- EODHD gives no number of trades.
+    ADD CONSTRAINT daily_price_trade_count_source
+        CHECK (trade_count IS NULL OR source = 'EURONEXT');
 
 COMMENT ON COLUMN daily_price.volume IS
     'Units traded in the session, null when unknown. EURONEXT: sum of MifidQuantity of the central '

@@ -16,6 +16,7 @@ class SessionCloseCalculatorTest {
   private static final String TOTAL_PRICE = "55.1000000";
   private static final String QUANTITY = "10.0";
   private static final String NOON = "12:00:00";
+  private static final String GEVELOT_PRICE = "180.0000000";
   private static final String NOON_PRICE = "55.0000000";
   private static final String LARGE_QUANTITY = "1000";
 
@@ -63,7 +64,7 @@ class SessionCloseCalculatorTest {
   @Test
   void everyInstrumentOfTheReferenceDataGetsItsCloseTrackedOrNot() {
     calculator.accept(trade(AIR_LIQUIDE, CLOSE_TIME, "173.1600000", ORDER_BOOK, Mic.XPAR));
-    calculator.accept(trade(GEVELOT, CLOSE_TIME, "180.0000000", ORDER_BOOK, Mic.ALXP));
+    calculator.accept(trade(GEVELOT, CLOSE_TIME, GEVELOT_PRICE, ORDER_BOOK, Mic.ALXP));
     calculator.accept(trade(TOTAL, CLOSE_TIME, TOTAL_PRICE, ORDER_BOOK, Mic.XPAR));
 
     assertThat(calculator.result().closes())
@@ -82,6 +83,19 @@ class SessionCloseCalculatorTest {
 
     assertThat(result.closes()).isEmpty();
     assertThat(result.unknownIsins()).isEqualTo(2);
+    assertThat(result.unknownTrades()).isEqualTo(3);
+  }
+
+  @Test
+  void distinctUnknownIsinsAreRememberedUpToALimitButEveryTradeIsCounted() {
+    var bounded = new SessionCloseCalculator(List.of(total), SESSION, 1);
+    bounded.accept(trade(ASML, CLOSE_TIME, "600.0000000", ORDER_BOOK, Mic.XPAR));
+    bounded.accept(trade(AIR_LIQUIDE, CLOSE_TIME, "173.0000000", ORDER_BOOK, Mic.XPAR));
+    bounded.accept(trade(GEVELOT, CLOSE_TIME, GEVELOT_PRICE, ORDER_BOOK, Mic.ALXP));
+
+    SessionCloses result = bounded.result();
+
+    assertThat(result.unknownIsins()).as("at least, capped").isEqualTo(1);
     assertThat(result.unknownTrades()).isEqualTo(3);
   }
 
@@ -162,7 +176,7 @@ class SessionCloseCalculatorTest {
   void unusableQuantityLeavesTheVolumeUnknownButKeepsTheCloseAndTheTradeCount() {
     calculator.accept(trade(TOTAL, NOON, NOON_PRICE, "10", ORDER_BOOK, Mic.XPAR));
     calculator.accept(trade(TOTAL, CLOSE_TIME, TOTAL_PRICE, null, ORDER_BOOK, Mic.XPAR));
-    calculator.accept(trade(GEVELOT, NOON, "180.0000000", "2.5", ORDER_BOOK, Mic.ALXP));
+    calculator.accept(trade(GEVELOT, NOON, GEVELOT_PRICE, "2.5", ORDER_BOOK, Mic.ALXP));
     calculator.accept(trade(AIR_LIQUIDE, NOON, "173.0000000", "-1", ORDER_BOOK, Mic.XPAR));
 
     assertThat(calculator.result().closes())
@@ -222,7 +236,7 @@ class SessionCloseCalculatorTest {
   @Test
   void tradesOnlyOnAnotherVenueAreReportedAsAWrongVenueRule() {
     // Gevelot is listed on Euronext Growth, the file says it traded on the regulated market.
-    calculator.accept(trade(GEVELOT, "15:30:00", "180.0000000", ORDER_BOOK, Mic.XPAR));
+    calculator.accept(trade(GEVELOT, "15:30:00", GEVELOT_PRICE, ORDER_BOOK, Mic.XPAR));
 
     SessionCloses result = calculator.result();
 

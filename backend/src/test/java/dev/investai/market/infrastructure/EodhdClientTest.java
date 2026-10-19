@@ -131,7 +131,7 @@ class EodhdClientTest {
   }
 
   @Test
-  void unusableVolumeNeverFailsTheCall() {
+  void volumeIsReadFromANumberOrANumericTextAndNeverFailsTheCall() {
     server
         .expect(requestTo(Matchers.startsWith(BASE_URL + "/eod/AI.PA")))
         .andRespond(
@@ -140,15 +140,19 @@ class EodhdClientTest {
                 [{"date":"2025-10-20","close":173.04,"volume":1234.5},
                  {"date":"2025-10-21","close":174.1,"volume":null},
                  {"date":"2025-10-22","close":174.2},
-                 {"date":"2025-10-23","close":174.3,"volume":"n/a"}]
-                """,
+                 {"date":"2025-10-23","close":174.3,"volume":"n/a"},
+                 {"date":"2025-10-24","close":174.4,"volume":"%s"},
+                 {"date":"2025-10-27","close":174.5,"volume":"1234"}]
+                """
+                    .formatted("9".repeat(10_000)),
                 MediaType.APPLICATION_JSON));
 
     List<HistoricalClose> closes = client.dailyCloses(airLiquide, LocalDate.MIN, LocalDate.MAX);
 
     assertThat(closes)
         .extracting(HistoricalClose::volume)
-        .containsExactly(new BigDecimal("1234.5"), null, null, null);
+        .as("a huge number is never parsed (quadratic BigDecimal parsing)")
+        .containsExactly(new BigDecimal("1234.5"), null, null, null, null, new BigDecimal("1234"));
   }
 
   @Test

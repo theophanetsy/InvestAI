@@ -24,6 +24,7 @@ import org.springframework.web.client.RestClient;
 final class EodhdClient implements MarketDataProvider {
 
   private static final String PROVIDER = "EODHD";
+
   private static final ParameterizedTypeReference<List<EodhdSymbols.Symbol>> SYMBOLS =
       new ParameterizedTypeReference<>() {};
   private static final ParameterizedTypeReference<List<Bar>> BARS =
@@ -95,20 +96,13 @@ final class EodhdClient implements MarketDataProvider {
                 new HistoricalClose(
                     Objects.requireNonNull(bar.date()),
                     Objects.requireNonNull(bar.close()),
-                    decimal(bar.volume())))
+                    volume(bar.volume())))
         .toList();
   }
 
   /** A volume that is not a number is unknown: it never fails the call (spec 2.2, criterion 7). */
-  private static @Nullable BigDecimal decimal(@Nullable String text) {
-    if (text == null) {
-      return null;
-    }
-    try {
-      return new BigDecimal(text);
-    } catch (NumberFormatException ex) {
-      return null;
-    }
+  private static @Nullable BigDecimal volume(@Nullable String text) {
+    return text == null ? null : Decimals.lenient(text).orElse(null);
   }
 
   /**

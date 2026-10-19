@@ -29,12 +29,19 @@ public final class SessionCloseCalculator {
   /** {@code MmtMarketMechanism} of the central limit order book. */
   public static final int CENTRAL_ORDER_BOOK = 1;
 
+  /**
+   * Distinct unknown ISINs remembered: bounds the memory taken by a forged file (millions of short
+   * lines with distinct ISINs); beyond, only the trades are counted.
+   */
+  public static final int MAX_UNKNOWN_ISINS = 10_000;
+
   private final LocalDate session;
   private final Map<Isin, List<Instrument>> instrumentsByIsin;
   private final Map<Listing, ListingActivity> activities = new HashMap<>();
   private final Set<Listing> tradedElsewhere = new HashSet<>();
   private final Set<Listing> otherCurrency = new HashSet<>();
   private final Set<Isin> unknownIsins = new HashSet<>();
+  private final int maxUnknownIsins;
   private long unknownTrades;
 
   /**
@@ -44,7 +51,20 @@ public final class SessionCloseCalculator {
    * @param session the session the file is expected to contain
    */
   public SessionCloseCalculator(Collection<Instrument> instruments, LocalDate session) {
+    this(instruments, session, MAX_UNKNOWN_ISINS);
+  }
+
+  /**
+   * Creates a calculator with a given bound on the distinct unknown ISINs remembered.
+   *
+   * @param instruments the reference data: every instrument that may get a close
+   * @param session the session the file is expected to contain
+   * @param maxUnknownIsins distinct unknown ISINs remembered at most
+   */
+  public SessionCloseCalculator(
+      Collection<Instrument> instruments, LocalDate session, int maxUnknownIsins) {
     this.session = session;
+    this.maxUnknownIsins = maxUnknownIsins;
     this.instrumentsByIsin =
         instruments.stream()
             .collect(Collectors.groupingBy(instrument -> instrument.listing().isin()));
@@ -61,7 +81,9 @@ public final class SessionCloseCalculator {
     }
     List<Instrument> instruments = instrumentsByIsin.get(trade.isin());
     if (instruments == null) {
-      unknownIsins.add(trade.isin());
+      if (unknownIsins.size() < maxUnknownIsins) {
+        unknownIsins.add(trade.isin());
+      }
       unknownTrades++;
       return;
     }

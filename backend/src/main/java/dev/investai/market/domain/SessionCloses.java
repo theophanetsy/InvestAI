@@ -14,7 +14,8 @@ import java.util.Set;
  * @param notStorable listings whose close has more than 4 decimal places (no close stored)
  * @param otherCurrency listings with order book trades in another currency than the instrument
  *     (ignored)
- * @param unknownIsins distinct ISINs of the session missing from the reference data (ignored)
+ * @param unknownIsins distinct ISINs of the session missing from the reference data (ignored),
+ *     capped at {@link SessionCloseCalculator#MAX_UNKNOWN_ISINS}: the cap means "at least"
  * @param unknownTrades trades of the session on those ISINs
  */
 public record SessionCloses(

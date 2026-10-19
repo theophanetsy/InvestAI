@@ -94,6 +94,20 @@ class MifirFileReaderTest {
             });
   }
 
+  @Test
+  void hugeNumbersAreNeverParsed() throws IOException {
+    String huge = "9".repeat(10_000);
+    var summary =
+        read(
+            zip(
+                csv(
+                    trade(SESSION_TIME, AIR_LIQUIDE, AI_CLOSE, huge, "1", XPAR),
+                    trade(SESSION_TIME, AIR_LIQUIDE, huge, "1", XPAR))));
+
+    assertThat(trades).singleElement().satisfies(trade -> assertThat(trade.quantity()).isNull());
+    assertThat(summary.rejected()).isEqualTo(1);
+  }
+
   @ParameterizedTest
   @ValueSource(strings = {"", "abc", "-"})
   void unreadableQuantityKeepsTheTradeWithAnUnknownQuantity(String quantity) throws IOException {

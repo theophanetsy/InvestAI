@@ -17,6 +17,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 class ValueObjectsTest {
 
   private static final Currency EUR = Currency.getInstance("EUR");
+  private static final LocalDate SESSION = LocalDate.parse("2026-10-16");
 
   @ParameterizedTest
   @CsvSource({
@@ -37,6 +38,12 @@ class ValueObjectsTest {
     assertThat(Prices.exact(new BigDecimal(raw))).isEmpty();
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = {"1E+2147483647", "12345678E+2147483640", "1E+16"})
+  void pricesWithAHugeExponentAreRejectedWithoutFailing(String raw) {
+    assertThat(Prices.exact(new BigDecimal(raw))).isEmpty();
+  }
+
   @Test
   void dailyCloseRefusesAPriceThatWouldBeRounded() {
     assertThatIllegalArgumentException()
@@ -44,23 +51,21 @@ class ValueObjectsTest {
             () ->
                 new DailyClose(
                     InstrumentId.newId(),
-                    LocalDate.parse("2026-10-16"),
+                    SESSION,
                     new BigDecimal("1.23456"),
                     EUR,
                     PriceSource.EURONEXT));
   }
 
   @ParameterizedTest
-  @CsvSource(
-      value = {"-1, 3", "10, -1"},
-      nullValues = "null")
+  @CsvSource({"-1, 3", "10, -1"})
   void dailyCloseRefusesANegativeActivity(Long volume, Integer tradeCount) {
     assertThatIllegalArgumentException()
         .isThrownBy(
             () ->
                 new DailyClose(
                     InstrumentId.newId(),
-                    LocalDate.parse("2026-10-16"),
+                    SESSION,
                     BigDecimal.TEN,
                     EUR,
                     PriceSource.EURONEXT,
@@ -69,14 +74,18 @@ class ValueObjectsTest {
   }
 
   @Test
+  void eodhdCloseHasNoTradeCount() {
+    assertThatIllegalArgumentException()
+        .isThrownBy(
+            () ->
+                new DailyClose(
+                    InstrumentId.newId(), SESSION, BigDecimal.TEN, EUR, PriceSource.EODHD, 10L, 3));
+  }
+
+  @Test
   void dailyCloseWithoutActivityHasAnUnknownVolumeAndTradeCount() {
     DailyClose close =
-        new DailyClose(
-            InstrumentId.newId(),
-            LocalDate.parse("2026-10-16"),
-            BigDecimal.TEN,
-            EUR,
-            PriceSource.EODHD);
+        new DailyClose(InstrumentId.newId(), SESSION, BigDecimal.TEN, EUR, PriceSource.EODHD);
 
     assertThat(close.volume()).isNull();
     assertThat(close.tradeCount()).isNull();

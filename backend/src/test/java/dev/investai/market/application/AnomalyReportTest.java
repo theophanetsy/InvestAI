@@ -40,12 +40,14 @@ class AnomalyReportTest {
         .satisfies(
             line -> {
               assertThat(line).contains("count=12", "session=2026-10-16");
-              listings.subList(0, 10).forEach(l -> assertThat(line).contains(l.toString()));
-              listings.subList(10, 12).forEach(l -> assertThat(line).doesNotContain(l.toString()));
+              int max = AnomalyReport.MAX_EXAMPLES;
+              listings.subList(0, max).forEach(l -> assertThat(line).contains(l.toString()));
+              listings.subList(max, 12).forEach(l -> assertThat(line).doesNotContain(l.toString()));
             });
-    assertThat(output.getOut())
-        .contains("traded on another venue only", "count=1", growth.toString())
-        .doesNotContain("more than 4 decimal places", "another currency");
+    assertThat(output.getOut().lines().filter(l -> l.contains("traded on another venue only")))
+        .singleElement()
+        .satisfies(line -> assertThat(line).contains("count=1", "listings=[" + growth + "]"));
+    assertThat(output.getOut()).doesNotContain("more than 4 decimal places", "another currency");
   }
 
   @Test

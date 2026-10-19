@@ -4,6 +4,7 @@ import static dev.investai.market.MarketTestData.EUR;
 import static dev.investai.market.MarketTestData.isin;
 import static dev.investai.market.MarketTestData.listed;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import dev.investai.market.MarketTestData;
 import dev.investai.market.domain.DailyClose;
@@ -173,6 +174,23 @@ class MarketPersistenceIT {
 
     assertThat(prices.findBetween(instrument.id(), SESSION.minusDays(1), SESSION))
         .containsExactly(unknown, withActivity);
+  }
+
+  @Test
+  void schemaRefusesATradeCountOnAnEodhdClose() {
+    Instrument instrument = load(listed(isin(AI_BODY), "AI", AIR_LIQUIDE));
+
+    assertThatThrownBy(
+            () ->
+                jdbc.sql(
+                        """
+                        INSERT INTO daily_price (instrument_id, trading_date, close, currency,
+                                                 source, trade_count, collected_at)
+                        VALUES (:id, DATE '2026-10-16', 1, 'EUR', 'EODHD', 3, now())
+                        """)
+                    .param("id", instrument.id().value())
+                    .update())
+        .hasMessageContaining("daily_price_trade_count_source");
   }
 
   @Test

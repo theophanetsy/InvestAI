@@ -138,6 +138,11 @@ Constatés pendant l'implémentation ; le reste de la spec est appliqué tel que
 | 3 | Les 10 exemples sont les premières cotations par ordre `ISIN@MIC` (log déterministe). | Reproductible d'un passage à l'autre. |
 | 6 | `MifidQuantity` illisible (vide, `-`, texte) : la transaction reste valide (clôture, nombre de transactions), seul le volume devient nul ; elle n'entre pas dans les lignes rejetées. | Une quantité ne doit jamais changer la clôture. |
 | 7 | Le `volume` EODHD est lu comme **texte** puis converti : nombre ou chaîne numérique acceptés, sinon nul. Une valeur non scalaire (objet, tableau) ferait encore échouer l'appel. | Jackson refuse un objet dans un champ texte ; non observé chez EODHD. |
+| 1, 4 | **Référentiel vide** : la collecte ne télécharge rien et ne marque pas la séance collectée (`NO_REFERENCE_DATA`), elle réessaie au passage horaire suivant. | Revue Java : sinon la séance était marquée collectée avec 0 clôture et perdue pour toutes les valeurs non suivies (premier démarrage avant le référentiel EODHD). |
+| 2 | Au plus **10 000 ISIN inconnus distincts** mémorisés par fichier ; au-delà, seules les transactions sont comptées (`unknownIsins` est alors un minimum). | Revue sécurité : un fichier falsifié de millions de lignes courtes à ISIN distincts saturait la mémoire. |
+| 6, 7, 11 | Un prix, une quantité ou un volume de **plus de 32 caractères** n'est jamais parsé (prix : ligne rejetée ; quantité, volume : inconnus). `Prices.exact` calcule la partie entière en `long`. | Revue sécurité : parsing `BigDecimal` quadratique (1 million de chiffres ≈ 11 s) ; `1E+2147483647` débordait l'`int` et faisait échouer tout le fichier. |
+| 7 | Contrainte `daily_price_trade_count_source` : `trade_count` nul pour `EODHD` (et règle identique dans `DailyClose`). | Revue Java : la règle du critère 7 inscrite dans le schéma. |
+| 3 | Les écarts Euronext/EODHD (spec 2.1, critère 12) sont aussi agrégés : une ligne par écriture (nombre + 10 exemples). | Revue Java : suivre une valeur ayant des mois de clôtures `EURONEXT` (critère 10) pouvait produire une ligne par séance. |
 | 12 | Fichier synthétique de **79 Mo** décompressés (lignes un peu plus courtes que les vraies, ~176 octets) au lieu de ~85 Mo ; le test vérifie > 75 Mo. | Format des colonnes réel, identifiants synthétiques plus courts. |
 
 ### Mesures de performance (critère 12)

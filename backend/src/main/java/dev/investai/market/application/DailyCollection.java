@@ -42,7 +42,12 @@ public class DailyCollection {
     /** A file could not be downloaded or read. */
     FAILED,
     /** Another run is in progress. */
-    BUSY
+    BUSY,
+    /**
+     * The reference data is still empty (first start, EODHD not loaded yet): nothing is downloaded
+     * nor marked as collected, the file is read at a later run while it is still published.
+     */
+    NO_REFERENCE_DATA
   }
 
   private static final Logger LOG = LoggerFactory.getLogger(DailyCollection.class);
@@ -108,13 +113,25 @@ public class DailyCollection {
       return Outcome.ALREADY_COLLECTED;
     }
     List<Instrument> referenceData = instruments.findAll();
+    if (referenceData.isEmpty()) {
+      LOG.info("Euronext collection postponed: reference data not loaded yet");
+      return Outcome.NO_REFERENCE_DATA;
+    }
+    Outcome outcome = collectSegments(session, pending, referenceData);
+    if (outcome == Outcome.COLLECTED) {
+      scheduleCatchUp(session, instruments.findTracked());
+    }
+    return outcome;
+  }
+
+  private Outcome collectSegments(
+      LocalDate session, List<TradeFileSegment> pending, List<Instrument> referenceData) {
     for (TradeFileSegment segment : pending) {
       Outcome outcome = collectSegment(session, segment, referenceData);
       if (outcome != Outcome.COLLECTED) {
         return outcome;
       }
     }
-    scheduleCatchUp(session, instruments.findTracked());
     return Outcome.COLLECTED;
   }
 

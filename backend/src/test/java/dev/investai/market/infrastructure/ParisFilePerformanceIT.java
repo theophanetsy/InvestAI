@@ -19,6 +19,7 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.Collection;
 import java.util.stream.Collectors;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,7 +42,6 @@ class ParisFilePerformanceIT {
   private static final int GROWTH = 250;
   private static final int UNKNOWN = 200;
   private static final int TRADES = 483_000;
-  private static final long MAX_INFLATED_BYTES = 500L * 1024 * 1024;
   private static final Duration CEILING = Duration.ofMinutes(2);
   private static final String SEGMENT = TradeFileSegment.EQUITIES.name();
 
@@ -50,12 +50,19 @@ class ParisFilePerformanceIT {
   @Autowired private CollectionJournal journal;
   @Autowired private PriceRecorder recorder;
   @Autowired private DailyPriceRepository prices;
+  @Autowired private MarketProperties properties;
 
-  private final MifirFileReader reader = new MifirFileReader(MAX_INFLATED_BYTES);
+  @AfterEach
+  void clear() {
+    // 1,300 instruments and closes: never left to the next integration test.
+    MarketTestData.clearTables(jdbc);
+  }
 
   @Test
   void realisticParisFileIsCollectedForTheWholeReferenceDataWithinBounds() {
     MarketTestData.clearTables(jdbc);
+    // The production limit: a limit lowered under the size of a real file fails here.
+    var reader = new MifirFileReader(properties.euronext().maxUncompressedSize().toBytes());
     SyntheticParisFile file = SyntheticParisFile.generate(REGULATED, GROWTH, UNKNOWN, TRADES);
     instruments.upsertReference(file.referenceData(), MONDAY_MORNING);
     // Only the equities file is pending: the ETF segment is marked as collected.
@@ -107,7 +114,7 @@ class ParisFilePerformanceIT {
             });
     assertThat(storedTotals())
         .containsExactly(sum(file.volumes().values()), sum(file.tradeCounts().values()));
-    assertThat(collect).isLessThan(CEILING);
+    assertThat(readAndCompute.plus(collect).plus(rewrite)).isLessThan(CEILING);
   }
 
   private long[] storedTotals() {

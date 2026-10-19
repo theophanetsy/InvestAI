@@ -47,7 +47,7 @@ final class FakeProviders {
   }
 
   static HistoricalClose close(String date, String price) {
-    return new HistoricalClose(LocalDate.parse(date), new BigDecimal(price));
+    return new HistoricalClose(LocalDate.parse(date), new BigDecimal(price), null);
   }
 
   static HistoricalClose close(String date, String price, String volume) {

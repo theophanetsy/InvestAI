@@ -113,15 +113,22 @@ class EodhdMaintenanceIT {
     var official = FakeProviders.euronextClose(ai.id(), FRIDAY, "173.16", 812_345L, 4_321);
     prices.save(List.of(official), MONDAY);
     instruments.markTracked(ai.id(), MONDAY);
-    eodhd.history(AI, close(THURSDAY_TEXT, "172.50", "700000"), close(FRIDAY_TEXT, "173.00", "1"));
+    eodhd.history(
+        AI,
+        close("2026-10-14", "172.00", "2.5"),
+        close(THURSDAY_TEXT, "172.50", "700000"),
+        close(FRIDAY_TEXT, "173.00", "1"));
 
     maintenance(15).run();
 
     assertThat(find(AI).historyLoaded()).isTrue();
-    assertThat(prices.findBetween(ai.id(), THURSDAY, FRIDAY))
+    assertThat(prices.findBetween(ai.id(), THURSDAY.minusDays(1), FRIDAY))
+        .as("a fractional EODHD volume is unknown, never rounded")
         .extracting(DailyClose::source, DailyClose::volume, DailyClose::tradeCount)
         .containsExactly(
-            tuple(PriceSource.EODHD, 700_000L, null), tuple(PriceSource.EURONEXT, 812_345L, 4_321));
+            tuple(PriceSource.EODHD, null, null),
+            tuple(PriceSource.EODHD, 700_000L, null),
+            tuple(PriceSource.EURONEXT, 812_345L, 4_321));
     assertThat(prices.findLatest(ai.id())).hasValue(official);
   }
 
@@ -149,7 +156,7 @@ class EodhdMaintenanceIT {
         .isEqualTo(1);
     assertThat(output.getAll())
         .as("instrument and date, never the prices (criterion 12)")
-        .contains("Euronext and EODHD closes differ: instrument=" + ai.id() + ", date=2026-10-16")
+        .contains("Euronext and EODHD closes differ: count=1, closes=[" + ai.id() + "@2026-10-16]")
         .doesNotContain("173.00");
   }
 

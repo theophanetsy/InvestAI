@@ -24,7 +24,8 @@ public final class Prices {
     BigDecimal stripped = price.stripTrailingZeros();
     if (stripped.signum() <= 0
         || stripped.scale() > SCALE
-        || stripped.precision() - stripped.scale() > MAX_INTEGER_DIGITS) {
+        // In long: an extreme exponent (1E+2147483647) overflows an int and would pass the test.
+        || (long) stripped.precision() - stripped.scale() > MAX_INTEGER_DIGITS) {
       return Optional.empty();
     }
     return Optional.of(stripped.setScale(SCALE));
