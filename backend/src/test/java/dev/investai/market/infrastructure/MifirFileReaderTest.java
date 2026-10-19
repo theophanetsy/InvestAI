@@ -29,6 +29,10 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class MifirFileReaderTest {
 
+  private static final String AI_CLOSE = "173.1600000";
+  private static final String XPAR = "XPAR";
+  private static final String ONE = "1.0";
+
   private static final String AIR_LIQUIDE = "FR0000120073";
   private static final String SESSION_TIME = "2026-10-16T15:35:24.250725Z";
   private static final long LIMIT = 1_000_000;
@@ -42,20 +46,16 @@ class MifirFileReaderTest {
         read(
             zip(
                 csv(
-                    trade(SESSION_TIME, AIR_LIQUIDE, "173.1600000", "1", "XPAR"),
+                    trade(SESSION_TIME, AIR_LIQUIDE, AI_CLOSE, "1", XPAR),
                     trade(
-                        "2026-10-16T07:00:00.116443Z",
-                        "FR0000120271",
-                        "55.1200000",
-                        "3",
-                        "XPAR"))));
+                        "2026-10-16T07:00:00.116443Z", "FR0000120271", "55.1200000", "3", XPAR))));
 
     assertThat(trades)
         .containsExactly(
             new MifirTrade(
                 new Isin(AIR_LIQUIDE),
                 Instant.parse(SESSION_TIME),
-                new BigDecimal("173.1600000"),
+                new BigDecimal(AI_CLOSE),
                 Currency.getInstance("EUR"),
                 1,
                 Mic.XPAR),
@@ -91,15 +91,15 @@ class MifirFileReaderTest {
         read(
             zip(
                 csv(
-                    trade(SESSION_TIME, "FR0000120074", "1.0", "1", "XPAR"), // bad check digit
-                    trade(SESSION_TIME, AIR_LIQUIDE, "abc", "1", "XPAR"),
-                    trade("16/10/2026 15:35", AIR_LIQUIDE, "1.0", "1", "XPAR"),
-                    trade(SESSION_TIME, AIR_LIQUIDE, "1.0", "x", "XPAR"),
-                    trade(SESSION_TIME, AIR_LIQUIDE, "1.0", "1", "xpar"),
+                    trade(SESSION_TIME, "FR0000120074", ONE, "1", XPAR), // bad check digit
+                    trade(SESSION_TIME, AIR_LIQUIDE, "abc", "1", XPAR),
+                    trade("16/10/2026 15:35", AIR_LIQUIDE, ONE, "1", XPAR),
+                    trade(SESSION_TIME, AIR_LIQUIDE, ONE, "x", XPAR),
+                    trade(SESSION_TIME, AIR_LIQUIDE, ONE, "1", "xpar"),
                     "\"too\",\"few\",\"fields\"",
                     "\"unterminated",
                     "",
-                    trade(SESSION_TIME, AIR_LIQUIDE, "173.1600000", "1", "XPAR"))));
+                    trade(SESSION_TIME, AIR_LIQUIDE, AI_CLOSE, "1", XPAR))));
 
     assertThat(trades).hasSize(1);
     assertThat(summary.trades()).isEqualTo(1);
@@ -112,8 +112,8 @@ class MifirFileReaderTest {
         read(
             zip(
                 csv(
-                    trade("2026-10-15T15:00:00Z", AIR_LIQUIDE, "1.0", "1", "XPAR"),
-                    trade("2026-10-16T08:00:00Z", AIR_LIQUIDE, "1.0", "1", "XPAR"))));
+                    trade("2026-10-15T15:00:00Z", AIR_LIQUIDE, ONE, "1", XPAR),
+                    trade("2026-10-16T08:00:00Z", AIR_LIQUIDE, ONE, "1", XPAR))));
 
     assertThat(summary.session()).isEqualTo(LocalDate.parse("2026-10-16"));
   }
@@ -145,7 +145,7 @@ class MifirFileReaderTest {
 
   @Test
   void archiveWithoutEntryFails() {
-    assertThatThrownBy(() -> read(MifirFixtures.zip(new MifirFixtures.Entry[0])))
+    assertThatThrownBy(() -> read(zip(new MifirFixtures.Entry[0])))
         .isInstanceOf(MarketDataUnavailableException.class)
         .hasMessageContaining("empty archive");
   }
@@ -169,7 +169,7 @@ class MifirFileReaderTest {
 
   @Test
   void uncompressedSizeIsCapped() {
-    String line = trade(SESSION_TIME, AIR_LIQUIDE, "173.1600000", "1", "XPAR");
+    String line = trade(SESSION_TIME, AIR_LIQUIDE, AI_CLOSE, "1", XPAR);
     String[] lines = IntStream.range(0, 10_000).mapToObj(i -> line).toArray(String[]::new);
     // Highly compressible: a few kilobytes on the wire, ~2 MB once inflated.
     byte[] archive = zip(csv(lines));

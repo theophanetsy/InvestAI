@@ -11,6 +11,9 @@ import org.junit.jupiter.api.Test;
 
 class SessionCloseCalculatorTest {
 
+  private static final String CLOSE_TIME = "15:35:00";
+  private static final String TOTAL_PRICE = "55.1000000";
+
   private static final LocalDate SESSION = LocalDate.parse("2026-10-16");
   private static final Currency EUR = Currency.getInstance("EUR");
   private static final Isin AIR_LIQUIDE = new Isin("FR0000120073");
@@ -54,7 +57,7 @@ class SessionCloseCalculatorTest {
   @Test
   void untrackedInstrumentsAndOtherSessionsAreIgnored() {
     calculator.accept(
-        trade(new Isin("NL0010273215"), "15:35:00", "600.0000000", ORDER_BOOK, Mic.XPAR));
+        trade(new Isin("NL0010273215"), CLOSE_TIME, "600.0000000", ORDER_BOOK, Mic.XPAR));
     calculator.accept(
         new MifirTrade(
             TOTAL,
@@ -69,7 +72,7 @@ class SessionCloseCalculatorTest {
 
   @Test
   void instrumentWithoutTradeGetsNoClose() {
-    calculator.accept(trade(TOTAL, "15:35:00", "55.1200000", ORDER_BOOK, Mic.XPAR));
+    calculator.accept(trade(TOTAL, CLOSE_TIME, "55.1200000", ORDER_BOOK, Mic.XPAR));
 
     assertThat(calculator.result().closes())
         .extracting(DailyClose::instrumentId)
@@ -78,8 +81,8 @@ class SessionCloseCalculatorTest {
 
   @Test
   void sameTimestampWithDifferentPricesKeepsFileOrderAndIsReported() {
-    calculator.accept(trade(TOTAL, "15:35:00", "55.1000000", ORDER_BOOK, Mic.XPAR));
-    calculator.accept(trade(TOTAL, "15:35:00", "55.2000000", ORDER_BOOK, Mic.XPAR));
+    calculator.accept(trade(TOTAL, CLOSE_TIME, TOTAL_PRICE, ORDER_BOOK, Mic.XPAR));
+    calculator.accept(trade(TOTAL, CLOSE_TIME, "55.2000000", ORDER_BOOK, Mic.XPAR));
 
     SessionCloses result = calculator.result();
 
@@ -92,17 +95,17 @@ class SessionCloseCalculatorTest {
 
   @Test
   void sameTimestampWithSamePriceIsNotReported() {
-    calculator.accept(trade(TOTAL, "15:35:00", "55.1000000", ORDER_BOOK, Mic.XPAR));
-    calculator.accept(trade(TOTAL, "15:35:00", "55.1000000", ORDER_BOOK, Mic.XPAR));
+    calculator.accept(trade(TOTAL, CLOSE_TIME, TOTAL_PRICE, ORDER_BOOK, Mic.XPAR));
+    calculator.accept(trade(TOTAL, CLOSE_TIME, TOTAL_PRICE, ORDER_BOOK, Mic.XPAR));
 
     assertThat(calculator.result().ambiguousTimestamps()).isEmpty();
   }
 
   @Test
   void earlierTieIsForgottenOnceALaterTradeArrives() {
-    calculator.accept(trade(TOTAL, "15:00:00", "55.1000000", ORDER_BOOK, Mic.XPAR));
+    calculator.accept(trade(TOTAL, "15:00:00", TOTAL_PRICE, ORDER_BOOK, Mic.XPAR));
     calculator.accept(trade(TOTAL, "15:00:00", "55.2000000", ORDER_BOOK, Mic.XPAR));
-    calculator.accept(trade(TOTAL, "15:35:00", "55.3000000", ORDER_BOOK, Mic.XPAR));
+    calculator.accept(trade(TOTAL, CLOSE_TIME, "55.3000000", ORDER_BOOK, Mic.XPAR));
 
     assertThat(calculator.result().ambiguousTimestamps()).isEmpty();
   }
@@ -121,7 +124,7 @@ class SessionCloseCalculatorTest {
   @Test
   void tradesOnAnotherVenueAreNotReportedWhenTheListingVenueTraded() {
     calculator.accept(trade(TOTAL, "15:30:00", "55.0000000", ORDER_BOOK, new Mic("XMLI")));
-    calculator.accept(trade(TOTAL, "15:35:00", "55.1000000", ORDER_BOOK, Mic.XPAR));
+    calculator.accept(trade(TOTAL, CLOSE_TIME, TOTAL_PRICE, ORDER_BOOK, Mic.XPAR));
 
     assertThat(calculator.result().tradedElsewhereOnly()).isEmpty();
   }
@@ -129,7 +132,7 @@ class SessionCloseCalculatorTest {
   @Test
   void closeWithMoreThanFourDecimalsIsNotStoredNorReplacedByAnEarlierTrade() {
     calculator.accept(trade(TOTAL, "15:00:00", "0.1750000", ORDER_BOOK, Mic.XPAR));
-    calculator.accept(trade(TOTAL, "15:35:00", "0.1750500", ORDER_BOOK, Mic.XPAR));
+    calculator.accept(trade(TOTAL, CLOSE_TIME, "0.1750500", ORDER_BOOK, Mic.XPAR));
 
     SessionCloses result = calculator.result();
 

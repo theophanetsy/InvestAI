@@ -31,8 +31,8 @@ public interface InstrumentRepository {
   List<Instrument> findTracked();
 
   /**
-   * Searches by exact ISIN, exact ticker (any case) or fragment of the normalised name ({@link
-   * SearchText}). Tracked instruments come first, then by name.
+   * Searches by exact ISIN, exact ticker (any case) or fragment of the name, ignoring case and
+   * accents. Tracked instruments come first, then by name.
    *
    * @param query the text typed by the user
    * @param limit maximum number of results

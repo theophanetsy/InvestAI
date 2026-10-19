@@ -5,6 +5,7 @@ import java.util.function.Consumer;
 import org.jspecify.annotations.Nullable;
 
 /** Port: the Euronext deferred trade files of the previous trading day (MiFIR, ADR-0009). */
+@FunctionalInterface
 public interface TradeFileSource {
 
   /**

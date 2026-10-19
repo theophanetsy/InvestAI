@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.OptionalInt;
 
 /** Port: calls made to a rate-limited provider, per day (UTC). */
+@FunctionalInterface
 public interface ApiCallCounter {
 
   /**

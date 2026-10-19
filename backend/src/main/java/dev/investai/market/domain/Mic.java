@@ -26,10 +26,7 @@ public record Mic(String value) {
 
   /** Checked by hand: a static pattern would not be initialised yet for the constants above. */
   private static boolean isWellFormed(String value) {
-    if (value.length() != LENGTH) {
-      return false;
-    }
-    return value.chars().allMatch(c -> ALLOWED.indexOf(c) >= 0);
+    return value.length() == LENGTH && value.chars().allMatch(c -> ALLOWED.indexOf(c) >= 0);
   }
 
   @Override

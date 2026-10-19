@@ -106,16 +106,4 @@ class ValueObjectsTest {
     assertThat(data.ignored()).isEqualTo(2);
     assertThat(List.copyOf(data.instruments())).isEmpty();
   }
-
-  @ParameterizedTest
-  @CsvSource(
-      quoteCharacter = '"',
-      value = {
-        "Société Générale, societe generale",
-        "\"  L'ORÉAL \", l'oreal",
-        "Hermès International, hermes international"
-      })
-  void searchTextIgnoresCaseAndAccents(String text, String expected) {
-    assertThat(SearchText.normalize(text)).isEqualTo(expected);
-  }
 }

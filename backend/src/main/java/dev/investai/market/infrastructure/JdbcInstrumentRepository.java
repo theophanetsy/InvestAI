@@ -8,7 +8,6 @@ import dev.investai.market.domain.Isin;
 import dev.investai.market.domain.ListedInstrument;
 import dev.investai.market.domain.Listing;
 import dev.investai.market.domain.Mic;
-import dev.investai.market.domain.SearchText;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -18,6 +17,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -33,12 +33,12 @@ class JdbcInstrumentRepository implements InstrumentRepository {
 
   private static final String UPSERT =
       """
-      INSERT INTO instrument (id, isin, mic, ticker, name, name_search, type, currency,
+      INSERT INTO instrument (id, isin, mic, ticker, name, type, currency,
                               reference_seen_at, created_at, updated_at)
-      VALUES (:id, :isin, :mic, :ticker, :name, :nameSearch, :type, :currency,
+      VALUES (:id, :isin, :mic, :ticker, :name, :type, :currency,
               :seenAt, :seenAt, :seenAt)
       ON CONFLICT (isin, mic) DO UPDATE SET
-        ticker = excluded.ticker, name = excluded.name, name_search = excluded.name_search,
+        ticker = excluded.ticker, name = excluded.name,
         type = excluded.type, currency = excluded.currency,
         reference_seen_at = excluded.reference_seen_at, updated_at = excluded.updated_at
       """;
@@ -46,12 +46,14 @@ class JdbcInstrumentRepository implements InstrumentRepository {
   private static final String SEARCH =
       SELECT
           + """
-          WHERE isin = :exact OR upper(ticker) = :exact OR name_search LIKE :fragment ESCAPE '\\'
-          ORDER BY tracked_since IS NULL, name_search, isin
+          WHERE isin = :exact OR upper(ticker) = :exact
+             OR unaccent(lower(name)) LIKE unaccent(lower(:fragment)) ESCAPE '\\'
+          ORDER BY tracked_since IS NULL, unaccent(lower(name)), isin
           LIMIT :limit
           """;
 
   private static final String ID = "id";
+  private static final Pattern SPACES = Pattern.compile("\\s+");
 
   private final JdbcClient jdbc;
   private final NamedParameterJdbcTemplate batch;
@@ -65,7 +67,7 @@ class JdbcInstrumentRepository implements InstrumentRepository {
   public Optional<Instrument> findById(InstrumentId id) {
     return jdbc.sql(SELECT + "WHERE id = :id")
         .param(ID, id.value())
-        .query(JdbcInstrumentRepository::map)
+        .query((rs, row) -> map(rs))
         .optional();
   }
 
@@ -74,25 +76,25 @@ class JdbcInstrumentRepository implements InstrumentRepository {
     return jdbc.sql(SELECT + "WHERE isin = :isin AND mic = :mic")
         .param("isin", listing.isin().value())
         .param("mic", listing.mic().value())
-        .query(JdbcInstrumentRepository::map)
+        .query((rs, row) -> map(rs))
         .optional();
   }
 
   @Override
   public List<Instrument> findTracked() {
     return jdbc.sql(SELECT + "WHERE tracked_since IS NOT NULL ORDER BY tracked_since, isin, mic")
-        .query(JdbcInstrumentRepository::map)
+        .query((rs, row) -> map(rs))
         .list();
   }
 
   @Override
   public List<Instrument> search(String query, int limit) {
-    String fragment = SearchText.normalize(query);
+    String fragment = SPACES.matcher(query.strip()).replaceAll(" ");
     return jdbc.sql(SEARCH)
         .param("exact", query.strip().toUpperCase(Locale.ROOT))
         .param("fragment", "%" + escapeLike(fragment) + "%")
         .param("limit", limit)
-        .query(JdbcInstrumentRepository::map)
+        .query((rs, row) -> map(rs))
         .list();
   }
 
@@ -109,7 +111,6 @@ class JdbcInstrumentRepository implements InstrumentRepository {
                         .addValue("mic", instrument.listing().mic().value())
                         .addValue("ticker", instrument.ticker())
                         .addValue("name", instrument.name())
-                        .addValue("nameSearch", SearchText.normalize(instrument.name()))
                         .addValue("type", instrument.type().name())
                         .addValue("currency", instrument.currency().getCurrencyCode())
                         .addValue("seenAt", at))
@@ -149,7 +150,7 @@ class JdbcInstrumentRepository implements InstrumentRepository {
     return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
   }
 
-  private static Instrument map(ResultSet rs, int row) throws SQLException {
+  private static Instrument map(ResultSet rs) throws SQLException {
     return new Instrument(
         new InstrumentId(rs.getObject(ID, UUID.class)),
         new Listing(new Isin(rs.getString("isin")), new Mic(rs.getString("mic"))),

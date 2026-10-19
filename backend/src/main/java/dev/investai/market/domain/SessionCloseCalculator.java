@@ -11,6 +11,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Computes the closes of one session from a stream of MiFIR trades (ADR-0009): for each tracked
@@ -30,7 +31,7 @@ public final class SessionCloseCalculator {
   public static final ZoneId MARKET_ZONE = ZoneId.of("Europe/Paris");
 
   private final LocalDate session;
-  private final Map<Isin, List<Instrument>> trackedByIsin = new HashMap<>();
+  private final Map<Isin, List<Instrument>> trackedByIsin;
   private final Map<Listing, Candidate> lastTrades = new HashMap<>();
   private final Set<Listing> tradedElsewhere = new HashSet<>();
 
@@ -42,11 +43,8 @@ public final class SessionCloseCalculator {
    */
   public SessionCloseCalculator(Collection<Instrument> tracked, LocalDate session) {
     this.session = session;
-    for (Instrument instrument : tracked) {
-      trackedByIsin
-          .computeIfAbsent(instrument.listing().isin(), isin -> new ArrayList<>())
-          .add(instrument);
-    }
+    this.trackedByIsin =
+        tracked.stream().collect(Collectors.groupingBy(instrument -> instrument.listing().isin()));
   }
 
   /**

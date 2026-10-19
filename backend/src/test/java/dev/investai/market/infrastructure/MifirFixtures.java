@@ -104,14 +104,18 @@ final class MifirFixtures {
     var bytes = new ByteArrayOutputStream();
     try (var zip = new ZipOutputStream(bytes)) {
       for (Entry entry : entries) {
-        zip.putNextEntry(new ZipEntry(entry.name()));
-        zip.write(entry.content().getBytes(StandardCharsets.UTF_8));
-        zip.closeEntry();
+        write(zip, entry);
       }
     } catch (IOException ex) {
       throw new UncheckedIOException(ex);
     }
     return bytes.toByteArray();
+  }
+
+  private static void write(ZipOutputStream zip, Entry entry) throws IOException {
+    zip.putNextEntry(new ZipEntry(entry.name()));
+    zip.write(entry.content().getBytes(StandardCharsets.UTF_8));
+    zip.closeEntry();
   }
 
   record Entry(String name, String content) {}

@@ -58,24 +58,29 @@ final class MifirFileReader {
    */
   TradeFileSource.Summary read(String label, InputStream archive, Consumer<MifirTrade> trades) {
     try (ZipInputStream zip = new ZipInputStream(archive, StandardCharsets.UTF_8)) {
-      ZipEntry entry = zip.getNextEntry();
-      if (entry == null) {
-        throw failure(label, "empty archive");
-      }
-      if (!entry.getName().toLowerCase(Locale.ROOT).endsWith(CSV_EXTENSION)) {
-        throw failure(label, "unexpected entry in archive");
-      }
-      TradeFileSource.Summary summary =
-          readCsv(label, new BoundedInputStream(zip, maxUncompressedBytes), trades);
-      if (zip.getNextEntry() != null) {
-        throw failure(label, "more than one entry in archive");
-      }
-      return summary;
+      return readArchive(label, zip, trades);
     } catch (BoundedInputStream.LimitExceededException ex) {
-      throw failure(label, "uncompressed size limit exceeded");
+      throw failure(label, "uncompressed size limit exceeded", ex);
     } catch (IOException ex) {
-      throw failure(label, "read failed (" + ex.getClass().getSimpleName() + ")");
+      throw failure(label, "read failed (" + ex.getClass().getSimpleName() + ")", ex);
     }
+  }
+
+  private TradeFileSource.Summary readArchive(
+      String label, ZipInputStream zip, Consumer<MifirTrade> trades) throws IOException {
+    ZipEntry entry = zip.getNextEntry();
+    if (entry == null) {
+      throw failure(label, "empty archive");
+    }
+    if (!entry.getName().toLowerCase(Locale.ROOT).endsWith(CSV_EXTENSION)) {
+      throw failure(label, "unexpected entry in archive");
+    }
+    TradeFileSource.Summary summary =
+        readCsv(label, new BoundedInputStream(zip, maxUncompressedBytes), trades);
+    if (zip.getNextEntry() != null) {
+      throw failure(label, "more than one entry in archive");
+    }
+    return summary;
   }
 
   private TradeFileSource.Summary readCsv(
@@ -113,6 +118,12 @@ final class MifirFileReader {
 
   private static MarketDataUnavailableException failure(String label, String reason) {
     return new MarketDataUnavailableException("Trade file " + label + ": " + reason);
+  }
+
+  private static MarketDataUnavailableException failure(
+      String label, String reason, IOException cause) {
+    return new MarketDataUnavailableException(
+        "Trade file " + label + ": " + reason, RedactedCause.of(cause));
   }
 
   /** Counts lines and tracks the latest session of the file. */
@@ -165,7 +176,7 @@ final class MifirFileReader {
       this.positions = positions;
     }
 
-    static Columns locate(String label, String[] header) {
+    static Columns locate(String label, String... header) {
       List<String> names = List.of(header);
       Map<Column, Integer> positions = new EnumMap<>(Column.class);
       for (Column column : Column.values()) {
@@ -178,11 +189,11 @@ final class MifirFileReader {
       return new Columns(header.length, positions);
     }
 
-    boolean fits(String[] values) {
+    boolean fits(String... values) {
       return values.length == width;
     }
 
-    MifirTrade trade(String[] values) {
+    MifirTrade trade(String... values) {
       return new MifirTrade(
           new Isin(value(values, Column.ISIN)),
           Instant.parse(value(values, Column.TRADING_TIME)),

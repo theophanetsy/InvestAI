@@ -65,7 +65,7 @@ class JdbcDailyPriceRepository implements DailyPriceRepository {
         .param("ids", ids)
         .param(FROM, from)
         .param(TO, to)
-        .query(JdbcDailyPriceRepository::map)
+        .query((rs, row) -> map(rs))
         .list()
         .stream()
         .collect(Collectors.toMap(DailyClose::key, Function.identity()));
@@ -98,7 +98,7 @@ class JdbcDailyPriceRepository implements DailyPriceRepository {
         .param(INSTRUMENT, instrument.value())
         .param(FROM, from)
         .param(TO, to)
-        .query(JdbcDailyPriceRepository::map)
+        .query((rs, row) -> map(rs))
         .list();
   }
 
@@ -106,7 +106,7 @@ class JdbcDailyPriceRepository implements DailyPriceRepository {
   public Optional<DailyClose> findLatest(InstrumentId instrument) {
     return jdbc.sql(SELECT + "WHERE instrument_id = :instrument ORDER BY trading_date DESC LIMIT 1")
         .param(INSTRUMENT, instrument.value())
-        .query(JdbcDailyPriceRepository::map)
+        .query((rs, row) -> map(rs))
         .optional();
   }
 
@@ -120,7 +120,7 @@ class JdbcDailyPriceRepository implements DailyPriceRepository {
         .single();
   }
 
-  private static DailyClose map(ResultSet rs, int row) throws SQLException {
+  private static DailyClose map(ResultSet rs) throws SQLException {
     return new DailyClose(
         new InstrumentId(rs.getObject("instrument_id", UUID.class)),
         rs.getObject("trading_date", LocalDate.class),

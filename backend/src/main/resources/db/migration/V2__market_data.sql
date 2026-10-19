@@ -1,6 +1,9 @@
 -- Market data (phase 2.1, ADR-0009): instrument reference data, daily closes, collection journal,
 -- EODHD call budget and catch-up queue. Conventions: backend/CLAUDE.md.
 
+-- Accent-insensitive instrument search (trusted extension, shipped with the official image).
+CREATE EXTENSION IF NOT EXISTS unaccent;
+
 -- Listed instruments, unique per listing (ISIN + venue). Loaded from EODHD, never deleted: an
 -- instrument missing from a later reference refresh keeps its history.
 CREATE TABLE instrument (
@@ -9,8 +12,6 @@ CREATE TABLE instrument (
     mic               char(4)      NOT NULL,
     ticker            varchar(32)  NOT NULL,
     name              varchar(256) NOT NULL,
-    -- name without accents, lower case: local search (SearchText)
-    name_search       varchar(256) NOT NULL,
     type              varchar(8)   NOT NULL CHECK (type IN ('STOCK', 'ETF', 'FUND', 'OTHER')),
     currency          char(3)      NOT NULL,
     -- null when the instrument is not followed

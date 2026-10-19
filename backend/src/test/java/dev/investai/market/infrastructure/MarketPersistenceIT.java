@@ -31,6 +31,9 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 @IntegrationTest
 class MarketPersistenceIT {
 
+  private static final String AI_BODY = "FR000012007";
+  private static final String AIR_LIQUIDE = "Air Liquide";
+
   private static final Instant NOW = Instant.parse("2026-10-19T08:00:00Z");
   private static final LocalDate SESSION = LocalDate.parse("2026-10-16");
 
@@ -53,7 +56,7 @@ class MarketPersistenceIT {
 
   @Test
   void referenceUpsertIsIdempotentAndKeepsInstrumentsMissingFromTheNewList() {
-    var airLiquide = listed(isin("FR000012007"), "AI", "Air Liquide");
+    var airLiquide = listed(isin(AI_BODY), "AI", AIR_LIQUIDE);
     var total = listed(isin("FR000012027"), "TTE", "TotalEnergies");
     instruments.upsertReference(List.of(airLiquide, total), NOW);
 
@@ -93,7 +96,7 @@ class MarketPersistenceIT {
 
   @Test
   void trackingIsIdempotentAndHistoryFlagIsStored() {
-    Instrument instrument = load(listed(isin("FR000012007"), "AI", "Air Liquide"));
+    Instrument instrument = load(listed(isin(AI_BODY), "AI", AIR_LIQUIDE));
 
     assertThat(instruments.markTracked(instrument.id(), NOW)).isTrue();
     assertThat(instruments.markTracked(instrument.id(), NOW.plusSeconds(1))).isFalse();
@@ -117,7 +120,7 @@ class MarketPersistenceIT {
     Instrument total = load(listed(isin("FR000012027"), "TTE", "TotalEnergies"));
     instruments.markTracked(sodexo.id(), NOW);
 
-    assertThat(instruments.search("SOCIETE", 20))
+    assertThat(instruments.search("  SOCIÉTÉ  générale ", 20))
         .extracting(Instrument::id)
         .containsExactly(societe.id());
     assertThat(instruments.search("so", 20))
@@ -135,7 +138,7 @@ class MarketPersistenceIT {
 
   @Test
   void closesAreUpsertedAndEuronextIsNeverReplacedByEodhd() {
-    Instrument instrument = load(listed(isin("FR000012007"), "AI", "Air Liquide"));
+    Instrument instrument = load(listed(isin(AI_BODY), "AI", AIR_LIQUIDE));
     var official = close(instrument, SESSION, "173.16", PriceSource.EURONEXT);
 
     prices.save(List.of(official), NOW);
@@ -148,7 +151,7 @@ class MarketPersistenceIT {
 
   @Test
   void closesAreReadByPeriodInDateOrder() {
-    Instrument instrument = load(listed(isin("FR000012007"), "AI", "Air Liquide"));
+    Instrument instrument = load(listed(isin(AI_BODY), "AI", AIR_LIQUIDE));
     var friday = close(instrument, SESSION, "173.16", PriceSource.EURONEXT);
     var thursday = close(instrument, SESSION.minusDays(1), "172", PriceSource.EODHD);
     prices.save(List.of(friday, thursday), NOW);
