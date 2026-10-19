@@ -130,4 +130,29 @@ Prises par l'agent, la validation de cette spec technique ayant été délégué
 
 ## Écarts et précisions d'implémentation
 
-À compléter pendant l'implémentation.
+Constatés pendant l'implémentation ; le reste de la spec est appliqué tel quel.
+
+| Critère | Écart ou précision | Raison |
+|---|---|---|
+| 2 | Les ISIN inconnus ne sont comptés que pour les transactions de la **séance attendue** (les autres sont ignorées avant, comme en 2.1). | Une transaction d'une autre séance n'est jamais retenue. |
+| 3 | Les 10 exemples sont les premières cotations par ordre `ISIN@MIC` (log déterministe). | Reproductible d'un passage à l'autre. |
+| 6 | `MifidQuantity` illisible (vide, `-`, texte) : la transaction reste valide (clôture, nombre de transactions), seul le volume devient nul ; elle n'entre pas dans les lignes rejetées. | Une quantité ne doit jamais changer la clôture. |
+| 7 | Le `volume` EODHD est lu comme **texte** puis converti : nombre ou chaîne numérique acceptés, sinon nul. Une valeur non scalaire (objet, tableau) ferait encore échouer l'appel. | Jackson refuse un objet dans un champ texte ; non observé chez EODHD. |
+| 12 | Fichier synthétique de **79 Mo** décompressés (lignes un peu plus courtes que les vraies, ~176 octets) au lieu de ~85 Mo ; le test vérifie > 75 Mo. | Format des colonnes réel, identifiants synthétiques plus courts. |
+
+### Mesures de performance (critère 12)
+
+`ParisFilePerformanceIT`, poste Windows du propriétaire (Docker Desktop, PostgreSQL 18 en
+Testcontainers), 2026-10-19 : 483 000 transactions, 1 300 valeurs (1 050 `XPAR`, 250 `ALXP`),
+200 ISIN hors référentiel, archive de 10 Mo.
+
+| Étape | Durée (3 exécutions) |
+|---|---|
+| Lecture en flux + calcul des clôtures (1 300 valeurs) | 2,1 à 2,9 s |
+| Même lecture avec 3 valeurs seulement (situation 2.1, mesure ponctuelle) | 2,4 s |
+| Collecte complète (`DailyCollection.collect` : lecture, calcul, fusion, upsert, journal) | 2,1 à 2,7 s |
+| Upsert seul des 1 300 clôtures (réécriture idempotente, un lot) | 0,12 à 0,17 s |
+
+La lecture (décompression, découpage CSV, contrôle des ISIN) domine ; garder tout le
+référentiel ne coûte que l'upsert (~0,15 s par fichier). Mémoire : un état par cotation
+(~1 300) et l'ensemble des ISIN inconnus, jamais le fichier.
