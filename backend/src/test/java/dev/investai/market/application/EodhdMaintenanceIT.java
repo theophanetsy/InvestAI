@@ -35,7 +35,8 @@ class EodhdMaintenanceIT {
 
   private static final Instant MONDAY = Instant.parse("2026-10-19T08:00:00Z");
   private static final LocalDate THURSDAY = LocalDate.parse("2026-10-15");
-  private static final LocalDate FRIDAY = LocalDate.parse("2026-10-16");
+  private static final String FRIDAY_TEXT = "2026-10-16";
+  private static final LocalDate FRIDAY = LocalDate.parse(FRIDAY_TEXT);
   private static final Isin AI = isin("FR000012007");
   private static final Isin TTE = isin("FR000012027");
   private static final Isin CW8 = isin("LU168104359");
@@ -47,8 +48,8 @@ class EodhdMaintenanceIT {
   @Autowired private ApiCallCounter usage;
   @Autowired private PriceRecorder recorder;
 
-  private final FakeProviders.Eodhd eodhd = new FakeProviders.Eodhd();
-  private final FakeProviders.MutableClock clock = new FakeProviders.MutableClock(MONDAY);
+  private final FakeEodhd eodhd = new FakeEodhd();
+  private final MutableClock clock = new MutableClock(MONDAY);
 
   @BeforeEach
   void clear() {
@@ -58,7 +59,7 @@ class EodhdMaintenanceIT {
   @Test
   void firstStartLoadsReferenceDataThenTracksBenchmarksAndLoadsTheirHistory() {
     eodhd.reference(listed(AI, "AI", "Air Liquide"), listed(CW8, "CW8", "Amundi MSCI World"));
-    eodhd.history(CW8, close("2026-10-15", "705.10"), close("2026-10-16", "709.55"));
+    eodhd.history(CW8, close("2026-10-15", "705.10"), close(FRIDAY_TEXT, "709.55"));
 
     maintenance(15).run();
 
@@ -89,7 +90,7 @@ class EodhdMaintenanceIT {
   @Test
   void trackedInstrumentGetsOneYearOfRawClosesOnce() {
     Instrument ai = trackedWithoutHistory(AI, "AI");
-    eodhd.history(AI, close("2025-10-20", "173.04"), close("2026-10-16", "173.16"));
+    eodhd.history(AI, close("2025-10-20", "173.04"), close(FRIDAY_TEXT, "173.16"));
 
     maintenance(15).run();
     maintenance(15).run();
@@ -106,7 +107,7 @@ class EodhdMaintenanceIT {
     recorder.scheduleCatchUp(List.of(THURSDAY), List.of(ai.id()));
     recorder.recordHistory(
         ai.id(), List.of(FakeProviders.euronextClose(ai.id(), FRIDAY, "173.16")));
-    eodhd.history(AI, close("2026-10-15", "172.50"), close("2026-10-16", "173.00"));
+    eodhd.history(AI, close("2026-10-15", "172.50"), close(FRIDAY_TEXT, "173.00"));
     trackedWithoutHistory(TTE, "TTE");
 
     maintenance(15).run();

@@ -32,6 +32,11 @@ public record MarketProperties(
     @Valid @NotNull Eodhd eodhd,
     List<String> benchmarks) {
 
+  /** Defensive copy. */
+  public MarketProperties {
+    benchmarks = List.copyOf(benchmarks);
+  }
+
   /**
    * Timeouts of outgoing HTTP calls.
    *

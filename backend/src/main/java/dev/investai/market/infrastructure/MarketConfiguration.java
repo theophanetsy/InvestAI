@@ -13,7 +13,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
@@ -47,15 +46,31 @@ public class MarketConfiguration {
   }
 
   /**
+   * HTTP client of the market adapters, closed by Spring at shutdown. No redirect: a redirect could
+   * replay the EODHD key towards another host.
+   *
+   * @param properties market properties
+   * @return the client
+   */
+  @Bean
+  HttpClient marketHttpClient(MarketProperties properties) {
+    return HttpClient.newBuilder()
+        .connectTimeout(properties.http().connectTimeout())
+        .followRedirects(HttpClient.Redirect.NEVER)
+        .build();
+  }
+
+  /**
    * Euronext deferred trade files of Paris.
    *
    * @param properties market properties
+   * @param marketHttpClient HTTP client
    * @return the source
    */
   @Bean
-  TradeFileSource euronextTradeFiles(MarketProperties properties) {
+  TradeFileSource euronextTradeFiles(MarketProperties properties, HttpClient marketHttpClient) {
     return EuronextTradeFiles.create(
-        RestClient.builder().requestFactory(requestFactory(properties.http())),
+        restClient(marketHttpClient, properties),
         properties.euronext().baseUrl(),
         properties.userAgent(),
         new MifirFileReader(properties.euronext().maxUncompressedSize().toBytes()));
@@ -65,32 +80,27 @@ public class MarketConfiguration {
    * EODHD, or a disabled stand-in without key (one warning, the application still starts).
    *
    * @param properties market properties
+   * @param marketHttpClient HTTP client
    * @return the provider
    */
   @Bean
-  MarketDataProvider eodhd(MarketProperties properties) {
+  MarketDataProvider eodhd(MarketProperties properties, HttpClient marketHttpClient) {
     String key = properties.eodhd().apiKey();
     if (key == null || key.isBlank()) {
       LOG.warn(EODHD_DISABLED);
       return new DisabledMarketDataProvider();
     }
     return EodhdClient.create(
-        RestClient.builder().requestFactory(requestFactory(properties.http())),
+        restClient(marketHttpClient, properties),
         properties.eodhd().baseUrl(),
         key.strip(),
         properties.userAgent());
   }
 
-  /** JDK client, no redirect: a redirect could replay the key towards another host. */
-  private static ClientHttpRequestFactory requestFactory(MarketProperties.Http http) {
-    HttpClient client =
-        HttpClient.newBuilder()
-            .connectTimeout(http.connectTimeout())
-            .followRedirects(HttpClient.Redirect.NEVER)
-            .build();
+  private static RestClient.Builder restClient(HttpClient client, MarketProperties properties) {
     JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(client);
-    factory.setReadTimeout(http.readTimeout());
-    return factory;
+    factory.setReadTimeout(properties.http().readTimeout());
+    return RestClient.builder().requestFactory(factory);
   }
 
   /** {@code ISIN:MIC} entries; an invalid one stops the startup (not a secret, safe to print). */

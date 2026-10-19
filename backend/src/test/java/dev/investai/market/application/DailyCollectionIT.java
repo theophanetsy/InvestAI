@@ -47,8 +47,8 @@ class DailyCollectionIT {
   @Autowired private CatchUpQueue queue;
   @Autowired private PriceRecorder recorder;
 
-  private final FakeProviders.TradeFiles files = new FakeProviders.TradeFiles();
-  private final FakeProviders.MutableClock clock = new FakeProviders.MutableClock(MONDAY_MORNING);
+  private final FakeTradeFiles files = new FakeTradeFiles();
+  private final MutableClock clock = new MutableClock(MONDAY_MORNING);
   private DailyCollection collection;
   private Instrument airLiquide;
   private Instrument msciWorld;

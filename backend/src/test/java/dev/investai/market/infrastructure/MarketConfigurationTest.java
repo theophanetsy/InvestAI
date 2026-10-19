@@ -7,6 +7,7 @@ import dev.investai.market.domain.Isin;
 import dev.investai.market.domain.Listing;
 import dev.investai.market.domain.Mic;
 import java.net.URI;
+import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
@@ -23,10 +24,11 @@ import org.springframework.util.unit.DataSize;
 class MarketConfigurationTest {
 
   private final MarketConfiguration configuration = new MarketConfiguration();
+  private final HttpClient client = configuration.marketHttpClient(properties(null));
 
   @Test
   void missingKeyDisablesEodhdWithASingleWarning(CapturedOutput output) {
-    var provider = configuration.eodhd(properties(null));
+    var provider = configuration.eodhd(properties(null), client);
 
     assertThat(provider.isEnabled()).isFalse();
     assertThat(output.getAll().split(MarketConfiguration.EODHD_DISABLED, -1)).hasSize(2);
@@ -34,7 +36,7 @@ class MarketConfigurationTest {
 
   @Test
   void blankKeyIsAMissingKey() {
-    assertThat(configuration.eodhd(properties("  ")).isEnabled()).isFalse();
+    assertThat(configuration.eodhd(properties("  "), client).isEnabled()).isFalse();
   }
 
   @Test
@@ -42,7 +44,7 @@ class MarketConfigurationTest {
     String key = UUID.randomUUID().toString();
     MarketProperties properties = properties(key);
 
-    assertThat(configuration.eodhd(properties).isEnabled()).isTrue();
+    assertThat(configuration.eodhd(properties, client).isEnabled()).isTrue();
     assertThat(properties.toString()).doesNotContain(key).contains("<redacted>");
     assertThat(output.getAll()).doesNotContain(key);
   }
@@ -51,7 +53,7 @@ class MarketConfigurationTest {
   void euronextSourceAndSettingsAreBuiltFromTheProperties() {
     MarketProperties properties = properties(null);
 
-    assertThat(configuration.euronextTradeFiles(properties)).isNotNull();
+    assertThat(configuration.euronextTradeFiles(properties, client)).isNotNull();
     assertThat(configuration.marketSettings(properties).benchmarks())
         .containsExactly(new Listing(new Isin("FR0007052782"), Mic.XPAR));
     assertThat(configuration.marketSettings(properties).dailyCallBudget()).isEqualTo(15);

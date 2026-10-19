@@ -1,6 +1,7 @@
 package dev.investai.market.application;
 
 import dev.investai.market.domain.ApiCallCounter;
+import dev.investai.shared.logging.LogSanitizer;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -44,17 +45,18 @@ public class CallBudget {
    */
   public boolean tryReserve(String operation) {
     int budget = settings.dailyCallBudget();
+    String safeOperation = LogSanitizer.oneLine(operation);
     LocalDate day = LocalDate.now(clock.withZone(ZoneOffset.UTC));
     OptionalInt calls = counter.reserve(day, budget);
     if (calls.isEmpty()) {
       LOG.info(
           "EODHD daily budget exhausted, call postponed: operation={}, budget={}",
-          operation,
+          safeOperation,
           budget);
       return false;
     }
     int used = calls.getAsInt();
-    LOG.info("EODHD call: operation={}, calls={}/{}", operation, used, budget);
+    LOG.info("EODHD call: operation={}, calls={}/{}", safeOperation, used, budget);
     return true;
   }
 }

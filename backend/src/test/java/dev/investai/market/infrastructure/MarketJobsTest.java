@@ -1,9 +1,9 @@
 package dev.investai.market.infrastructure;
 
 import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import dev.investai.market.application.DailyCollection;
 import dev.investai.market.application.EodhdMaintenance;
@@ -23,7 +23,7 @@ class MarketJobsTest {
 
     jobs.collectDailyCloses();
 
-    then(maintenance).should().run();
+    verify(maintenance).run();
   }
 
   @ParameterizedTest
@@ -36,13 +36,13 @@ class MarketJobsTest {
 
     jobs.collectDailyCloses();
 
-    then(maintenance).should(never()).run();
+    verify(maintenance, never()).run();
   }
 
   @Test
   void maintenanceJobRunsTheMaintenance() {
     jobs.maintainEodhdData();
 
-    then(maintenance).should().run();
+    verify(maintenance).run();
   }
 }

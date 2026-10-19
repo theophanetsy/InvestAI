@@ -4,6 +4,7 @@ import dev.investai.market.domain.InstrumentRepository;
 import dev.investai.market.domain.MarketDataProvider;
 import dev.investai.market.domain.MarketDataUnavailableException;
 import dev.investai.market.domain.ReferenceData;
+import dev.investai.shared.logging.LogSanitizer;
 import java.time.Clock;
 import java.time.Instant;
 import org.slf4j.Logger;
@@ -66,7 +67,7 @@ public class ReferenceDataLoader {
     try {
       data = provider.referenceData();
     } catch (MarketDataUnavailableException ex) {
-      String reason = ex.getMessage();
+      String reason = LogSanitizer.oneLine(ex.getMessage());
       LOG.warn("Reference data not refreshed, retried at the next run: reason={}", reason);
       return false;
     }

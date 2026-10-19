@@ -11,6 +11,7 @@ import dev.investai.market.domain.MarketDataUnavailableException;
 import dev.investai.market.domain.PriceSource;
 import dev.investai.market.domain.Prices;
 import dev.investai.market.domain.SessionCloseCalculator;
+import dev.investai.shared.logging.LogSanitizer;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.Period;
@@ -116,7 +117,7 @@ public class PriceHistoryLoader {
 
   private void recordHistory(Instrument instrument, List<DailyClose> closes) {
     recorder.recordHistory(instrument.id(), closes);
-    String listing = instrument.listing().toString();
+    String listing = LogSanitizer.oneLine(instrument.listing());
     int count = closes.size();
     LOG.info("History loaded: listing={}, closes={}", listing, count);
   }
@@ -130,8 +131,8 @@ public class PriceHistoryLoader {
     try {
       return Optional.of(toCloses(instrument, provider.dailyCloses(instrument, from, to)));
     } catch (MarketDataUnavailableException ex) {
-      String listing = instrument.listing().toString();
-      String reason = ex.getMessage();
+      String listing = LogSanitizer.oneLine(instrument.listing());
+      String reason = LogSanitizer.oneLine(ex.getMessage());
       LOG.warn(
           "EODHD call failed, retried at the next run: listing={}, reason={}", listing, reason);
       return Optional.empty();
@@ -156,7 +157,7 @@ public class PriceHistoryLoader {
             .toList();
     int skipped = history.size() - closes.size();
     if (skipped > 0) {
-      String listing = instrument.listing().toString();
+      String listing = LogSanitizer.oneLine(instrument.listing());
       LOG.warn(
           "EODHD closes not storable at scale 4 skipped: listing={}, count={}", listing, skipped);
     }

@@ -5,6 +5,7 @@ import dev.investai.market.domain.InstrumentId;
 import dev.investai.market.domain.InstrumentRepository;
 import dev.investai.market.domain.Listing;
 import dev.investai.shared.domain.ResourceNotFoundException;
+import dev.investai.shared.logging.LogSanitizer;
 import java.time.Clock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,7 +54,8 @@ public class InstrumentTracking {
       throw new ResourceNotFoundException(NOT_FOUND, "Unknown instrument: " + id);
     }
     if (instruments.markTracked(id, clock.instant())) {
-      LOG.info("Instrument tracked: instrument={}", id);
+      String instrument = LogSanitizer.oneLine(id);
+      LOG.info("Instrument tracked: instrument={}", instrument);
     }
   }
 
@@ -70,7 +72,7 @@ public class InstrumentTracking {
 
   private void trackBenchmark(Instrument benchmark) {
     instruments.markTracked(benchmark.id(), clock.instant());
-    String listing = benchmark.listing().toString();
+    String listing = LogSanitizer.oneLine(benchmark.listing());
     LOG.info("Benchmark tracked: listing={}", listing);
   }
 }

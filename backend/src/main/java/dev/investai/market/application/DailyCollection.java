@@ -5,18 +5,17 @@ import dev.investai.market.domain.EuronextCalendar;
 import dev.investai.market.domain.Instrument;
 import dev.investai.market.domain.InstrumentId;
 import dev.investai.market.domain.InstrumentRepository;
-import dev.investai.market.domain.Listing;
 import dev.investai.market.domain.MarketDataUnavailableException;
 import dev.investai.market.domain.SessionCloseCalculator;
 import dev.investai.market.domain.SessionCloses;
 import dev.investai.market.domain.TradeFileSegment;
 import dev.investai.market.domain.TradeFileSource;
+import dev.investai.shared.logging.LogSanitizer;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.Period;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -123,52 +122,39 @@ public class DailyCollection {
     try {
       summary = files.read(segment, calculator::accept);
     } catch (MarketDataUnavailableException ex) {
-      String reason = ex.getMessage();
-      LOG.warn("Euronext file not collected: segment={}, reason={}", segment, reason);
+      String reason = LogSanitizer.oneLine(ex.getMessage());
+      String file = LogSanitizer.oneLine(segment);
+      LOG.warn("Euronext file not collected: segment={}, reason={}", file, reason);
       return Outcome.FAILED;
     }
     LocalDate found = summary.session();
     if (!session.equals(found)) {
+      String file = LogSanitizer.oneLine(segment);
+      String expected = LogSanitizer.oneLine(session);
+      String actual = LogSanitizer.oneLine(found);
       LOG.info(
           "Euronext file not regenerated yet: segment={}, expected={}, found={}",
-          segment,
-          session,
-          found);
+          file,
+          expected,
+          actual);
       return Outcome.NOT_YET_AVAILABLE;
     }
     SessionCloses result = calculator.result();
-    report(session, result);
+    AnomalyReport.log(session, result);
     recorder.recordSessionFile(session, segment, result.closes());
     int closes = result.closes().size();
     long trades = summary.trades();
     long rejected = summary.rejected();
+    String file = LogSanitizer.oneLine(segment);
+    String day = LogSanitizer.oneLine(session);
     LOG.info(
         "Euronext file collected: segment={}, session={}, trades={}, rejected={}, closes={}",
-        segment,
-        session,
+        file,
+        day,
         trades,
         rejected,
         closes);
     return Outcome.COLLECTED;
-  }
-
-  private static void report(LocalDate session, SessionCloses result) {
-    warn(
-        "Last trades share a timestamp with different prices, file order kept",
-        session,
-        result.ambiguousTimestamps());
-    warn(
-        "Tracked instrument traded on another venue only, check its MIC",
-        session,
-        result.tradedElsewhereOnly());
-    warn("Close has more than 4 decimal places, not stored", session, result.notStorable());
-  }
-
-  private static void warn(String message, LocalDate session, Set<Listing> listings) {
-    for (Listing listing : listings) {
-      String value = listing.toString();
-      LOG.warn("{}: listing={}, session={}", message, value, session);
-    }
   }
 
   /** Sessions between the last collected one and this one were missed (application off). */

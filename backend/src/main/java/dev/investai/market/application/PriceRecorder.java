@@ -10,6 +10,7 @@ import dev.investai.market.domain.InstrumentRepository;
 import dev.investai.market.domain.PriceKey;
 import dev.investai.market.domain.PriceMerge;
 import dev.investai.market.domain.TradeFileSegment;
+import dev.investai.shared.logging.LogSanitizer;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -131,8 +132,8 @@ public class PriceRecorder {
 
   /** Instrument and date only: prices are not logged. */
   private static void reportConflict(PriceKey key) {
-    String instrument = key.instrumentId().toString();
-    LocalDate date = key.tradingDate();
+    String instrument = LogSanitizer.oneLine(key.instrumentId());
+    String date = LogSanitizer.oneLine(key.tradingDate());
     LOG.warn("Euronext and EODHD closes differ: instrument={}, date={}", instrument, date);
   }
 }
