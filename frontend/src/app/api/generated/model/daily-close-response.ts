@@ -14,6 +14,8 @@ export interface DailyCloseResponse {
     currency: string;
     date: string;
     source: DailyCloseResponseSourceEnum;
+    tradeCount?: number;
+    volume?: number;
 }
 export enum DailyCloseResponseSourceEnum {
     Euronext = 'EURONEXT',

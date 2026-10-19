@@ -109,6 +109,16 @@ src/app/
     (ISO 4217) : l'afficher avec `CurrencyPipe`/`Intl`, ne jamais la convertir en `number` pour
     calculer. `source` : `EURONEXT` (officiel) ou `EODHD` (historique, rattrapage). Clôtures
     brutes, non ajustées des dividendes ni des divisions.
+  - **Activité de la séance** (Phase 2.2, `DailyCloseResponse`, aussi dans `lastClose`) :
+    `volume` (titres échangés, entier) et `tradeCount` (nombre de transactions), **optionnels** :
+    absents quand inconnus (clôtures antérieures à la 2.2, volume EODHD manquant, `tradeCount`
+    jamais fourni par EODHD) ; ne jamais afficher 0 à la place. Définitions différentes selon
+    `source` (Euronext : carnet central sur le lieu de cotation ; EODHD : non documentée) : ne pas
+    comparer ni additionner des volumes de sources différentes.
+  - Toutes les valeurs du référentiel de Paris ont des clôtures `EURONEXT` depuis leur collecte
+    (suivies ou non) ; seules les valeurs suivies ont 1 an d'historique et le rattrapage des jours
+    manqués : une valeur non suivie peut avoir des **trous** (jours où l'application était
+    éteinte). Ne jamais interpoler.
 
 ## Pièges connus
 

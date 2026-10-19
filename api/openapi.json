@@ -312,6 +312,18 @@
           "source" : {
             "type" : "string",
             "enum" : [ "EURONEXT", "EODHD" ]
+          },
+          "tradeCount" : {
+            "type" : "integer",
+            "format" : "int32",
+            "example" : 4321,
+            "minimum" : 0
+          },
+          "volume" : {
+            "type" : "integer",
+            "format" : "int64",
+            "example" : 812345,
+            "minimum" : 0
           }
         },
         "required" : [ "close", "currency", "date", "source" ]

@@ -104,7 +104,9 @@ class MarketControllerTest {
             LocalDate.parse(FRIDAY),
             new BigDecimal("173.16"),
             EUR,
-            PriceSource.EURONEXT);
+            PriceSource.EURONEXT,
+            812_345L,
+            4_321);
     given(queries.details(airLiquide.id()))
         .willReturn(new MarketQueries.InstrumentDetails(airLiquide, close));
 
@@ -120,6 +122,8 @@ class MarketControllerTest {
     assertThat(response).bodyJson().extractingPath("$.lastClose.close").isEqualTo("173.1600");
     assertThat(response).bodyJson().extractingPath("$.lastClose.currency").isEqualTo("EUR");
     assertThat(response).bodyJson().extractingPath("$.lastClose.source").isEqualTo("EURONEXT");
+    assertThat(response).bodyJson().extractingPath("$.lastClose.volume").isEqualTo(812_345);
+    assertThat(response).bodyJson().extractingPath("$.lastClose.tradeCount").isEqualTo(4_321);
   }
 
   @Test
@@ -174,6 +178,33 @@ class MarketControllerTest {
     assertThat(response).bodyJson().extractingPath("$[0].date").isEqualTo(FRIDAY);
     assertThat(response).bodyJson().extractingPath("$[0].close").isEqualTo("709.5500");
     assertThat(response).bodyJson().extractingPath("$[0].source").isEqualTo("EODHD");
+    assertThat(response)
+        .as("unknown activity is absent, never null or zero")
+        .bodyJson()
+        .doesNotHavePath("$[0].volume");
+    assertThat(response).bodyJson().doesNotHavePath("$[0].tradeCount");
+  }
+
+  @Test
+  void pricesCarryTheVolumeWhenKnown() {
+    LocalDate day = LocalDate.parse(FRIDAY);
+    given(queries.closes(airLiquide.id(), null, null))
+        .willReturn(
+            List.of(
+                new DailyClose(
+                    airLiquide.id(),
+                    day,
+                    new BigDecimal("709.55"),
+                    EUR,
+                    PriceSource.EODHD,
+                    9_876_543_210L,
+                    null)));
+
+    var response =
+        mvc.get().uri(INSTRUMENTS + "/" + airLiquide.id() + "/prices").with(user(USER)).exchange();
+
+    assertThat(response).bodyJson().extractingPath("$[0].volume").isEqualTo(9_876_543_210L);
+    assertThat(response).bodyJson().doesNotHavePath("$[0].tradeCount");
   }
 
   @Test
