@@ -96,6 +96,14 @@ class PortfolioLineControllerTest {
   }
 
   @Test
+  void fractionalQuantityIsRejectedNotTruncated() {
+    var response = send(mvc.post().uri(LINES), lineBody("\"quantity\":1.5"));
+
+    assertThat(response).hasStatus(HttpStatus.BAD_REQUEST);
+    Mockito.verifyNoInteractions(commands);
+  }
+
+  @Test
   void businessRulesAreUnprocessable() {
     given(commands.addLine(instrumentId, 1, null))
         .willThrow(new BusinessRuleException(PortfolioCommands.DUPLICATE_INSTRUMENT, "dup"));
