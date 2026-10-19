@@ -1,6 +1,6 @@
 # 0009 — Données de marché : fichiers différés Euronext (MiFIR) + EODHD gratuit
 
-- **Statut** : Proposé
+- **Statut** : Accepté
 - **Date** : 2026-10-19
 
 ## Contexte
@@ -122,7 +122,7 @@ MSCI World Swap PEA (`IE0002XZSHO1`, WPEA, XPAR), Amundi CAC 40 Dist (`FR0007052
 
 ## Décision
 
-**Option A**, sous réserve de l'acceptation par le propriétaire du point « zone grise » ci-dessous.
+**Option A**, zone grise ci-dessous comprise (acceptée par le propriétaire le 2026-10-19).
 
 1. **Clôture quotidienne : fichiers différés Euronext (MiFIR).** Un job planifié télécharge chaque
    matin (après ~9 h, heure de Paris) les fichiers `PREVIOUS_TRADING_DAY` des segments utiles
@@ -138,7 +138,7 @@ MSCI World Swap PEA (`IE0002XZSHO1`, WPEA, XPAR), Amundi CAC 40 Dist (`FR0007052
      `from`/`to` (1 appel par instrument, quelle que soit la durée du trou).
    - Historique au-delà d'1 an si besoin : import manuel des exports Euronext (~2 ans), via
      l'import CSV prévu en Phase 2, en tenant compte de leur ajustement (voir Exigences).
-3. **Zone grise acceptée (à confirmer par le propriétaire)** : les conditions des données
+3. **Zone grise acceptée par le propriétaire** : les conditions des données
    différées autorisent tout usage non redistribué, mais les conditions générales du site
    Euronext interdisent les robots « to navigate, search or determine the Euronext Website ».
    Le job se limite à **un GET direct par fichier et par jour**, avec un `User-Agent`
@@ -147,6 +147,10 @@ MSCI World Swap PEA (`IE0002XZSHO1`, WPEA, XPAR), Amundi CAC 40 Dist (`FR0007052
 
 ### Exigences pour le `MarketDataProvider` (étape suivante)
 
+- **Seuls les jobs planifiés du backend** (`@Scheduled` + ShedLock, en Java, pas de script à côté)
+  appellent les fournisseurs et écrivent en base. Dashboard, simulations et tools de l'agent
+  (`getQuote`, `getPriceHistory`) **lisent la base** : quota protégé, chiffres identiques partout,
+  aucun appel réseau déclenchable par une injection de prompt.
 - **Identifiant pivot : ISIN + MIC** (`FR0000120073` + `XPAR`). Un ISIN a plusieurs cotations
   (CW8 : XPAR et ETFP ; Air Liquide : Paris, Xetra, Londres…). Le symbole EODHD (`AI.PA`) est un
   attribut de l'adaptateur, pas une clé du domaine.
