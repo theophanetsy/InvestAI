@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { mockApi } from './support/api-mock';
+import { expectFocusRing, tabTo } from './support/layout';
 import { mockPortfolioApi } from './support/portfolio-mock';
 
 test.describe('profile and declared portfolio', () => {
@@ -42,10 +43,13 @@ test.describe('profile and declared portfolio', () => {
       .click();
     await expect(page).toHaveURL('/portefeuille');
     await expect(page.getByTestId('portfolio-empty')).toBeVisible();
-    await page.getByLabel('Valeur (nom, ISIN ou ticker)').fill('air');
+    const search = page.getByRole('combobox', { name: 'Valeur (nom, ISIN ou ticker)' });
+    await search.fill('air');
     const option = page.getByRole('option', { name: /Air Liquide/ });
     await expect(option).toContainText('PEA probable');
-    await option.click();
+    // Chosen with the keyboard, as a keyboard user would.
+    await search.press('ArrowDown');
+    await search.press('Enter');
     await expect(page.getByTestId('selected-instrument')).toContainText('Air Liquide (AI');
     await page.getByLabel('Quantité').fill('10');
     await page.getByLabel('Prix moyen d’achat').fill('150,1234');
@@ -61,6 +65,20 @@ test.describe('profile and declared portfolio', () => {
       quantity: 10,
       averagePrice: '150.1234',
     });
+    await expect(page.getByText('Ligne ajoutée.')).toBeVisible();
+
+    // Deletion, reached with the keyboard and confirmed
+    const remove = page.getByRole('button', { name: 'Supprimer Air Liquide' });
+    await tabTo(page, remove, 40);
+    await expectFocusRing(remove);
+    await page.keyboard.press('Enter');
+    const confirm = page.getByRole('dialog', { name: 'Supprimer la ligne ?' });
+    await expect(confirm).toContainText('Air Liquide sera retirée du portefeuille déclaré.');
+    await confirm.getByRole('button', { name: 'Supprimer' }).click();
+
+    await expect(page.getByTestId('portfolio-empty')).toBeVisible();
+    expect(requests.deletedLine).toBe('l1');
+    await expect(page.getByText('Ligne supprimée.')).toBeVisible();
   });
 
   test.describe('on a phone', () => {

@@ -49,7 +49,7 @@ describe('portfolio dialogs', () => {
         provideHttpClientTesting(),
         provideApiClient(),
         { provide: MAT_DIALOG_DATA, useValue: data },
-        { provide: MatDialogRef, useValue: { close } },
+        { provide: MatDialogRef, useValue: { close, disableClose: false } },
       ],
     });
     http = TestBed.inject(HttpTestingController);
@@ -85,6 +85,7 @@ describe('portfolio dialogs', () => {
       button(element, 'Enregistrer').click();
 
       const update = http.expectOne('/api/v1/portfolio/lines/l1');
+      expect(fixture.debugElement.injector.get(MatDialogRef).disableClose).toBe(true);
       expect(update.request.method).toBe('PUT');
       expect(update.request.body).toEqual({ quantity: 10 });
       update.flush({ id: 'l1', instrumentId: 'i1', quantity: 10, updatedAt: '' });
@@ -109,6 +110,12 @@ describe('portfolio dialogs', () => {
         'La modification a échoué. Référence : r2',
       );
       expect(close).not.toHaveBeenCalled();
+      expect(fixture.debugElement.injector.get(MatDialogRef).disableClose).toBe(false);
+
+      button(element, 'Enregistrer').click();
+      await fixture.whenStable();
+      expect(element.querySelector('[role="alert"]')).toBeNull();
+      http.expectOne('/api/v1/portfolio/lines/l1').flush({});
     });
 
     it('refuses an invalid price', async () => {
@@ -128,6 +135,24 @@ describe('portfolio dialogs', () => {
   });
 
   describe('EligibilityDialog', () => {
+    it('preselects the previous answer of the owner, not the guess of the rule', async () => {
+      const corrected = {
+        ...instrument,
+        peaEligibility: {
+          status: PeaEligibilityResponseStatusEnum.NotEligible,
+          source: PeaEligibilityResponseSourceEnum.Owner,
+        },
+      };
+      const fixture = open(EligibilityDialog, corrected);
+      await fixture.whenStable();
+      const element = fixture.nativeElement as HTMLElement;
+
+      expect(
+        element.querySelector<HTMLInputElement>('input[type="radio"][value="NOT_ELIGIBLE"]')
+          ?.checked,
+      ).toBe(true);
+    });
+
     it('stores the owner answer', async () => {
       const fixture = open(EligibilityDialog, instrument);
       await fixture.whenStable();

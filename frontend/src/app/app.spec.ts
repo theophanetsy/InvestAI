@@ -71,7 +71,15 @@ describe('App routes', () => {
   it('opens the profile page, which loads the profile', async () => {
     const profile = await open('/profil', true);
     http.expectOne('/api/v1/profile/risk-profiles').flush([]);
-    http.expectOne('/api/v1/profile').flush(null, { status: 404, statusText: 'Not Found' });
+    http
+      .expectOne('/api/v1/profile')
+      .flush(
+        { status: 404, title: 'Not Found', code: 'profile.not-found', requestId: 'r1' },
+        { status: 404, statusText: 'Not Found' },
+      );
+    await vi.waitFor(() => {
+      expect(profile.textContent).toContain('Aucun profil enregistré');
+    });
     expect(heading(profile)).toBe('Mon profil');
     expect(TestBed.inject(Title).getTitle()).toBe('Mon profil · InvestAI');
   });

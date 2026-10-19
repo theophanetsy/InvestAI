@@ -14,6 +14,7 @@ import { MatInput } from '@angular/material/input';
 import { finalize } from 'rxjs';
 import type { PortfolioLineResponse } from '../../api/generated';
 import { PortfolioService } from '../../api/generated';
+import { inlineErrors } from '../../core/http/http-context';
 import { failureMessage } from '../../core/http/problem';
 import { decimalValidator, integerValidator, normalizeDecimal } from '../../shared/format/decimal';
 
@@ -61,14 +62,21 @@ export class LineDialog {
       return;
     }
     this.saving.set(true);
+    this.error.set(null);
+    // Closing while saving would hide the outcome: no Escape nor click outside meanwhile.
+    this.dialog.disableClose = true;
     this.api
-      .updatePortfolioLine(this.line.id, {
-        quantity,
-        ...(price === undefined ? {} : { averagePrice: price }),
-      })
+      .updatePortfolioLine(
+        this.line.id,
+        { quantity, ...(price === undefined ? {} : { averagePrice: price }) },
+        'body',
+        false,
+        { context: inlineErrors() },
+      )
       .pipe(
         finalize(() => {
           this.saving.set(false);
+          this.dialog.disableClose = false;
         }),
       )
       .subscribe({

@@ -10,8 +10,9 @@ import type { Observable } from 'rxjs';
 import { catchError, finalize, forkJoin, of, throwError } from 'rxjs';
 import type { ProfileRequest, ProfileResponse, RiskProfileResponse } from '../../api/generated';
 import { PortfolioService } from '../../api/generated';
+import { inlineErrors } from '../../core/http/http-context';
 import { failureMessage, toProblem } from '../../core/http/problem';
-import { decimalValidator, normalizeDecimal } from '../../shared/format/decimal';
+import { decimalValidator, integerValidator, normalizeDecimal } from '../../shared/format/decimal';
 import { ExclusionsField } from './exclusions-field';
 import { RiskProfileField } from './risk-profile-field';
 import { toRequestRiskProfile } from './risk-profile';
@@ -25,11 +26,6 @@ function today(): string {
 function notInFuture(control: AbstractControl): ValidationErrors | null {
   const value: unknown = control.value;
   return typeof value === 'string' && value !== '' && value > today() ? { future: true } : null;
-}
-
-interface SaveStatus {
-  readonly saved: boolean;
-  readonly text: string;
 }
 
 /** "Mon profil": what the owner wants, read by the advice agent (phase 3). */
@@ -58,7 +54,7 @@ export class Profile {
   protected readonly maxDate = today();
   protected readonly form = this.formBuilder.group({
     amountToInvest: ['', decimalValidator('amount', { positive: true })],
-    horizonYears: this.formBuilder.control<number | null>(null),
+    horizonYears: this.formBuilder.control<number | null>(null, integerValidator),
     riskProfile: '',
     objectives: '',
     peaOpenedOn: ['', notInFuture],
@@ -68,7 +64,9 @@ export class Profile {
   protected readonly loading = signal(true);
   protected readonly loadError = signal<string | null>(null);
   protected readonly saving = signal(false);
-  protected readonly status = signal<SaveStatus | null>(null);
+  /** Always in the DOM (live region): only its text changes. */
+  protected readonly savedText = signal('');
+  protected readonly saveError = signal<string | null>(null);
   private readonly exists = signal(false);
 
   constructor() {
@@ -79,8 +77,10 @@ export class Profile {
     this.loading.set(true);
     this.loadError.set(null);
     forkJoin({
-      riskProfiles: this.api.listRiskProfiles(),
-      profile: this.api.getProfile().pipe(catchError(notFoundAsNull)),
+      riskProfiles: this.api.listRiskProfiles('body', false, { context: inlineErrors() }),
+      profile: this.api
+        .getProfile('body', false, { context: inlineErrors() })
+        .pipe(catchError(notFoundAsNull)),
     })
       .pipe(
         finalize(() => {
@@ -121,9 +121,10 @@ export class Profile {
       return;
     }
     this.saving.set(true);
-    this.status.set(null);
+    this.savedText.set('');
+    this.saveError.set(null);
     this.api
-      .saveProfile(request)
+      .saveProfile(request, 'body', false, { context: inlineErrors() })
       .pipe(
         finalize(() => {
           this.saving.set(false);
@@ -132,10 +133,10 @@ export class Profile {
       .subscribe({
         next: (profile) => {
           this.fill(profile);
-          this.status.set({ saved: true, text: 'Profil enregistré.' });
+          this.savedText.set('Profil enregistré.');
         },
         error: (error: unknown) => {
-          this.status.set({ saved: false, text: saveErrorMessage(error) });
+          this.saveError.set(saveErrorMessage(error));
         },
       });
   }

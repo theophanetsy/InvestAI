@@ -1,26 +1,30 @@
-import { HttpContext, HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, inject, output, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { FormControl, NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
+import {
+  FormControl,
+  FormGroupDirective,
+  NonNullableFormBuilder,
+  ReactiveFormsModule,
+} from '@angular/forms';
 import type { MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
 import { MatAutocomplete, MatAutocompleteTrigger, MatOption } from '@angular/material/autocomplete';
 import { MatButton } from '@angular/material/button';
 import { MatError, MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import type { Observable } from 'rxjs';
-import {
-  catchError,
-  debounceTime,
-  distinctUntilChanged,
-  finalize,
-  map,
-  of,
-  switchMap,
-  tap,
-} from 'rxjs';
+import { catchError, debounceTime, finalize, map, of, switchMap, tap } from 'rxjs';
 import type { InstrumentSummaryResponse } from '../../api/generated';
 import { MarketService, PortfolioService } from '../../api/generated';
-import { NOTIFY_SERVER_ERRORS } from '../../core/http/http-context';
+import { inlineErrors } from '../../core/http/http-context';
 import { failureMessage, toProblem } from '../../core/http/problem';
 import { decimalValidator, integerValidator, normalizeDecimal } from '../../shared/format/decimal';
 import { PeaEligibilityBadge } from '../../shared/pea-eligibility/pea-eligibility-badge';
@@ -84,13 +88,12 @@ export class AddLine {
       }),
       map((value) => (typeof value === 'string' ? value.trim() : '')),
       debounceTime(SEARCH_DELAY_MS),
-      distinctUntilChanged(),
       switchMap((query) => (query.length < MIN_QUERY_LENGTH ? of(IDLE) : this.find(query))),
     ),
     { initialValue: IDLE },
   );
 
-  protected searchHint(): string {
+  protected readonly searchHint = computed(() => {
     const { failed, searched, results } = this.search();
     if (failed) {
       return 'Recherche impossible pour le moment.';
@@ -98,7 +101,9 @@ export class AddLine {
     return searched && results.length === 0
       ? 'Aucune valeur trouvée.'
       : 'Au moins 2 caractères, par exemple « air » ou FR0000120073.';
-  }
+  });
+  /** `resetForm()` also clears `submitted`: `FormGroup.reset()` would leave errors displayed. */
+  private readonly formDirective = viewChild.required(FormGroupDirective);
 
   protected displayName(value: string | InstrumentSummaryResponse | null): string {
     return typeof value === 'string' || value === null ? (value ?? '') : value.name;
@@ -124,11 +129,16 @@ export class AddLine {
     this.saving.set(true);
     this.error.set(null);
     this.portfolio
-      .addPortfolioLine({
-        instrumentId: instrument.id,
-        quantity,
-        ...(price === undefined ? {} : { averagePrice: price }),
-      })
+      .addPortfolioLine(
+        {
+          instrumentId: instrument.id,
+          quantity,
+          ...(price === undefined ? {} : { averagePrice: price }),
+        },
+        'body',
+        false,
+        { context: inlineErrors() },
+      )
       .pipe(
         finalize(() => {
           this.saving.set(false);
@@ -147,8 +157,7 @@ export class AddLine {
 
   private find(query: string): Observable<SearchState> {
     // The search shows its own failure: no notification on top of it.
-    const context = new HttpContext().set(NOTIFY_SERVER_ERRORS, false);
-    return this.market.searchInstruments(query, 'body', false, { context }).pipe(
+    return this.market.searchInstruments(query, 'body', false, { context: inlineErrors() }).pipe(
       map((results): SearchState => ({ results, failed: false, searched: true })),
       catchError(() => of<SearchState>({ results: [], failed: true, searched: true })),
     );
@@ -157,7 +166,7 @@ export class AddLine {
   private reset(): void {
     this.selected.set(null);
     this.query.setValue('');
-    this.form.reset();
+    this.formDirective().resetForm();
   }
 }
 

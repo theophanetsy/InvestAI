@@ -7,6 +7,7 @@ export const PORTFOLIO_API = {
   riskProfiles: '/api/v1/profile/risk-profiles',
   portfolio: '/api/v1/portfolio',
   lines: '/api/v1/portfolio/lines',
+  line: '/api/v1/portfolio/lines/*',
   search: '/api/v1/market/instruments?query=*',
 } as const;
 
@@ -33,6 +34,7 @@ const riskProfiles = [
 export interface PortfolioRequests {
   savedProfile?: unknown;
   addedLine?: unknown;
+  deletedLine?: string;
 }
 
 /**
@@ -72,6 +74,14 @@ export async function mockPortfolioApi(page: Page): Promise<PortfolioRequests> {
       status: 201,
       json: { id: 'l1', instrumentId: airLiquide.id, quantity: 10, updatedAt: NOW },
     });
+  });
+  await page.route(PORTFOLIO_API.line, async (route) => {
+    if (!(await hasValidCsrfToken(route))) {
+      return csrfRefused(route);
+    }
+    requests.deletedLine = route.request().url().split('/').pop();
+    lines = [];
+    return route.fulfill({ status: 204 });
   });
   await page.route(PORTFOLIO_API.portfolio, (route) =>
     route.fulfill({

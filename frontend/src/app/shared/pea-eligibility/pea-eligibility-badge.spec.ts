@@ -9,10 +9,10 @@ describe('PeaEligibilityBadge', () => {
   it('says that an eligibility from the rule is only probable', () => {
     expect(eligibilityText({ status: Status.Eligible, source: Source.Rule })).toEqual({
       label: 'PEA probable',
-      hint: 'Probable : vérifier chez le courtier',
+      hint: 'à vérifier chez le courtier',
     });
     expect(eligibilityText({ status: Status.NotEligible, source: Source.Rule }).hint).toBe(
-      'Pays hors UE/EEE : vérifier chez le courtier',
+      'pays hors UE/EEE, à vérifier chez le courtier',
     );
     expect(eligibilityText({ status: Status.Unknown, source: Source.Rule }).label).toBe(
       'Éligibilité PEA inconnue',
@@ -24,22 +24,23 @@ describe('PeaEligibilityBadge', () => {
       'Éligible PEA',
     );
     expect(eligibilityText({ status: Status.NotEligible, source: Source.Owner }).hint).toBe(
-      'Confirmé par vous',
+      'confirmé par vous',
     );
     expect(eligibilityText({ status: Status.Unknown, source: Source.Owner }).hint).toBe(
-      'Indiqué par vous',
+      'indiqué par vous',
     );
   });
 
-  it('renders the label with its hint as text, not as a colour only', async () => {
+  it('renders the label and its source as visible text, not as a colour only', async () => {
     const fixture = TestBed.createComponent(PeaEligibilityBadge);
     fixture.componentRef.setInput('eligibility', { status: Status.Eligible, source: Source.Rule });
     await fixture.whenStable();
-    const badge = (fixture.nativeElement as HTMLElement).querySelector('.badge');
+    const element = fixture.nativeElement as HTMLElement;
 
-    expect(badge?.textContent.replace(/\s+/g, ' ').trim()).toBe(
-      'PEA probable (Probable : vérifier chez le courtier)',
+    expect(element.textContent.replace(/\s+/g, ' ').trim()).toBe(
+      'PEA probable (à vérifier chez le courtier)',
     );
-    expect(badge?.getAttribute('data-status')).toBe('ELIGIBLE');
+    expect(element.querySelector('.badge')?.getAttribute('data-status')).toBe('ELIGIBLE');
+    expect(element.querySelector('[title]')).toBeNull();
   });
 });

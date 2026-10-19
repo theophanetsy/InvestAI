@@ -58,14 +58,27 @@ describe('CashForm', () => {
     expect(saved).toBe(1);
   });
 
+  it('keeps an amount being typed when the portfolio is reloaded', async () => {
+    fixture.componentRef.setInput('cash', { amount: '1.00', updatedAt: '2026-10-19T08:00:00Z' });
+    await fixture.whenStable();
+    amount().value = '5';
+    amount().dispatchEvent(new Event('input'));
+
+    fixture.componentRef.setInput('cash', { amount: '1.00', updatedAt: '2026-10-19T09:00:00Z' });
+    await fixture.whenStable();
+
+    expect(amount().value).toBe('5');
+  });
+
   it('refuses a negative amount and explains a server failure', async () => {
     await fixture.whenStable();
 
     await submit('-5');
     http.expectNone(CASH);
-    expect(element.querySelector('[role="alert"]')?.textContent.trim()).toBe(
+    expect(element.querySelector('mat-error')?.textContent.trim()).toBe(
       'Montant invalide : zéro ou plus, deux décimales au plus.',
     );
+    expect(element.querySelector('[role="alert"]')).toBeNull();
 
     await submit('0');
     http

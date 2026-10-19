@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatTableModule } from '@angular/material/table';
-import type { PortfolioLineResponse } from '../../api/generated';
+import type { PeaEligibilityResponse, PortfolioLineResponse } from '../../api/generated';
 import {
   formatAmount,
   formatDate,
@@ -13,6 +13,24 @@ import { PeaEligibilityBadge } from '../../shared/pea-eligibility/pea-eligibilit
 
 const NONE = '—';
 
+/**
+ * One row as displayed. Built in TypeScript because `*matCellDef="let row"` is untyped in the
+ * template: every field of the generated client is read here, under strict type checking.
+ */
+interface LineRow {
+  readonly line: PortfolioLineResponse;
+  readonly name: string;
+  readonly codes: string;
+  readonly eligibility: PeaEligibilityResponse;
+  readonly quantity: string;
+  /** `null` when no close is known ("Cours indisponible"). */
+  readonly close: string | null;
+  readonly closeDate: string;
+  readonly value: string;
+  readonly weight: string;
+  readonly gain: string;
+}
+
 /** The valued lines; every figure comes from the backend as text and is only formatted here. */
 @Component({
   selector: 'inv-portfolio-table',
@@ -23,6 +41,8 @@ const NONE = '—';
 })
 export class PortfolioTable {
   readonly lines = input.required<readonly PortfolioLineResponse[]>();
+  /** Currency of the valuation (amounts of the lines), from the portfolio. */
+  readonly currency = input.required<string>();
   readonly editLine = output<PortfolioLineResponse>();
   readonly removeLine = output<PortfolioLineResponse>();
   readonly correctEligibility = output<PortfolioLineResponse>();
@@ -37,32 +57,37 @@ export class PortfolioTable {
     'actions',
   ] as const;
 
-  protected readonly formatDate = formatDate;
+  protected readonly rows = computed(() =>
+    this.lines().map((line) => toRow(line, this.currency())),
+  );
 
-  protected quantity(line: PortfolioLineResponse): string {
-    return formatQuantity(line.quantity);
-  }
+  /** Keeps the rows (and the focus restored by a dialog) across reloads. */
+  protected readonly trackById = (_index: number, row: LineRow): string => row.line.id;
+}
 
-  protected close(line: PortfolioLineResponse): string {
-    return line.lastClose ? formatAmount(line.lastClose.close, 'EUR') : NONE;
-  }
+function toRow(line: PortfolioLineResponse, currency: string): LineRow {
+  const { instrument, lastClose } = line;
+  return {
+    line,
+    name: instrument.name,
+    codes: `${instrument.ticker} · ${instrument.isin}`,
+    eligibility: instrument.peaEligibility,
+    quantity: formatQuantity(line.quantity),
+    close: lastClose ? formatAmount(lastClose.close, instrument.currency) : null,
+    closeDate: lastClose ? `au ${formatDate(lastClose.date)}` : '',
+    value: line.value ? formatAmount(line.value, currency) : NONE,
+    weight: line.weightPercent ? formatPercent(line.weightPercent) : NONE,
+    gain: gainText(line, currency),
+  };
+}
 
-  protected value(line: PortfolioLineResponse): string {
-    return line.value ? formatAmount(line.value, 'EUR') : NONE;
+/** `+230,37 € (+15,35 %)`, or a dash without average price or close. */
+function gainText(line: PortfolioLineResponse, currency: string): string {
+  if (!line.unrealizedGain) {
+    return NONE;
   }
-
-  protected weight(line: PortfolioLineResponse): string {
-    return line.weightPercent ? formatPercent(line.weightPercent) : NONE;
-  }
-
-  /** `+230,37 € (+15,35 %)`, or a dash without average price or close. */
-  protected gain(line: PortfolioLineResponse): string {
-    if (!line.unrealizedGain) {
-      return NONE;
-    }
-    const amount = formatSignedAmount(line.unrealizedGain, 'EUR');
-    return line.unrealizedGainPercent
-      ? `${amount} (${formatPercent(line.unrealizedGainPercent, true)})`
-      : amount;
-  }
+  const amount = formatSignedAmount(line.unrealizedGain, currency);
+  return line.unrealizedGainPercent
+    ? `${amount} (${formatPercent(line.unrealizedGainPercent, true)})`
+    : amount;
 }

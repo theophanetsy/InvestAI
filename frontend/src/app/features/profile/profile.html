@@ -30,7 +30,7 @@
     <mat-form-field appearance="outline">
       <mat-label>Horizon de placement (années)</mat-label>
       <input matInput type="number" formControlName="horizonYears" min="1" max="40" required />
-      <mat-error>Indiquez un nombre d’années entre 1 et 40.</mat-error>
+      <mat-error>Indiquez un nombre entier d’années entre 1 et 40.</mat-error>
     </mat-form-field>
 
     <inv-risk-profile-field [control]="form.controls.riskProfile" [options]="riskProfiles()" />
@@ -50,14 +50,10 @@
       <mat-error>La date ne peut pas être dans le futur.</mat-error>
     </mat-form-field>
 
-    @if (status(); as current) {
-      <p
-        [class]="current.saved ? 'profile__saved' : 'profile__problem'"
-        [attr.role]="current.saved ? 'status' : 'alert'"
-      >
-        {{ current.text }}
-      </p>
+    @if (saveError(); as message) {
+      <p class="profile__problem" role="alert">{{ message }}</p>
     }
+    <p class="profile__saved" role="status">{{ savedText() }}</p>
     <button mat-flat-button type="submit" [disabled]="saving()">Enregistrer le profil</button>
   </form>
 }

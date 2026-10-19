@@ -107,6 +107,8 @@ describe('Profile', () => {
     radio('Équilibré').click();
     await fixture.whenStable();
     expect(text('[data-testid="risk-description"]')).toBe('Environ 20 %.');
+    // The live region exists before its text, so that the confirmation is announced.
+    expect(text('[role="status"]')).toBe('');
     await submit();
 
     const save = http.expectOne((request) => request.method === 'PUT' && request.url === PROFILE);
@@ -204,6 +206,36 @@ describe('Profile', () => {
     http.expectOne(PROFILE).flush(stored);
     await fixture.whenStable();
     expect(field('Horizon de placement').value).toBe('10');
+  });
+
+  it('keeps a typed exclusion and says why when it is a duplicate or one too many', async () => {
+    await render({ ...stored, exclusions: Array.from({ length: 20 }, (_, i) => `E${String(i)}`) });
+    const input = element.querySelector<HTMLInputElement>('input[maxlength="100"]');
+    if (!input) {
+      throw new Error('No exclusion input');
+    }
+
+    input.value = 'e3';
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13 }));
+    await fixture.whenStable();
+    expect(element.textContent).toContain('« e3 » est déjà dans la liste.');
+    expect(input.value).toBe('e3');
+
+    input.value = 'Tabac';
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13 }));
+    await fixture.whenStable();
+    expect(element.textContent).toContain('20 exclusions au plus');
+    expect(element.querySelectorAll('mat-chip-row')).toHaveLength(20);
+  });
+
+  it('refuses a horizon that is not a whole number of years', async () => {
+    await render(stored);
+
+    type('Horizon de placement', '2.5');
+    await submit();
+
+    http.expectNone((request) => request.method === 'PUT');
+    expect(element.textContent).toContain('Indiquez un nombre entier d’années entre 1 et 40.');
   });
 
   it('converts the risk profile code back to the request enum', () => {

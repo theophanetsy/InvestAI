@@ -9,5 +9,5 @@
     }
     <input maxlength="100" [matChipInputFor]="grid" (matChipInputTokenEnd)="add($event)" />
   </mat-chip-grid>
-  <mat-hint>Facultatif. Tapez puis Entrée, par exemple « Tabac ». 20 au plus.</mat-hint>
+  <mat-hint aria-live="polite">{{ hint() }}</mat-hint>
 </mat-form-field>

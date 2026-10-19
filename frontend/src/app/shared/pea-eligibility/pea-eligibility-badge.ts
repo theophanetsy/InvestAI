@@ -11,25 +11,25 @@ interface BadgeText {
 }
 
 /**
- * PEA eligibility of an instrument as a short text badge (never conveyed by colour alone). From
- * the rule, "eligible" is only probable: the broker has the final say.
+ * PEA eligibility of an instrument as a short text badge (never conveyed by colour alone), followed
+ * by its source as visible text. From the rule, "eligible" is only probable: the broker decides.
  */
 export function eligibilityText(eligibility: PeaEligibilityResponse): BadgeText {
   const byOwner = eligibility.source === PeaEligibilityResponseSourceEnum.Owner;
   switch (eligibility.status) {
     case PeaEligibilityResponseStatusEnum.Eligible:
       return byOwner
-        ? { label: 'Éligible PEA', hint: 'Confirmé par vous' }
-        : { label: 'PEA probable', hint: 'Probable : vérifier chez le courtier' };
+        ? { label: 'Éligible PEA', hint: 'confirmé par vous' }
+        : { label: 'PEA probable', hint: 'à vérifier chez le courtier' };
     case PeaEligibilityResponseStatusEnum.NotEligible:
       return {
         label: 'Non éligible PEA',
-        hint: byOwner ? 'Confirmé par vous' : 'Pays hors UE/EEE : vérifier chez le courtier',
+        hint: byOwner ? 'confirmé par vous' : 'pays hors UE/EEE, à vérifier chez le courtier',
       };
     default:
       return {
         label: 'Éligibilité PEA inconnue',
-        hint: byOwner ? 'Indiqué par vous' : 'À vérifier chez le courtier',
+        hint: byOwner ? 'indiqué par vous' : 'à vérifier chez le courtier',
       };
   }
 }

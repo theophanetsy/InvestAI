@@ -11,8 +11,12 @@ import {
   PeaEligibilityResponseSourceEnum,
   PeaEligibilityResponseStatusEnum,
 } from '../../api/generated';
+import { By } from '@angular/platform-browser';
 import { provideApiClient } from '../../core/api/api-client';
+import { NOTIFY_SERVER_ERRORS } from '../../core/http/http-context';
 import { ConfirmDialog } from '../../shared/confirm-dialog/confirm-dialog';
+import { AddLine } from './add-line';
+import { CashForm } from './cash-form';
 import { EligibilityDialog } from './eligibility-dialog';
 import { LineDialog } from './line-dialog';
 import { Portfolio } from './portfolio';
@@ -101,7 +105,10 @@ describe('Portfolio', () => {
   async function render(portfolio: PortfolioResponse): Promise<void> {
     fixture = TestBed.createComponent(Portfolio);
     element = fixture.nativeElement as HTMLElement;
-    http.expectOne(PORTFOLIO).flush(portfolio);
+    const load = http.expectOne(PORTFOLIO);
+    // The page shows its own failure: no notification on top of it.
+    expect(load.request.context.get(NOTIFY_SERVER_ERRORS)).toBe(false);
+    load.flush(portfolio);
     await fixture.whenStable();
   }
 
@@ -127,7 +134,7 @@ describe('Portfolio', () => {
       `2${NNBSP}000,00${NBSP}€`,
     );
     expect(cells(0)).toEqual([
-      'Air LiquideAI · FR0000120073 PEA probable (Probable : vérifier chez le courtier)',
+      'Air LiquideAI · FR0000120073PEA probable (à vérifier chez le courtier)',
       '10',
       `173,16${NBSP}€ au 16/10/2026`,
       `1${NNBSP}731,60${NBSP}€`,
@@ -167,6 +174,7 @@ describe('Portfolio', () => {
     await fixture.whenStable();
     expect(snackBar.open).toHaveBeenCalledWith('Ligne supprimée.', 'Fermer', { duration: 4000 });
     expect(element.querySelectorAll('tr[mat-row]')).toHaveLength(1);
+    expect(document.activeElement).toBe(element.querySelector('h1'));
   });
 
   it('keeps the line when the deletion is cancelled or fails', async () => {
@@ -184,6 +192,22 @@ describe('Portfolio', () => {
         { status: 404, statusText: 'Not Found' },
       );
     expect(snackBar.open).toHaveBeenCalledWith('La suppression a échoué. Référence : r4', 'Fermer');
+    // Already gone (deleted elsewhere): the table is refreshed.
+    http.expectOne(PORTFOLIO).flush({ ...valued, lines: [unpriced] });
+  });
+
+  it('announces a line added and the cash saved below the table, then values again', async () => {
+    await render(valued);
+
+    fixture.debugElement.query(By.directive(AddLine)).injector.get(AddLine).added.emit();
+    http.expectOne(PORTFOLIO).flush(valued);
+    fixture.debugElement.query(By.directive(CashForm)).injector.get(CashForm).saved.emit();
+    http.expectOne(PORTFOLIO).flush(valued);
+
+    expect(snackBar.open).toHaveBeenCalledWith('Ligne ajoutée.', 'Fermer', { duration: 4000 });
+    expect(snackBar.open).toHaveBeenCalledWith('Espèces enregistrées.', 'Fermer', {
+      duration: 4000,
+    });
   });
 
   it('opens the edit and eligibility dialogs, and reloads once they saved', async () => {

@@ -6,6 +6,7 @@
       <input
         matInput
         type="search"
+        maxlength="100"
         autocomplete="off"
         [formControl]="query"
         [matAutocomplete]="instruments"
@@ -25,7 +26,9 @@
           </mat-option>
         }
       </mat-autocomplete>
-      <mat-hint [class.add-line__problem]="search().failed">{{ searchHint() }}</mat-hint>
+      <mat-hint aria-live="polite" [class.add-line__problem]="search().failed">{{
+        searchHint()
+      }}</mat-hint>
     </mat-form-field>
 
     @if (selected(); as instrument) {

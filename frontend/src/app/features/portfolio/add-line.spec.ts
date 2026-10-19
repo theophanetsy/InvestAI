@@ -110,6 +110,7 @@ describe('AddLine', () => {
     submit();
 
     const add = http.expectOne(LINES);
+    expect(add.request.context.get(NOTIFY_SERVER_ERRORS)).toBe(false);
     expect(add.request.body).toEqual({
       instrumentId: airLiquide.id,
       quantity: 10,
@@ -119,6 +120,11 @@ describe('AddLine', () => {
     await fixture.whenStable();
     expect(added).toBe(1);
     expect(element.querySelector('[data-testid="selected-instrument"]')).toBeNull();
+    // A fresh form: no error shown on the emptied, required quantity.
+    expect(element.querySelector('mat-error')).toBeNull();
+    expect(input('input[formcontrolname="quantity"]').getAttribute('aria-invalid')).not.toBe(
+      'true',
+    );
   });
 
   it('does not search below two characters and says when nothing is found', async () => {

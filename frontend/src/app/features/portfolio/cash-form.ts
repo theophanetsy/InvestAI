@@ -14,6 +14,7 @@ import { MatInput } from '@angular/material/input';
 import { finalize } from 'rxjs';
 import type { CashResponse } from '../../api/generated';
 import { PortfolioService } from '../../api/generated';
+import { inlineErrors } from '../../core/http/http-context';
 import { failureMessage } from '../../core/http/problem';
 import { decimalValidator, normalizeDecimal } from '../../shared/format/decimal';
 
@@ -44,21 +45,25 @@ export class CashForm {
 
   constructor() {
     effect(() => {
-      this.form.controls.amount.setValue(this.cash()?.amount.replace('.', ',') ?? '');
+      const amount = this.cash()?.amount.replace('.', ',') ?? '';
+      // A reload (after adding a line) must not erase an amount being typed.
+      if (!this.form.controls.amount.dirty) {
+        this.form.controls.amount.setValue(amount);
+      }
     });
   }
 
   protected submit(): void {
     const amount = normalizeDecimal(this.form.controls.amount.value, 'amount');
     if (amount === null) {
+      // The field shows the reason (mat-error).
       this.form.markAllAsTouched();
-      this.error.set('Montant invalide : zéro ou plus, deux décimales au plus.');
       return;
     }
     this.saving.set(true);
     this.error.set(null);
     this.api
-      .setPortfolioCash({ amount })
+      .setPortfolioCash({ amount }, 'body', false, { context: inlineErrors() })
       .pipe(
         finalize(() => {
           this.saving.set(false);
@@ -66,6 +71,7 @@ export class CashForm {
       )
       .subscribe({
         next: () => {
+          this.form.markAsPristine();
           this.saved.emit();
         },
         error: (error: unknown) => {

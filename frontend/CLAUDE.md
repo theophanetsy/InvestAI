@@ -67,8 +67,22 @@ src/app/
   clavier : contour Material renforcé pour toute l'app (`mat.strong-focus-indicators` dans
   `src/styles.scss`) ; jamais `outline: none` sans indicateur de remplacement.
 - **Contenu non fiable** (réponses LLM, news) : jamais `[innerHTML]` ni `bypassSecurityTrust*`.
-- Montants : formatter avec `CurrencyPipe`/`Intl`, ne pas recalculer côté front ce que le backend
-  calcule.
+- Montants : chaînes décimales de l'API formatées par `shared/format/decimal.ts`
+  (`formatAmount`, `formatPercent`…, jamais via un `number`), devise lue dans les données ; ne pas
+  recalculer côté front ce que le backend calcule.
+- **Erreur affichée sur place** (alerte à côté du formulaire, message d'une liste) : appeler le
+  service généré avec `{ context: inlineErrors() }` (`core/http/http-context.ts`), sinon une
+  erreur 5xx ou réseau est signalée deux fois (notification + alerte).
+- **Annonces** : un message de confirmation est un `role="status"` (ou `aria-live`) **toujours
+  présent** dans le DOM, dont seul le texte change ; une action réussie sans changement visible
+  évident (ajout sous le tableau) s'annonce par une notification (`MatSnackBar`).
+- **Formulaire réinitialisé après succès** : `FormGroupDirective.resetForm()` (`viewChild`), pas
+  `FormGroup.reset()` qui laisse `submitted` et donc les erreurs Material affichées.
+- **Tableau Material** : `*matCellDef="let row"` n'est pas typé → construire les lignes affichées
+  en TypeScript (modèle de vue, cf. `portfolio-table.ts`) et `[trackBy]` sur l'identifiant (sinon
+  les lignes sont recréées à chaque rechargement et le focus rendu par un dialogue est perdu).
+- **Dialogue qui enregistre** : il appelle l'API lui-même, `disableClose` pendant l'envoi, efface
+  l'erreur précédente, se ferme avec `true` ; la page recharge et annonce.
 - Sélecteurs préfixés `inv-`. Texte UI en français.
 - Limites ESLint : complexité ≤ 10, fichier ≤ 300 lignes, profondeur ≤ 3, ≤ 4 paramètres.
 
@@ -108,9 +122,9 @@ src/app/
     L'historique arrive plus tard (job), `historyLoaded` passe alors à `true`.
   - Instrument inconnu → 404 `instrument.not-found`.
   - **Prix** : `close` est une **chaîne décimale** à 4 décimales (`"173.1600"`) avec `currency`
-    (ISO 4217) : l'afficher avec `CurrencyPipe`/`Intl`, ne jamais la convertir en `number` pour
-    calculer. `source` : `EURONEXT` (officiel) ou `EODHD` (historique, rattrapage). Clôtures
-    brutes, non ajustées des dividendes ni des divisions.
+    (ISO 4217) : l'afficher avec `formatAmount` (`shared/format/decimal.ts`), ne jamais la
+    convertir en `number`. `source` : `EURONEXT` (officiel) ou `EODHD` (historique,
+    rattrapage). Clôtures brutes, non ajustées des dividendes ni des divisions.
   - **Activité de la séance** (Phase 2.2, `DailyCloseResponse`, aussi dans `lastClose`) :
     `volume` (titres échangés, entier) et `tradeCount` (nombre de transactions), **optionnels** :
     absents quand inconnus (clôtures antérieures à la 2.2, volume EODHD manquant, `tradeCount`
@@ -192,7 +206,7 @@ Format : symptôme → cause → bonne pratique. Compléter à chaque étape (wo
   `npm run api:update` depuis la racine.
 - **`template/cyclomatic-complexity` (> 5)** : compte chaque `@if`/`@else if`/`@else`/`@for` du
   template entier → découper en sous-composants (`portfolio-table`, `portfolio-summary`,
-  `risk-profile-field`…), calculer les textes dans la classe (`gain(line)`, `searchHint()`) et ne
+  `risk-profile-field`…), calculer les textes dans la classe (`gainText`, `searchHint`) et ne
   pas entourer un `<mat-error>` d'un `@if` : Material ne l'affiche qu'en erreur.
 - **`template/attributes-order`** : directive structurelle d'abord
   (`<td *matCellDef="let line" mat-cell>`) ; **`prefer-template-literal`** : littéral de gabarit
@@ -205,6 +219,11 @@ Format : symptôme → cause → bonne pratique. Compléter à chaque étape (wo
   absente) → formater le texte soi-même (`formatDecimal`), sans passer par un `number`.
 - **`[maxlength]` sur un `<input>` sans contrôle de formulaire** : NG8002 → attribut statique
   `maxlength="100"`.
+- **E2E : `getByLabel` sur un champ à autocomplétion** trouve aussi le `listbox` ouvert (même
+  libellé) → `getByRole('combobox', { name })`.
+- **Test d'un composant enfant** : `debugElement.query(By.directive(X)).componentInstance` est
+  `any` (ESLint `no-unsafe-*`) → `.injector.get(X)`.
+- **`aria-invalid`** : Material retire l'attribut quand le champ est valide (`null`, pas `"false"`).
 - **`eslint --max-warnings=0 <fichiers>` échoue sur « File ignored because of a matching ignore
   pattern »** : un fichier ignoré (ex. `api/generated`) passé explicitement produit un
   avertissement → toujours ajouter `--no-warn-ignored` quand on lint une liste de fichiers

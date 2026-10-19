@@ -10,11 +10,11 @@
       <mat-radio-button [value]="option.code">{{ option.label }}</mat-radio-button>
     }
   </mat-radio-group>
-  @if (chosen(); as profile) {
-    <p class="risk__description" data-testid="risk-description" aria-live="polite">
-      {{ profile.description }}
-    </p>
-  } @else if (control().touched) {
+  <!-- Live region always present: only its text changes, so every choice is announced. -->
+  <p class="risk__description" data-testid="risk-description" aria-live="polite">
+    {{ chosen()?.description }}
+  </p>
+  @if (!chosen() && control().touched) {
     <p class="risk__error" role="alert">Choisissez un profil de risque.</p>
   }
 </fieldset>

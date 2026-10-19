@@ -12,7 +12,20 @@ import {
 import { MatRadioButton, MatRadioGroup } from '@angular/material/radio';
 import { finalize } from 'rxjs';
 import type { InstrumentSummaryResponse } from '../../api/generated';
-import { MarketService, PeaEligibilityRequestStatusEnum } from '../../api/generated';
+import {
+  MarketService,
+  PeaEligibilityRequestStatusEnum,
+  PeaEligibilityResponseSourceEnum,
+  PeaEligibilityResponseStatusEnum,
+} from '../../api/generated';
+
+/** One enum per generated DTO: the typed mapping fails to compile if a status is added. */
+const REQUEST_STATUS: Record<PeaEligibilityResponseStatusEnum, PeaEligibilityRequestStatusEnum> = {
+  [PeaEligibilityResponseStatusEnum.Eligible]: PeaEligibilityRequestStatusEnum.Eligible,
+  [PeaEligibilityResponseStatusEnum.NotEligible]: PeaEligibilityRequestStatusEnum.NotEligible,
+  [PeaEligibilityResponseStatusEnum.Unknown]: PeaEligibilityRequestStatusEnum.Unknown,
+};
+import { inlineErrors } from '../../core/http/http-context';
 import { failureMessage } from '../../core/http/problem';
 import { PeaEligibilityBadge } from '../../shared/pea-eligibility/pea-eligibility-badge';
 
@@ -47,7 +60,12 @@ export class EligibilityDialog {
     { value: PeaEligibilityRequestStatusEnum.NotEligible, label: 'Non éligible au PEA' },
     { value: PeaEligibilityRequestStatusEnum.Unknown, label: 'Je ne sais pas' },
   ] as const;
-  protected readonly status = new FormControl<PeaEligibilityRequestStatusEnum | null>(null);
+  /** The owner's previous answer is preselected; the rule's guess is not. */
+  protected readonly status = new FormControl<PeaEligibilityRequestStatusEnum | null>(
+    this.instrument.peaEligibility.source === PeaEligibilityResponseSourceEnum.Owner
+      ? REQUEST_STATUS[this.instrument.peaEligibility.status]
+      : null,
+  );
   protected readonly saving = signal(false);
   protected readonly error = signal<string | null>(null);
 
@@ -58,11 +76,16 @@ export class EligibilityDialog {
       return;
     }
     this.saving.set(true);
+    this.error.set(null);
+    this.dialog.disableClose = true;
     this.market
-      .correctPeaEligibility(this.instrument.id, { status })
+      .correctPeaEligibility(this.instrument.id, { status }, 'body', false, {
+        context: inlineErrors(),
+      })
       .pipe(
         finalize(() => {
           this.saving.set(false);
+          this.dialog.disableClose = false;
         }),
       )
       .subscribe({

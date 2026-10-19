@@ -1,10 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import type { FormControl } from '@angular/forms';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatRadioButton, MatRadioGroup } from '@angular/material/radio';
 import { startWith, switchMap } from 'rxjs';
-import { toObservable } from '@angular/core/rxjs-interop';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import type { RiskProfileResponse } from '../../api/generated';
 
 /** The four risk profiles as radio buttons, with the description of the chosen one. */
