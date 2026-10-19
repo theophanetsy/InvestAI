@@ -51,6 +51,12 @@ class JdbcCollectionJournal implements CollectionJournal {
         (SELECT min(trading_date) FROM market_collection WHERE trading_date < :session))
       """;
 
+  private static final String IS_COLLECTED =
+      """
+      SELECT EXISTS (SELECT 1 FROM market_collection WHERE trading_date = :session
+        AND (segment = :segment OR segment IS NULL))
+      """;
+
   private static final String SESSION = "session";
 
   private final JdbcClient jdbc;
@@ -63,9 +69,7 @@ class JdbcCollectionJournal implements CollectionJournal {
 
   @Override
   public boolean isCollected(LocalDate session, TradeFileSegment segment) {
-    return jdbc.sql(
-            "SELECT EXISTS (SELECT 1 FROM market_collection WHERE trading_date = :session"
-                + " AND (segment = :segment OR segment IS NULL))")
+    return jdbc.sql(IS_COLLECTED)
         .param(SESSION, session)
         .param("segment", segment.name())
         .query(Boolean.class)

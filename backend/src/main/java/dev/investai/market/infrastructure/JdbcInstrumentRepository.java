@@ -28,9 +28,32 @@ import org.springframework.transaction.annotation.Transactional;
 @Repository
 class JdbcInstrumentRepository implements InstrumentRepository {
 
-  private static final String SELECT =
-      "SELECT id, isin, mic, ticker, name, type, currency, tracked_since, history_loaded"
-          + " FROM instrument ";
+  // One literal per query (Semgrep investai-no-string-concatenated-sql): the column list is
+  // repeated.
+  private static final String FIND_BY_ID =
+      """
+      SELECT id, isin, mic, ticker, name, type, currency, tracked_since, history_loaded
+      FROM instrument WHERE id = :id
+      """;
+
+  private static final String FIND_BY_LISTING =
+      """
+      SELECT id, isin, mic, ticker, name, type, currency, tracked_since, history_loaded
+      FROM instrument WHERE isin = :isin AND mic = :mic
+      """;
+
+  private static final String FIND_TRACKED =
+      """
+      SELECT id, isin, mic, ticker, name, type, currency, tracked_since, history_loaded
+      FROM instrument WHERE tracked_since IS NOT NULL
+      ORDER BY tracked_since, isin, mic
+      """;
+
+  private static final String MARK_TRACKED =
+      """
+      UPDATE instrument SET tracked_since = :since, updated_at = :since
+      WHERE id = :id AND tracked_since IS NULL
+      """;
 
   private static final String UPSERT =
       """
@@ -45,8 +68,9 @@ class JdbcInstrumentRepository implements InstrumentRepository {
       """;
 
   private static final String SEARCH =
-      SELECT
-          + """
+      """
+          SELECT id, isin, mic, ticker, name, type, currency, tracked_since, history_loaded
+          FROM instrument
           WHERE isin = :exact OR upper(ticker) = :exact
              OR unaccent(lower(name)) LIKE '%' || replace(replace(replace(
                   unaccent(lower(:fragment)), '\\', '\\\\'), '%', '\\%'), '_', '\\_') || '%'
@@ -68,15 +92,12 @@ class JdbcInstrumentRepository implements InstrumentRepository {
 
   @Override
   public Optional<Instrument> findById(InstrumentId id) {
-    return jdbc.sql(SELECT + "WHERE id = :id")
-        .param(ID, id.value())
-        .query((rs, row) -> map(rs))
-        .optional();
+    return jdbc.sql(FIND_BY_ID).param(ID, id.value()).query((rs, row) -> map(rs)).optional();
   }
 
   @Override
   public Optional<Instrument> findByListing(Listing listing) {
-    return jdbc.sql(SELECT + "WHERE isin = :isin AND mic = :mic")
+    return jdbc.sql(FIND_BY_LISTING)
         .param("isin", listing.isin().value())
         .param("mic", listing.mic().value())
         .query((rs, row) -> map(rs))
@@ -85,9 +106,7 @@ class JdbcInstrumentRepository implements InstrumentRepository {
 
   @Override
   public List<Instrument> findTracked() {
-    return jdbc.sql(SELECT + "WHERE tracked_since IS NOT NULL ORDER BY tracked_since, isin, mic")
-        .query((rs, row) -> map(rs))
-        .list();
+    return jdbc.sql(FIND_TRACKED).query((rs, row) -> map(rs)).list();
   }
 
   @Override
@@ -124,9 +143,7 @@ class JdbcInstrumentRepository implements InstrumentRepository {
 
   @Override
   public boolean markTracked(InstrumentId id, Instant since) {
-    return jdbc.sql(
-                "UPDATE instrument SET tracked_since = :since, updated_at = :since"
-                    + " WHERE id = :id AND tracked_since IS NULL")
+    return jdbc.sql(MARK_TRACKED)
             .param(ID, id.value())
             .param("since", Timestamps.of(since))
             .update()

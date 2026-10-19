@@ -25,6 +25,19 @@ class JdbcCatchUpQueue implements CatchUpQueue {
         to_date = greatest(price_catch_up.to_date, excluded.to_date)
       """;
 
+  private static final String PENDING =
+      """
+      SELECT instrument_id, from_date, to_date FROM price_catch_up
+      ORDER BY requested_at, instrument_id
+      """;
+
+  /** Only an entry not widened meanwhile by the collection job. */
+  private static final String REMOVE =
+      """
+      DELETE FROM price_catch_up
+      WHERE instrument_id = :id AND from_date = :from AND to_date = :to
+      """;
+
   private final JdbcClient jdbc;
   private final NamedParameterJdbcTemplate batch;
 
@@ -51,9 +64,7 @@ class JdbcCatchUpQueue implements CatchUpQueue {
 
   @Override
   public List<CatchUpRequest> pending() {
-    return jdbc.sql(
-            "SELECT instrument_id, from_date, to_date FROM price_catch_up"
-                + " ORDER BY requested_at, instrument_id")
+    return jdbc.sql(PENDING)
         .query(
             (rs, row) ->
                 new CatchUpRequest(
@@ -65,9 +76,7 @@ class JdbcCatchUpQueue implements CatchUpQueue {
 
   @Override
   public void remove(CatchUpRequest request) {
-    jdbc.sql(
-            "DELETE FROM price_catch_up"
-                + " WHERE instrument_id = :id AND from_date = :from AND to_date = :to")
+    jdbc.sql(REMOVE)
         .param("id", request.instrumentId().value())
         .param("from", request.from())
         .param("to", request.to())

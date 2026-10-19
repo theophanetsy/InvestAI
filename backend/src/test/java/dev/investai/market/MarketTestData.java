@@ -51,11 +51,11 @@ public final class MarketTestData {
    * @param jdbc the database
    */
   public static void clearTables(JdbcClient jdbc) {
-    for (String table :
-        new String[] {
-          "price_catch_up", "daily_price", "market_collection", "eodhd_usage", "instrument"
-        }) {
-      jdbc.sql("DELETE FROM " + table).update();
-    }
+    // Literal statements only (Semgrep investai-no-string-concatenated-sql).
+    jdbc.sql("DELETE FROM price_catch_up").update();
+    jdbc.sql("DELETE FROM daily_price").update();
+    jdbc.sql("DELETE FROM market_collection").update();
+    jdbc.sql("DELETE FROM eodhd_usage").update();
+    jdbc.sql("DELETE FROM instrument").update();
   }
 }

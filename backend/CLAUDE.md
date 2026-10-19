@@ -235,6 +235,10 @@ Format : symptôme → cause → bonne pratique. Compléter à chaque étape (wo
 - **`@Scheduled` en parallèle** : avec les threads virtuels, Boot fournit un
   `SimpleAsyncTaskScheduler` → deux tâches planifiées s'exécutent simultanément (pas de thread
   unique) → protéger chaque cas d'usage et rendre les écritures concurrentes sûres.
+- **CI Semgrep rouge `investai-no-string-concatenated-sql`** (Semgrep ne tourne qu'en CI) : littéraux SQL
+  concaténés par `+`, même entre constantes (`SELECT + "WHERE …"`) → une requête = un seul text
+  block `"""…"""` (répéter la liste de colonnes) ; vérifier en local avec Docker :
+  `docker run --rm -v "$PWD:/src" -w /src semgrep/semgrep semgrep scan --config .semgrep/ --error`.
 - **`@RequestParam LocalDate`** : sans `@DateTimeFormat(iso = ISO.DATE)`, le format attendu dépend
   de la locale → toujours l'annoter. Une URL de test avec `/` final (`/instruments/?query=`) donne 404.
 
