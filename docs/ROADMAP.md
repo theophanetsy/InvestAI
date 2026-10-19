@@ -34,7 +34,7 @@ Principe directeur : **chaque phase se termine par une app qui tourne, CI verte,
 | **Phase 2 — Données, profil et indicateurs** | 🔄 En cours |
 | Phase 2.0 — Choix des données de marché ([ADR-0009](adr/0009-fournisseur-donnees-marche.md), [spec](specs/phase-2-00-market-data.md)) | ✅ Terminée (PR #16) |
 | Phase 2.1 — Données de marché : référentiel, collecte quotidienne, historique ([spec](specs/phase-2-01-market-data-collection.md)) | ✅ Terminée (PR #17) ; vérification réelle avec la clé EODHD à faire par le propriétaire |
-| Phase 2.2 — Clôtures de toutes les valeurs de Paris ([spec](specs/phase-2-02-all-paris-closes.md)) | ✅ Terminée (PR ouverte) |
+| Phase 2.2 — Clôtures de toutes les valeurs de Paris ([spec](specs/phase-2-02-all-paris-closes.md)) | ✅ Terminée (PR #19) |
 
 ---
 
