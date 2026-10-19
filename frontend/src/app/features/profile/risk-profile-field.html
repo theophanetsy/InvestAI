@@ -1,0 +1,20 @@
+<fieldset class="risk">
+  <legend id="risk-label" class="risk__legend">Profil de risque</legend>
+  <mat-radio-group
+    class="risk__choices"
+    aria-labelledby="risk-label"
+    required
+    [formControl]="control()"
+  >
+    @for (option of options(); track option.code) {
+      <mat-radio-button [value]="option.code">{{ option.label }}</mat-radio-button>
+    }
+  </mat-radio-group>
+  @if (chosen(); as profile) {
+    <p class="risk__description" data-testid="risk-description" aria-live="polite">
+      {{ profile.description }}
+    </p>
+  } @else if (control().touched) {
+    <p class="risk__error" role="alert">Choisissez un profil de risque.</p>
+  }
+</fieldset>

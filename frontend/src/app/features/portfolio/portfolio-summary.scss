@@ -1,0 +1,15 @@
+.summary {
+  margin-bottom: 1.5rem;
+}
+
+.summary__total {
+  font: var(--mat-sys-title-medium);
+}
+
+.summary__note {
+  font: var(--mat-sys-body-medium);
+}
+
+.summary__warning {
+  color: var(--mat-sys-error);
+}

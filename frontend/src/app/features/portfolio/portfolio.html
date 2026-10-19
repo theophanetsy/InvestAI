@@ -1,0 +1,23 @@
+<h1>Mon portefeuille</h1>
+<p class="portfolio__intro">
+  Les lignes de votre PEA telles que les affiche votre courtier, valorisées sur la dernière clôture
+  connue.
+</p>
+
+@if (loading() && portfolio() === null) {
+  <mat-progress-bar mode="indeterminate" aria-label="Chargement du portefeuille" />
+} @else if (loadError(); as message) {
+  <div class="portfolio__error" role="alert">
+    <p>{{ message }}</p>
+    <button mat-stroked-button type="button" (click)="load()">Réessayer</button>
+  </div>
+} @else if (portfolio(); as current) {
+  <inv-portfolio-summary [portfolio]="current" (cashSaved)="load()" />
+  <inv-portfolio-table
+    [lines]="current.lines"
+    (editLine)="edit($event)"
+    (removeLine)="remove($event)"
+    (correctEligibility)="correctEligibility($event)"
+  />
+  <inv-add-line (added)="load()" />
+}

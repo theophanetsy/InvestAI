@@ -1,0 +1,8 @@
+.eligibility-dialog__choices {
+  display: flex;
+  flex-direction: column;
+}
+
+.eligibility-dialog__error {
+  color: var(--mat-sys-error);
+}

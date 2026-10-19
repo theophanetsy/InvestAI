@@ -1,0 +1,63 @@
+<h1>Mon profil</h1>
+<p class="profile__intro">
+  Ce que vous attendez de votre PEA. L’assistant s’en servira pour ses propositions.
+</p>
+
+@if (loading()) {
+  <mat-progress-bar mode="indeterminate" aria-label="Chargement du profil" />
+} @else if (loadError(); as message) {
+  <div class="profile__error" role="alert">
+    <p>{{ message }}</p>
+    <button mat-stroked-button type="button" (click)="load()">Réessayer</button>
+  </div>
+} @else {
+  <form class="profile__form" novalidate [formGroup]="form" (ngSubmit)="submit()">
+    <p class="profile__intro" data-testid="profile-state">{{ stateText() }}</p>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Somme à placer (€)</mat-label>
+      <input
+        matInput
+        formControlName="amountToInvest"
+        inputmode="decimal"
+        autocomplete="off"
+        required
+      />
+      <mat-hint>Placée en une seule fois, par exemple 20 000 ou 15 000,50</mat-hint>
+      <mat-error>{{ amountError() }}</mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Horizon de placement (années)</mat-label>
+      <input matInput type="number" formControlName="horizonYears" min="1" max="40" required />
+      <mat-error>Indiquez un nombre d’années entre 1 et 40.</mat-error>
+    </mat-form-field>
+
+    <inv-risk-profile-field [control]="form.controls.riskProfile" [options]="riskProfiles()" />
+
+    <inv-exclusions-field [(exclusions)]="exclusions" />
+
+    <mat-form-field appearance="outline">
+      <mat-label>Vos objectifs</mat-label>
+      <textarea matInput formControlName="objectives" rows="4" maxlength="500"></textarea>
+      <mat-hint align="end">{{ form.controls.objectives.value.length }} / 500</mat-hint>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Date d’ouverture du PEA</mat-label>
+      <input matInput type="date" formControlName="peaOpenedOn" [max]="maxDate" />
+      <mat-hint>Facultatif. Après 5 ans, la fiscalité du PEA devient plus avantageuse.</mat-hint>
+      <mat-error>La date ne peut pas être dans le futur.</mat-error>
+    </mat-form-field>
+
+    @if (status(); as current) {
+      <p
+        [class]="current.saved ? 'profile__saved' : 'profile__problem'"
+        [attr.role]="current.saved ? 'status' : 'alert'"
+      >
+        {{ current.text }}
+      </p>
+    }
+    <button mat-flat-button type="submit" [disabled]="saving()">Enregistrer le profil</button>
+  </form>
+}

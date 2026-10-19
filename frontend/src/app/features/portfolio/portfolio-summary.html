@@ -1,0 +1,15 @@
+<section class="summary" aria-label="Valorisation">
+  <p class="summary__total">
+    Valeur totale :
+    <strong data-testid="portfolio-total">{{ total() }}</strong>
+    <span class="summary__note">(espèces comprises)</span>
+  </p>
+  @if (!portfolio().complete) {
+    <p class="summary__warning" data-testid="portfolio-incomplete">
+      Valorisation partielle : {{ portfolio().unpricedLines }} ligne(s) sans cours connu, non
+      comptée(s) dans le total.
+    </p>
+  }
+  <inv-cash-form [cash]="portfolio().cash" (saved)="cashSaved.emit()" />
+  <p class="summary__note">{{ cashWeight() }}</p>
+</section>

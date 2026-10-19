@@ -1,0 +1,9 @@
+.line-dialog__content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.line-dialog__error {
+  color: var(--mat-sys-error);
+}

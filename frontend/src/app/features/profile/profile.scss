@@ -1,0 +1,23 @@
+.profile__intro {
+  font: var(--mat-sys-body-medium);
+}
+
+.profile__form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 40rem;
+}
+
+.profile__problem,
+.profile__error {
+  color: var(--mat-sys-error);
+}
+
+.profile__saved {
+  color: var(--mat-sys-primary);
+}
+
+.profile__form > button {
+  align-self: flex-start;
+}

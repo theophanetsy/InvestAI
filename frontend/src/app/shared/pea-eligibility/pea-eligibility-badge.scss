@@ -1,0 +1,28 @@
+.badge {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--mat-sys-outline);
+  border-radius: 1rem;
+  font: var(--mat-sys-label-medium);
+  color: var(--mat-sys-on-surface);
+}
+
+.badge[data-status='ELIGIBLE'] {
+  border-color: var(--mat-sys-primary);
+  color: var(--mat-sys-primary);
+}
+
+.badge[data-status='NOT_ELIGIBLE'] {
+  border-color: var(--mat-sys-error);
+  color: var(--mat-sys-error);
+}
+
+/* The hint is in the accessible text; visually, the title attribute shows it on hover. */
+.badge__hint {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

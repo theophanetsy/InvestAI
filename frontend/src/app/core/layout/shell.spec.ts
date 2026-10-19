@@ -87,6 +87,8 @@ describe('Shell', () => {
         navigationLinks().map((link) => [link.textContent.trim(), link.getAttribute('href')]),
       ).toEqual([
         ['Tableau de bord', '/dashboard'],
+        ['Mon portefeuille', '/portefeuille'],
+        ['Mon profil', '/profil'],
         ['Assistant', '/assistant'],
         ['Actu', '/actu'],
         ['Simulation', '/simulation'],

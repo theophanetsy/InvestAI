@@ -1,0 +1,11 @@
+.cash-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: baseline;
+}
+
+.cash-form__error {
+  flex-basis: 100%;
+  color: var(--mat-sys-error);
+}
