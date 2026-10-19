@@ -55,13 +55,28 @@ final class MifirFixtures {
    * @param venue {@code Venue}
    */
   static String trade(String time, String isin, String price, String mechanism, String venue) {
+    return trade(time, isin, price, "10.0", mechanism, venue);
+  }
+
+  /**
+   * One quoted line with a given quantity.
+   *
+   * @param time {@code TradingDateTime}
+   * @param isin {@code MifidInstrumentID}
+   * @param price {@code MifidPrice}
+   * @param quantity {@code MifidQuantity}, e.g. {@code 10.0}
+   * @param mechanism {@code MmtMarketMechanism}
+   * @param venue {@code Venue}
+   */
+  static String trade(
+      String time, String isin, String price, String quantity, String mechanism, String venue) {
     List<String> values =
         List.of(
             time,
             time,
             isin,
             price,
-            "10.0",
+            quantity,
             "MONE",
             "EUR",
             mechanism,

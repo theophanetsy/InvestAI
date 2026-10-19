@@ -23,6 +23,7 @@ final class FakeProviders {
         isin,
         Instant.parse(time),
         new BigDecimal(price),
+        BigDecimal.TEN,
         Currency.getInstance("EUR"),
         SessionCloseCalculator.CENTRAL_ORDER_BOOK,
         Mic.XPAR);
@@ -33,7 +34,24 @@ final class FakeProviders {
         instrument, day, new BigDecimal(price), Currency.getInstance("EUR"), PriceSource.EURONEXT);
   }
 
+  static DailyClose euronextClose(
+      InstrumentId instrument, LocalDate day, String price, long volume, int tradeCount) {
+    return new DailyClose(
+        instrument,
+        day,
+        new BigDecimal(price),
+        Currency.getInstance("EUR"),
+        PriceSource.EURONEXT,
+        volume,
+        tradeCount);
+  }
+
   static HistoricalClose close(String date, String price) {
-    return new HistoricalClose(LocalDate.parse(date), new BigDecimal(price));
+    return new HistoricalClose(LocalDate.parse(date), new BigDecimal(price), null);
+  }
+
+  static HistoricalClose close(String date, String price, String volume) {
+    return new HistoricalClose(
+        LocalDate.parse(date), new BigDecimal(price), new BigDecimal(volume));
   }
 }

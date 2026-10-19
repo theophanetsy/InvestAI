@@ -127,13 +127,25 @@ public class PriceRecorder {
         closes.stream().map(DailyClose::tradingDate).max(Comparator.naturalOrder()).orElseThrow();
     PriceMerge merge = PriceMerge.of(closes, prices.find(ids, from, to));
     prices.save(merge.toWrite(), clock.instant());
-    merge.conflicts().forEach(PriceRecorder::reportConflict);
+    reportConflicts(merge.conflicts());
   }
 
-  /** Instrument and date only: prices are not logged. */
-  private static void reportConflict(PriceKey key) {
-    String instrument = LogSanitizer.oneLine(key.instrumentId());
-    String date = LogSanitizer.oneLine(key.tradingDate());
-    LOG.warn("Euronext and EODHD closes differ: instrument={}, date={}", instrument, date);
+  /**
+   * One line per write, like {@link AnomalyReport}: tracking an instrument with months of Euronext
+   * closes may disagree on many sessions. Instrument and date only: prices are not logged.
+   */
+  private static void reportConflicts(List<PriceKey> conflicts) {
+    if (conflicts.isEmpty()) {
+      return;
+    }
+    int count = conflicts.size();
+    String examples =
+        LogSanitizer.oneLine(
+            conflicts.stream()
+                .map(key -> key.instrumentId() + "@" + key.tradingDate())
+                .sorted()
+                .limit(AnomalyReport.MAX_EXAMPLES)
+                .collect(Collectors.joining(", ")));
+    LOG.warn("Euronext and EODHD closes differ: count={}, closes=[{}]", count, examples);
   }
 }

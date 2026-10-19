@@ -84,7 +84,7 @@ Un package par module métier sous `dev.investai` : `portfolio`, `market`, `assi
 - Aucun identifiant de connexion dans le code : `SPRING_DATASOURCE_*`, Docker Compose (profil
   `local`) ou Testcontainers (tests).
 
-## Module `market` (Phase 2.1, ADR-0009)
+## Module `market` (Phases 2.1 et 2.2, ADR-0009)
 
 - **Seuls les jobs** (`market.infrastructure.MarketJobs`) appellent les fournisseurs (Euronext,
   EODHD) ; l'API, et plus tard le dashboard, les simulations et les tools de l'agent, **lisent la
@@ -125,6 +125,38 @@ Un package par module métier sous `dev.investai` : `portfolio`, `market`, `assi
   `ApiTokenInterceptor` (l'URI connue de `RestClient` ne la contient jamais) ; tout appel passe par
   `HttpCalls.call`, qui ne garde ni message Spring, ni corps, ni cause (`RedactedCause` conserve la
   pile sans le message). Test de non-régression : `EodhdKeyLeakTest`.
+- **Tout Paris (Phase 2.2, [spec](../docs/specs/phase-2-02-all-paris-closes.md))** : la collecte
+  Euronext calcule la clôture de **chaque instrument en base** (`InstrumentRepository.findAll`),
+  suivi ou non ; un ISIN du fichier absent du référentiel est ignoré et compté
+  (`unknownIsins`/`unknownTrades` dans le log de fin de fichier). **« Suivi » ne pilote plus que
+  EODHD** : 1 an d'historique et rattrapage des séances manquées (`findTracked`). Limite assumée :
+  une valeur non suivie n'a que les séances collectées depuis la mise en service, **avec des
+  trous** si l'application n'a pas tourné le jour de publication du fichier (rien ne les comble,
+  ne jamais interpoler). Suivre une valeur charge quand même son année d'historique, sans
+  remplacer ses clôtures `EURONEXT`.
+- **Activité de séance** (`V3__daily_price_activity.sql`) : `daily_price.volume` (`bigint`) et
+  `trade_count` (`integer`), **nullables** = inconnus. Euronext : transactions retenues pour la
+  clôture (mécanisme 1, lieu de cotation, devise de l'instrument), volume = somme des
+  `MifidQuantity` ; une quantité illisible, fractionnaire ou un dépassement rend le volume nul sans
+  toucher la clôture ni le nombre de transactions (`Volumes.units`, jamais d'arrondi). EODHD :
+  `volume` lu en texte (un volume bizarre ne fait pas échouer l'appel), `trade_count` toujours nul.
+  Les définitions diffèrent selon `source` : ne pas comparer des volumes de sources différentes.
+  `PriceMerge` et l'upsert déplacent volume et nombre de transactions avec la clôture.
+- **Anomalies** (`AnomalyReport`) : une ligne par type et par fichier (nombre + 10 cotations
+  au plus), au lieu d'une ligne par valeur (~1 300 valeurs) ; idem pour les écarts
+  Euronext/EODHD (`PriceRecorder`, une ligne par écriture).
+- **Référentiel vide** (premier démarrage, EODHD pas encore chargé) : la collecte ne télécharge
+  rien et ne marque rien (`Outcome.NO_REFERENCE_DATA`) ; elle reprend au passage horaire suivant
+  tant que le fichier est publié (jusqu'au lendemain matin). Sinon la séance serait perdue pour
+  toutes les valeurs non suivies.
+- **Fichiers non fiables, garde-fous ajoutés en 2.2** : nombres de plus de 32 caractères jamais
+  parsés (`Decimals`, le parsing d'un `BigDecimal` est quadratique), au plus 10 000 ISIN inconnus
+  distincts mémorisés (`SessionCloseCalculator.MAX_UNKNOWN_ISINS`, la valeur loguée devient un
+  minimum), `Prices.exact` calcule en `long` (un exposant extrême débordait l'`int`).
+  `trade_count` est refusé pour `EODHD` par le domaine et par une contrainte SQL.
+- **Performance** (`ParisFilePerformanceIT`, fichier synthétique de 483 000 transactions) :
+  ~2,5 s par fichier, dominé par la lecture ; l'upsert des 1 300 clôtures prend ~0,15 s. Le test
+  échoue au-delà de 2 min (régression grossière seulement) ; détail dans la spec 2.2.
 - **Données de test synthétiques** uniquement (`MifirFixtures`, JSON écrit à la main) : publier
   des fichiers Euronext ou des réponses EODHD réels serait une redistribution. Un fichier réel ne
   sert qu'à valider le lecteur **hors du dépôt** (scratchpad), test temporaire jamais commité.
@@ -239,6 +271,21 @@ Format : symptôme → cause → bonne pratique. Compléter à chaque étape (wo
   concaténés par `+`, même entre constantes (`SELECT + "WHERE …"`) → une requête = un seul text
   block `"""…"""` (répéter la liste de colonnes) ; vérifier en local avec Docker :
   `docker run --rm -v "$PWD:/src" -w /src semgrep/semgrep semgrep scan --config .semgrep/ --error`.
+  Sous Git Bash (Windows), « the working directory 'C:/Program Files/Git/src' is invalid » : MSYS
+  convertit `/src` → préfixer `MSYS_NO_PATHCONV=1` et monter `C:/dev/InvestAI:/src`.
+- **Flyway « Found more than one migration with version N » en local** : `target/classes` garde
+  une migration d'une autre branche (ou d'un stash) → `./mvnw clean` après un changement de
+  branche qui touche `db/migration`.
+- **Checkstyle `ClassFanOutComplexity` d'un test qui grossit** : un type nommé dans une
+  déclaration (paramètre, variable locale, champ) compte, pas `var` ni l'accès à une constante
+  (`TradeFileSegment.EQUITIES`) → `var`, fabriques de `FakeProviders`, helpers à paramètre
+  `String`, ou une classe d'aide dédiée (`SyntheticParisFile`).
+- **PMD `AvoidInstantiatingObjectsInLoops`** (tests compris) → construire la liste par
+  `IntStream.range(...).mapToObj(...)`. **Error Prone `CanonicalDuration`** :
+  `Duration.ofSeconds(120)` refusé → `Duration.ofMinutes(2)`.
+- **Champ optionnel d'une API tierce qui fait échouer tout l'appel** : Jackson rejette la réponse
+  entière si un champ typé (`BigDecimal`, `Long`) reçoit une valeur inattendue → lire un champ
+  accessoire (ex. `volume` EODHD) en `String` et le convertir soi-même (nul si illisible).
 - **`@RequestParam LocalDate`** : sans `@DateTimeFormat(iso = ISO.DATE)`, le format attendu dépend
   de la locale → toujours l'annoter. Une URL de test avec `/` final (`/instruments/?query=`) donne 404.
 

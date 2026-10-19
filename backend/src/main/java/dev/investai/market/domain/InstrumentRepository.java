@@ -24,6 +24,14 @@ public interface InstrumentRepository {
   Optional<Instrument> findByListing(Listing listing);
 
   /**
+   * Lists every instrument of the reference data, tracked or not, including those missing from the
+   * latest refresh.
+   *
+   * @return all instruments, in a stable order
+   */
+  List<Instrument> findAll();
+
+  /**
    * Lists the tracked instruments.
    *
    * @return tracked instruments, in a stable order

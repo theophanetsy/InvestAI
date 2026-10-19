@@ -84,8 +84,18 @@ class MarketApiIT {
   }
 
   @Test
-  void pricesDefaultToTheLastYearInDateOrder() {
-    prices.save(List.of(close(today.minusDays(10), "29.00")), Instant.now());
+  void pricesOfAnUntrackedInstrumentDefaultToTheLastYearInDateOrderWithTheirActivity() {
+    prices.save(
+        List.of(
+            new DailyClose(
+                societe.id(),
+                today.minusDays(10),
+                new BigDecimal("29.00"),
+                MarketTestData.EUR,
+                PriceSource.EURONEXT,
+                1_500L,
+                12)),
+        Instant.now());
 
     var response =
         mvc.get().uri(INSTRUMENTS + societe.id() + "/prices").with(user(USER)).exchange();
@@ -94,6 +104,10 @@ class MarketApiIT {
     assertThat(response).bodyJson().extractingPath("$.length()").isEqualTo(2);
     assertThat(response).bodyJson().extractingPath("$[0].close").isEqualTo("29.0000");
     assertThat(response).bodyJson().extractingPath("$[1].close").isEqualTo("31.2500");
+    assertThat(response).bodyJson().extractingPath("$[0].volume").isEqualTo(1_500);
+    assertThat(response).bodyJson().extractingPath("$[0].tradeCount").isEqualTo(12);
+    assertThat(response).bodyJson().doesNotHavePath("$[1].volume");
+    assertThat(societe.tracked()).isFalse();
   }
 
   @Test

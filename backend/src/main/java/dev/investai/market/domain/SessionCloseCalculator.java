@@ -9,14 +9,17 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.Nullable;
 
 /**
- * Computes the closes of one session from a stream of MiFIR trades (ADR-0009): for each tracked
- * instrument, the last trade of the central order book ({@code MmtMarketMechanism = 1}, auctions
- * included) on its listing venue. Trades are fed one at a time, in file order, so that a whole file
- * never sits in memory.
+ * Computes the closes of one session from a stream of MiFIR trades (ADR-0009): for each instrument
+ * of the reference data, the last trade of the central order book ({@code MmtMarketMechanism = 1},
+ * auctions included) on its listing venue, with the volume and the number of those trades. Trades
+ * are fed one at a time, in file order, so that a whole file never sits in memory; only one state
+ * per listing is kept.
  *
  * <p>Order is the trading time; equal times keep the file order. Not thread-safe: one instance per
  * file.
@@ -26,22 +29,45 @@ public final class SessionCloseCalculator {
   /** {@code MmtMarketMechanism} of the central limit order book. */
   public static final int CENTRAL_ORDER_BOOK = 1;
 
+  /**
+   * Distinct unknown ISINs remembered: bounds the memory taken by a forged file (millions of short
+   * lines with distinct ISINs); beyond, only the trades are counted.
+   */
+  public static final int MAX_UNKNOWN_ISINS = 10_000;
+
   private final LocalDate session;
-  private final Map<Isin, List<Instrument>> trackedByIsin;
-  private final Map<Listing, Candidate> lastTrades = new HashMap<>();
+  private final Map<Isin, List<Instrument>> instrumentsByIsin;
+  private final Map<Listing, ListingActivity> activities = new HashMap<>();
   private final Set<Listing> tradedElsewhere = new HashSet<>();
   private final Set<Listing> otherCurrency = new HashSet<>();
+  private final Set<Isin> unknownIsins = new HashSet<>();
+  private final int maxUnknownIsins;
+  private long unknownTrades;
 
   /**
    * Creates a calculator.
    *
-   * @param tracked instruments that need a close
+   * @param instruments the reference data: every instrument that may get a close
    * @param session the session the file is expected to contain
    */
-  public SessionCloseCalculator(Collection<Instrument> tracked, LocalDate session) {
+  public SessionCloseCalculator(Collection<Instrument> instruments, LocalDate session) {
+    this(instruments, session, MAX_UNKNOWN_ISINS);
+  }
+
+  /**
+   * Creates a calculator with a given bound on the distinct unknown ISINs remembered.
+   *
+   * @param instruments the reference data: every instrument that may get a close
+   * @param session the session the file is expected to contain
+   * @param maxUnknownIsins distinct unknown ISINs remembered at most
+   */
+  public SessionCloseCalculator(
+      Collection<Instrument> instruments, LocalDate session, int maxUnknownIsins) {
     this.session = session;
-    this.trackedByIsin =
-        tracked.stream().collect(Collectors.groupingBy(instrument -> instrument.listing().isin()));
+    this.maxUnknownIsins = maxUnknownIsins;
+    this.instrumentsByIsin =
+        instruments.stream()
+            .collect(Collectors.groupingBy(instrument -> instrument.listing().isin()));
   }
 
   /**
@@ -50,8 +76,15 @@ public final class SessionCloseCalculator {
    * @param trade the next trade of the file
    */
   public void accept(MifirTrade trade) {
-    List<Instrument> instruments = trackedByIsin.get(trade.isin());
-    if (instruments == null || !session.equals(sessionOf(trade))) {
+    if (!session.equals(sessionOf(trade))) {
+      return;
+    }
+    List<Instrument> instruments = instrumentsByIsin.get(trade.isin());
+    if (instruments == null) {
+      if (unknownIsins.size() < maxUnknownIsins) {
+        unknownIsins.add(trade.isin());
+      }
+      unknownTrades++;
       return;
     }
     for (Instrument instrument : instruments) {
@@ -75,20 +108,15 @@ public final class SessionCloseCalculator {
   }
 
   private void offerInInstrumentCurrency(Instrument instrument, MifirTrade trade) {
-    if (trade.currency().equals(instrument.currency())) {
-      offer(instrument.listing(), trade);
-    } else {
+    if (!trade.currency().equals(instrument.currency())) {
       otherCurrency.add(instrument.listing());
+      return;
     }
-  }
-
-  private void offer(Listing listing, MifirTrade trade) {
-    Candidate current = lastTrades.get(listing);
-    if (current == null || trade.tradingTime().isAfter(current.trade().tradingTime())) {
-      lastTrades.put(listing, new Candidate(trade, false));
-    } else if (trade.tradingTime().equals(current.trade().tradingTime())) {
-      boolean differentPrice = trade.price().compareTo(current.trade().price()) != 0;
-      lastTrades.put(listing, new Candidate(trade, current.ambiguous() || differentPrice));
+    ListingActivity activity = activities.get(instrument.listing());
+    if (activity == null) {
+      activities.put(instrument.listing(), new ListingActivity(trade));
+    } else {
+      activity.add(trade);
     }
   }
 
@@ -102,35 +130,94 @@ public final class SessionCloseCalculator {
     Set<Listing> ambiguous = new LinkedHashSet<>();
     Set<Listing> elsewhereOnly = new LinkedHashSet<>();
     Set<Listing> notStorable = new LinkedHashSet<>();
-    trackedByIsin.values().stream()
+    instrumentsByIsin.values().stream()
         .flatMap(List::stream)
         .forEach(
             instrument -> {
               Listing listing = instrument.listing();
-              Candidate last = lastTrades.get(listing);
-              if (last == null) {
+              ListingActivity activity = activities.get(listing);
+              if (activity == null) {
                 if (tradedElsewhere.contains(listing)) {
                   elsewhereOnly.add(listing);
                 }
                 return;
               }
-              BigDecimal price = last.trade().price();
-              Prices.exact(price)
+              Prices.exact(activity.last.price())
                   .ifPresentOrElse(
-                      close -> closes.add(closeOf(instrument, close)),
+                      close -> closes.add(closeOf(instrument, close, activity)),
                       () -> notStorable.add(listing));
-              if (last.ambiguous()) {
+              if (activity.ambiguous) {
                 ambiguous.add(listing);
               }
             });
-    return new SessionCloses(closes, ambiguous, elsewhereOnly, notStorable, otherCurrency);
+    return new SessionCloses(
+        closes,
+        ambiguous,
+        elsewhereOnly,
+        notStorable,
+        otherCurrency,
+        unknownIsins.size(),
+        unknownTrades);
   }
 
-  private DailyClose closeOf(Instrument instrument, BigDecimal close) {
+  private DailyClose closeOf(Instrument instrument, BigDecimal close, ListingActivity activity) {
     return new DailyClose(
-        instrument.id(), session, close, instrument.currency(), PriceSource.EURONEXT);
+        instrument.id(),
+        session,
+        close,
+        instrument.currency(),
+        PriceSource.EURONEXT,
+        activity.volume(),
+        activity.trades);
   }
 
-  /** Last trade seen for a listing, and whether another trade had the same time and price. */
-  private record Candidate(MifirTrade trade, boolean ambiguous) {}
+  /**
+   * Trades of a listing eligible for its close: the last one (and whether another trade had the
+   * same time with a different price), their number and their total quantity.
+   */
+  private static final class ListingActivity {
+    private MifirTrade last;
+    private boolean ambiguous;
+    private int trades;
+    private long volume;
+    private boolean volumeKnown = true;
+
+    ListingActivity(MifirTrade first) {
+      last = first;
+      count(first);
+    }
+
+    void add(MifirTrade trade) {
+      count(trade);
+      if (trade.tradingTime().isAfter(last.tradingTime())) {
+        last = trade;
+        ambiguous = false;
+      } else if (trade.tradingTime().equals(last.tradingTime())) {
+        ambiguous = ambiguous || trade.price().compareTo(last.price()) != 0;
+        last = trade;
+      }
+    }
+
+    private void count(MifirTrade trade) {
+      trades++;
+      if (!volumeKnown) {
+        return;
+      }
+      Optional<Long> units = Volumes.units(trade.quantity());
+      if (units.isEmpty()) {
+        volumeKnown = false;
+        return;
+      }
+      try {
+        volume = Math.addExact(volume, units.get());
+      } catch (ArithmeticException ex) {
+        // Beyond a bigint: unknown rather than wrong.
+        volumeKnown = false;
+      }
+    }
+
+    @Nullable Long volume() {
+      return volumeKnown ? volume : null;
+    }
+  }
 }

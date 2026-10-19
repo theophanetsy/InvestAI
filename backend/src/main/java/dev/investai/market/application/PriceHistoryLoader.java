@@ -12,6 +12,7 @@ import dev.investai.market.domain.MarketDataProvider;
 import dev.investai.market.domain.MarketDataUnavailableException;
 import dev.investai.market.domain.PriceSource;
 import dev.investai.market.domain.Prices;
+import dev.investai.market.domain.Volumes;
 import dev.investai.shared.logging.LogSanitizer;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -177,7 +178,9 @@ public class PriceHistoryLoader {
                                     bar.date(),
                                     close,
                                     instrument.currency(),
-                                    PriceSource.EODHD))
+                                    PriceSource.EODHD,
+                                    Volumes.units(bar.volume()).orElse(null),
+                                    null))
                         .stream())
             .toList();
     int skipped = history.size() - closes.size();

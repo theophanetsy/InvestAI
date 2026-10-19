@@ -56,6 +56,7 @@ class MifirFileReaderTest {
                 new Isin(AIR_LIQUIDE),
                 Instant.parse(SESSION_TIME),
                 new BigDecimal(AI_CLOSE),
+                new BigDecimal("10.0"),
                 Currency.getInstance("EUR"),
                 1,
                 Mic.XPAR),
@@ -63,6 +64,7 @@ class MifirFileReaderTest {
                 new Isin("FR0000120271"),
                 Instant.parse("2026-10-16T07:00:00.116443Z"),
                 new BigDecimal("55.1200000"),
+                new BigDecimal("10.0"),
                 Currency.getInstance("EUR"),
                 3,
                 Mic.XPAR));
@@ -75,14 +77,44 @@ class MifirFileReaderTest {
         String.join(
             "\n",
             "copyright",
-            "Venue,MifidCurrency,MmtMarketMechanism,MifidPrice,MifidInstrumentID,TradingDateTime",
-            "\"ALXP\",\"EUR\",\"1\",\"181.0000000\",\"FR0000033888\",\"" + SESSION_TIME + "\"");
+            "Venue,MifidQuantity,MifidCurrency,MmtMarketMechanism,MifidPrice,MifidInstrumentID,"
+                + "TradingDateTime",
+            "\"ALXP\",\"25\",\"EUR\",\"1\",\"181.0000000\",\"FR0000033888\",\""
+                + SESSION_TIME
+                + "\"");
 
     read(zip(content));
 
     assertThat(trades)
         .singleElement()
-        .satisfies(trade -> assertThat(trade.venue()).isEqualTo(Mic.ALXP));
+        .satisfies(
+            trade -> {
+              assertThat(trade.venue()).isEqualTo(Mic.ALXP);
+              assertThat(trade.quantity()).isEqualByComparingTo("25");
+            });
+  }
+
+  @Test
+  void hugeNumbersAreNeverParsed() throws IOException {
+    String huge = "9".repeat(10_000);
+    var summary =
+        read(
+            zip(
+                csv(
+                    trade(SESSION_TIME, AIR_LIQUIDE, AI_CLOSE, huge, "1", XPAR),
+                    trade(SESSION_TIME, AIR_LIQUIDE, huge, "1", XPAR))));
+
+    assertThat(trades).singleElement().satisfies(trade -> assertThat(trade.quantity()).isNull());
+    assertThat(summary.rejected()).isEqualTo(1);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"", "abc", "-"})
+  void unreadableQuantityKeepsTheTradeWithAnUnknownQuantity(String quantity) throws IOException {
+    var summary = read(zip(csv(trade(SESSION_TIME, AIR_LIQUIDE, AI_CLOSE, quantity, "1", XPAR))));
+
+    assertThat(trades).singleElement().satisfies(trade -> assertThat(trade.quantity()).isNull());
+    assertThat(summary.rejected()).isZero();
   }
 
   @Test
@@ -124,7 +156,8 @@ class MifirFileReaderTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"MifidPrice", "Venue", "MmtMarketMechanism", "TradingDateTime"})
+  @ValueSource(
+      strings = {"MifidPrice", "MifidQuantity", "Venue", "MmtMarketMechanism", "TradingDateTime"})
   void missingRequiredColumnFailsExplicitly(String column) {
     String header =
         MifirFixtures.COLUMNS.stream()

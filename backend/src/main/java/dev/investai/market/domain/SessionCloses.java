@@ -6,7 +6,7 @@ import java.util.Set;
 /**
  * Outcome of a {@link SessionCloseCalculator}.
  *
- * @param closes one close per tracked instrument that traded on its venue
+ * @param closes one close per instrument of the reference data that traded on its venue
  * @param ambiguousTimestamps listings whose last trades share a timestamp with different prices
  *     (file order decided)
  * @param tradedElsewhereOnly listings with trades on another venue only: their venue rule is
@@ -14,13 +14,18 @@ import java.util.Set;
  * @param notStorable listings whose close has more than 4 decimal places (no close stored)
  * @param otherCurrency listings with order book trades in another currency than the instrument
  *     (ignored)
+ * @param unknownIsins distinct ISINs of the session missing from the reference data (ignored),
+ *     capped at {@link SessionCloseCalculator#MAX_UNKNOWN_ISINS}: the cap means "at least"
+ * @param unknownTrades trades of the session on those ISINs
  */
 public record SessionCloses(
     List<DailyClose> closes,
     Set<Listing> ambiguousTimestamps,
     Set<Listing> tradedElsewhereOnly,
     Set<Listing> notStorable,
-    Set<Listing> otherCurrency) {
+    Set<Listing> otherCurrency,
+    int unknownIsins,
+    long unknownTrades) {
 
   /** Defensive copies. */
   public SessionCloses {

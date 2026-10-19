@@ -42,6 +42,12 @@ class JdbcInstrumentRepository implements InstrumentRepository {
       FROM instrument WHERE isin = :isin AND mic = :mic
       """;
 
+  private static final String FIND_ALL =
+      """
+      SELECT id, isin, mic, ticker, name, type, currency, tracked_since, history_loaded
+      FROM instrument ORDER BY isin, mic
+      """;
+
   private static final String FIND_TRACKED =
       """
       SELECT id, isin, mic, ticker, name, type, currency, tracked_since, history_loaded
@@ -102,6 +108,11 @@ class JdbcInstrumentRepository implements InstrumentRepository {
         .param("mic", listing.mic().value())
         .query((rs, row) -> map(rs))
         .optional();
+  }
+
+  @Override
+  public List<Instrument> findAll() {
+    return jdbc.sql(FIND_ALL).query((rs, row) -> map(rs)).list();
   }
 
   @Override
