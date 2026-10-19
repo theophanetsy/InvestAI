@@ -34,6 +34,7 @@ Principe directeur : **chaque phase se termine par une app qui tourne, CI verte,
 | **Phase 2 — Données, profil et indicateurs** | 🔄 En cours |
 | Phase 2.0 — Choix des données de marché ([ADR-0009](adr/0009-fournisseur-donnees-marche.md), [spec](specs/phase-2-00-market-data.md)) | ✅ Terminée (PR #16) |
 | Phase 2.1 — Données de marché : référentiel, collecte quotidienne, historique ([spec](specs/phase-2-01-market-data-collection.md)) | ✅ Terminée (PR #17) ; vérification réelle avec la clé EODHD à faire par le propriétaire |
+| Phase 2.2 — Clôtures de toutes les valeurs de Paris ([spec](specs/phase-2-02-all-paris-closes.md)) | 🔄 En cours |
 
 ---
 
@@ -80,8 +81,8 @@ transactions » est conservée hors de `main` (stash `phase 2.2 accounts/transac
 |---|---|
 | 2.0 ✅ | Choix des sources de données de marché ([ADR-0009](adr/0009-fournisseur-donnees-marche.md)). |
 | 2.1 ✅ | Module `market` ([spec](specs/phase-2-01-market-data-collection.md)) : référentiel EODHD de Paris (1 appel/semaine), clôtures quotidiennes depuis les fichiers MiFIR d'Euronext (job horaire 9 h-23 h et au démarrage), 1 an d'historique et rattrapage des jours manqués par EODHD dans un budget de 15 appels/jour, API de lecture et de suivi (`/api/v1/market`). Jobs `@Scheduled` sans ShedLock (une seule instance). |
-| 2.2 | **Tout Paris** : la clôture de chaque valeur du référentiel (actions et ETF, ~1 300) est gardée chaque jour depuis les fichiers Euronext, sans coût ; l'historique se constitue au fil des séances. L'historique EODHD d'1 an reste réservé aux valeurs suivies (budget de 15 appels/jour). Éligibilité PEA des valeurs (règle à cadrer dans la spec). |
-| 2.3 | **Profil et portefeuille déclaré** : montant fixe à placer et rythme, horizon, tolérance au risque ; lignes détenues saisies directement (valeur, quantité, prix moyen d'achat affiché par le courtier), sans historique de transactions ; valorisation sur la dernière clôture. Recherche de valeurs dans l'UI. |
+| 2.2 | **Tout Paris** ([spec](specs/phase-2-02-all-paris-closes.md)) : la clôture de chaque valeur du référentiel (actions et ETF, ~1 300) est gardée chaque jour depuis les fichiers Euronext, sans coût, avec le volume et le nombre de transactions de la séance ; l'historique se constitue au fil des séances (trous les jours sans collecte). L'historique EODHD d'1 an et le rattrapage restent réservés aux valeurs suivies (budget de 15 appels/jour). |
+| 2.3 | **Éligibilité PEA** des valeurs (déplacée de la 2.2, règle validée par le propriétaire). **Profil et portefeuille déclaré** : montant fixe à placer et rythme, horizon, tolérance au risque ; lignes détenues saisies directement (valeur, quantité, prix moyen d'achat affiché par le courtier), sans historique de transactions ; valorisation sur la dernière clôture. Recherche de valeurs dans l'UI. |
 | 2.4 | **Indicateurs calculés** (en base, jamais par le modèle) : performance sur 1/3/6/12 mois, volatilité, pire baisse, comparaison au MSCI World (CW8) ; concentration et corrélations du portefeuille déclaré. Dashboard Angular simple : portefeuille, indicateurs, courbe comparée au benchmark. |
 
 - **2.0 ✅ — Données de marché d'abord (ADR + spike)** : c'est la dépendance critique (dashboard, simulations, backtests, tools de l'agent). Valider sur des valeurs d'Euronext Paris : cours actuels, historique profond, couverture des ETF, quotas, conditions d'utilisation. Benchmarks via des ETF cotés (CAC 40, MSCI World) plutôt que des données d'indices, souvent sous licence. Décision ([ADR-0009](adr/0009-fournisseur-donnees-marche.md)) : clôtures quotidiennes depuis les fichiers différés gratuits d'Euronext (MiFIR), référentiel / 1 an d'historique / opérations sur titres depuis l'offre gratuite d'EODHD.
