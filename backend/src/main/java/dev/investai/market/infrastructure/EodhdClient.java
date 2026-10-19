@@ -93,8 +93,22 @@ final class EodhdClient implements MarketDataProvider {
         .map(
             bar ->
                 new HistoricalClose(
-                    Objects.requireNonNull(bar.date()), Objects.requireNonNull(bar.close())))
+                    Objects.requireNonNull(bar.date()),
+                    Objects.requireNonNull(bar.close()),
+                    decimal(bar.volume())))
         .toList();
+  }
+
+  /** A volume that is not a number is unknown: it never fails the call (spec 2.2, criterion 7). */
+  private static @Nullable BigDecimal decimal(@Nullable String text) {
+    if (text == null) {
+      return null;
+    }
+    try {
+      return new BigDecimal(text);
+    } catch (NumberFormatException ex) {
+      return null;
+    }
   }
 
   /**
@@ -103,7 +117,8 @@ final class EodhdClient implements MarketDataProvider {
    *
    * @param date the session
    * @param close the raw close, read as decimal text (never through a double)
+   * @param volume units traded, read as text so that an unexpected value never fails the call
    */
   @JsonIgnoreProperties(ignoreUnknown = true)
-  record Bar(@Nullable LocalDate date, @Nullable BigDecimal close) {}
+  record Bar(@Nullable LocalDate date, @Nullable BigDecimal close, @Nullable String volume) {}
 }

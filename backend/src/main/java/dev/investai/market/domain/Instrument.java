@@ -27,7 +27,8 @@ public record Instrument(
     boolean historyLoaded) {
 
   /**
-   * Tells whether the instrument is followed: only followed instruments get closes.
+   * Tells whether the instrument is followed: only followed instruments get one year of EODHD
+   * history and the catch-up of missed sessions; every instrument gets the Euronext closes.
    *
    * @return {@code true} when tracked
    */

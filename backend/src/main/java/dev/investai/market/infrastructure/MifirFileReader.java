@@ -160,6 +160,7 @@ final class MifirFileReader {
     TRADING_TIME("TradingDateTime"),
     ISIN("MifidInstrumentID"),
     PRICE("MifidPrice"),
+    QUANTITY("MifidQuantity"),
     CURRENCY("MifidCurrency"),
     MECHANISM("MmtMarketMechanism"),
     VENUE("Venue");
@@ -203,9 +204,22 @@ final class MifirFileReader {
           new Isin(value(values, Column.ISIN)),
           Instant.parse(value(values, Column.TRADING_TIME)),
           new BigDecimal(value(values, Column.PRICE)),
+          quantity(value(values, Column.QUANTITY)),
           Currency.getInstance(value(values, Column.CURRENCY)),
           mechanism(value(values, Column.MECHANISM)),
           new Mic(value(values, Column.VENUE)));
+    }
+
+    /**
+     * Reads a quantity leniently: an unreadable quantity only makes the volume unknown, the trade
+     * still counts for the close (spec 2.2, criterion 6).
+     */
+    private static @Nullable BigDecimal quantity(String text) {
+      try {
+        return new BigDecimal(text);
+      } catch (NumberFormatException ex) {
+        return null;
+      }
     }
 
     private static int mechanism(String text) {

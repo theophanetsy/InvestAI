@@ -22,10 +22,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
- * Daily collection of closes from the Euronext deferred trade files (spec 2.1, criteria 9 to 13):
- * expected session = previous trading day; segments already collected are not downloaded again; a
- * file of another session is not written (retried at the next run); after a complete collection,
- * missed sessions are queued for an EODHD catch-up.
+ * Daily collection of closes from the Euronext deferred trade files (spec 2.1, criteria 9 to 13;
+ * spec 2.2): expected session = previous trading day; segments already collected are not downloaded
+ * again; a file of another session is not written (retried at the next run). Every instrument of
+ * the reference data gets its close, volume and trade count; after a complete collection, missed
+ * sessions are queued for an EODHD catch-up of the tracked instruments only.
  */
 @Service
 public class DailyCollection {
@@ -101,25 +102,25 @@ public class DailyCollection {
         Arrays.stream(TradeFileSegment.values())
             .filter(segment -> !journal.isCollected(session, segment))
             .toList();
-    List<Instrument> tracked = instruments.findTracked();
     if (pending.isEmpty()) {
       // Idempotent: also covers a stop between the last file and the scheduling below.
-      scheduleCatchUp(session, tracked);
+      scheduleCatchUp(session, instruments.findTracked());
       return Outcome.ALREADY_COLLECTED;
     }
+    List<Instrument> referenceData = instruments.findAll();
     for (TradeFileSegment segment : pending) {
-      Outcome outcome = collectSegment(session, segment, tracked);
+      Outcome outcome = collectSegment(session, segment, referenceData);
       if (outcome != Outcome.COLLECTED) {
         return outcome;
       }
     }
-    scheduleCatchUp(session, tracked);
+    scheduleCatchUp(session, instruments.findTracked());
     return Outcome.COLLECTED;
   }
 
   private Outcome collectSegment(
-      LocalDate session, TradeFileSegment segment, List<Instrument> tracked) {
-    SessionCloseCalculator calculator = new SessionCloseCalculator(tracked, session);
+      LocalDate session, TradeFileSegment segment, List<Instrument> referenceData) {
+    SessionCloseCalculator calculator = new SessionCloseCalculator(referenceData, session);
     TradeFileSource.Summary summary;
     try {
       summary = files.read(segment, calculator::accept);
@@ -144,19 +145,32 @@ public class DailyCollection {
     SessionCloses result = calculator.result();
     AnomalyReport.log(session, result);
     recorder.recordSessionFile(session, segment, result.closes());
-    int closes = result.closes().size();
-    long trades = summary.trades();
-    long rejected = summary.rejected();
+    logCollected(session, segment, summary, result);
+    return Outcome.COLLECTED;
+  }
+
+  private static void logCollected(
+      LocalDate session,
+      TradeFileSegment segment,
+      TradeFileSource.Summary summary,
+      SessionCloses result) {
     String file = LogSanitizer.oneLine(segment);
     String day = LogSanitizer.oneLine(session);
+    long trades = summary.trades();
+    long rejected = summary.rejected();
+    int closes = result.closes().size();
+    int unknownIsins = result.unknownIsins();
+    long unknownTrades = result.unknownTrades();
     LOG.info(
-        "Euronext file collected: segment={}, session={}, trades={}, rejected={}, closes={}",
+        "Euronext file collected: segment={}, session={}, trades={}, rejected={}, closes={},"
+            + " unknownIsins={}, unknownTrades={}",
         file,
         day,
         trades,
         rejected,
-        closes);
-    return Outcome.COLLECTED;
+        closes,
+        unknownIsins,
+        unknownTrades);
   }
 
   /**

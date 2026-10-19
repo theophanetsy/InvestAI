@@ -39,6 +39,7 @@ class DailyCollectionIT {
   private static final LocalDate WEDNESDAY = LocalDate.parse("2026-10-14");
   private static final Isin AI = isin("FR000012007");
   private static final Isin CW8 = isin("LU168104359");
+  private static final Isin TTE = isin("FR000012027");
   private static final String AI_FRIDAY_CLOSE_TIME = "2026-10-16T15:35:24Z";
 
   @Autowired private JdbcClient jdbc;
@@ -59,7 +60,10 @@ class DailyCollectionIT {
     MarketTestData.clearTables(jdbc);
     collection = new DailyCollection(files, instruments, journal, recorder, clock);
     instruments.upsertReference(
-        List.of(listed(AI, "AI", "Air Liquide"), listed(CW8, "CW8", "Amundi MSCI World")),
+        List.of(
+            listed(AI, "AI", "Air Liquide"),
+            listed(CW8, "CW8", "Amundi MSCI World"),
+            listed(TTE, "TTE", "TotalEnergies")),
         MONDAY_MORNING);
     airLiquide = tracked(AI);
     msciWorld = tracked(CW8);
@@ -123,19 +127,49 @@ class DailyCollectionIT {
   }
 
   @Test
-  void untrackedInstrumentsAndDaysWithoutTradeGetNoClose() {
-    // The ETF file only has trades of an instrument nobody follows.
+  void everyInstrumentOfTheReferenceDataGetsItsCloseWithVolumeAndTradeCount() {
+    // TotalEnergies is in the reference data but nobody follows it.
+    files.publish(
+        TradeFileSegment.EQUITIES,
+        trade(AI, AI_FRIDAY_CLOSE_TIME, "173.1600000"),
+        trade(AI, "2026-10-16T15:00:00Z", "172.0000000"),
+        trade(TTE, "2026-10-16T15:35:10Z", "55.1000000"));
+    Instrument total = instruments.search(TTE.value(), 1).getFirst();
+
+    collection.collect();
+
+    assertThat(total.tracked()).isFalse();
+    assertThat(prices.findLatest(total.id()))
+        .hasValueSatisfying(
+            close -> {
+              assertThat(close.tradingDate()).isEqualTo(FRIDAY);
+              assertThat(close.close()).isEqualByComparingTo("55.10");
+              assertThat(close.source()).isEqualTo(PriceSource.EURONEXT);
+              assertThat(close.volume()).isEqualTo(10L);
+              assertThat(close.tradeCount()).isEqualTo(1);
+            });
+    assertThat(prices.findLatest(airLiquide.id()))
+        .hasValueSatisfying(
+            close -> {
+              assertThat(close.volume()).isEqualTo(20L);
+              assertThat(close.tradeCount()).isEqualTo(2);
+            });
+    assertThat(closesCount("EQUITIES")).isEqualTo(2);
+  }
+
+  @Test
+  void instrumentsOutsideTheReferenceDataAndDaysWithoutTradeGetNoClose() {
+    // The ETF file only has trades of an instrument missing from the reference data.
     files.publish(
         TradeFileSegment.ETFS_FUNDS, trade(isin("FR001052727"), "2026-10-16T15:00:00Z", "71.18"));
 
     collection.collect();
 
     assertThat(prices.findLatest(msciWorld.id())).isEmpty();
-    assertThat(
-            jdbc.sql("SELECT closes_count FROM market_collection WHERE segment = 'ETFS_FUNDS'")
-                .query(Integer.class)
-                .single())
-        .isZero();
+    assertThat(closesCount("ETFS_FUNDS")).isZero();
+    assertThat(jdbc.sql("SELECT count(*) FROM instrument").query(Integer.class).single())
+        .as("an unknown ISIN never creates an instrument")
+        .isEqualTo(3);
   }
 
   @Test
@@ -210,6 +244,13 @@ class DailyCollectionIT {
 
     assertThat(prices.findLatest(airLiquide.id()))
         .hasValueSatisfying(close -> assertThat(close.source()).isEqualTo(PriceSource.EURONEXT));
+  }
+
+  private int closesCount(String segment) {
+    return jdbc.sql("SELECT closes_count FROM market_collection WHERE segment = :segment")
+        .param("segment", segment)
+        .query(Integer.class)
+        .single();
   }
 
   private Instrument tracked(Isin isin) {

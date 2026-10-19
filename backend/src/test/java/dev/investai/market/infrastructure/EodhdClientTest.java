@@ -124,8 +124,31 @@ class EodhdClientTest {
 
     assertThat(closes)
         .containsExactly(
-            new HistoricalClose(LocalDate.parse("2025-10-20"), new BigDecimal("173.04")),
-            new HistoricalClose(LocalDate.parse("2025-10-21"), new BigDecimal("174.1")));
+            new HistoricalClose(
+                LocalDate.parse("2025-10-20"), new BigDecimal("173.04"), new BigDecimal("812345")),
+            new HistoricalClose(
+                LocalDate.parse("2025-10-21"), new BigDecimal("174.1"), new BigDecimal("700000")));
+  }
+
+  @Test
+  void unusableVolumeNeverFailsTheCall() {
+    server
+        .expect(requestTo(Matchers.startsWith(BASE_URL + "/eod/AI.PA")))
+        .andRespond(
+            withSuccess(
+                """
+                [{"date":"2025-10-20","close":173.04,"volume":1234.5},
+                 {"date":"2025-10-21","close":174.1,"volume":null},
+                 {"date":"2025-10-22","close":174.2},
+                 {"date":"2025-10-23","close":174.3,"volume":"n/a"}]
+                """,
+                MediaType.APPLICATION_JSON));
+
+    List<HistoricalClose> closes = client.dailyCloses(airLiquide, LocalDate.MIN, LocalDate.MAX);
+
+    assertThat(closes)
+        .extracting(HistoricalClose::volume)
+        .containsExactly(new BigDecimal("1234.5"), null, null, null);
   }
 
   @Test

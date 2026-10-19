@@ -7,6 +7,7 @@ import dev.investai.market.domain.PriceKey;
 import dev.investai.market.domain.PriceSource;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -31,30 +32,36 @@ class JdbcDailyPriceRepository implements DailyPriceRepository {
   // repeated.
   private static final String FIND =
       """
-      SELECT instrument_id, trading_date, close, currency, source FROM daily_price
+      SELECT instrument_id, trading_date, close, currency, source, volume, trade_count
+      FROM daily_price
       WHERE instrument_id IN (:ids) AND trading_date BETWEEN :from AND :to
       """;
 
   private static final String FIND_BETWEEN =
       """
-      SELECT instrument_id, trading_date, close, currency, source FROM daily_price
+      SELECT instrument_id, trading_date, close, currency, source, volume, trade_count
+      FROM daily_price
       WHERE instrument_id = :instrument AND trading_date BETWEEN :from AND :to
       ORDER BY trading_date
       """;
 
   private static final String FIND_LATEST =
       """
-      SELECT instrument_id, trading_date, close, currency, source FROM daily_price
+      SELECT instrument_id, trading_date, close, currency, source, volume, trade_count
+      FROM daily_price
       WHERE instrument_id = :instrument ORDER BY trading_date DESC LIMIT 1
       """;
 
   /** The WHERE clause keeps the source priority even if a caller forgot {@code PriceMerge}. */
   private static final String UPSERT =
       """
-      INSERT INTO daily_price (instrument_id, trading_date, close, currency, source, collected_at)
-      VALUES (:instrumentId, :tradingDate, :close, :currency, :source, :collectedAt)
+      INSERT INTO daily_price (instrument_id, trading_date, close, currency, source, volume,
+                               trade_count, collected_at)
+      VALUES (:instrumentId, :tradingDate, :close, :currency, :source, :volume,
+              :tradeCount, :collectedAt)
       ON CONFLICT (instrument_id, trading_date) DO UPDATE SET
         close = excluded.close, currency = excluded.currency, source = excluded.source,
+        volume = excluded.volume, trade_count = excluded.trade_count,
         collected_at = excluded.collected_at
       WHERE NOT (daily_price.source = 'EURONEXT' AND excluded.source = 'EODHD')
       """;
@@ -102,6 +109,8 @@ class JdbcDailyPriceRepository implements DailyPriceRepository {
                         .addValue("close", close.close())
                         .addValue("currency", close.currency().getCurrencyCode())
                         .addValue("source", close.source().name())
+                        .addValue("volume", close.volume(), Types.BIGINT)
+                        .addValue("tradeCount", close.tradeCount(), Types.INTEGER)
                         .addValue("collectedAt", at))
             .toArray(MapSqlParameterSource[]::new);
     batch.batchUpdate(UPSERT, rows);
@@ -141,6 +150,8 @@ class JdbcDailyPriceRepository implements DailyPriceRepository {
         rs.getObject("trading_date", LocalDate.class),
         rs.getBigDecimal("close"),
         Currency.getInstance(rs.getString("currency")),
-        PriceSource.valueOf(rs.getString("source")));
+        PriceSource.valueOf(rs.getString("source")),
+        rs.getObject("volume", Long.class),
+        rs.getObject("trade_count", Integer.class));
   }
 }

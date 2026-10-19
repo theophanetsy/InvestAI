@@ -4,6 +4,7 @@ import static dev.investai.market.MarketTestData.isin;
 import static dev.investai.market.MarketTestData.listed;
 import static dev.investai.market.application.FakeProviders.close;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import dev.investai.market.MarketTestData;
 import dev.investai.market.domain.ApiCallCounter;
@@ -37,7 +38,9 @@ class EodhdMaintenanceIT {
 
   private static final String REFERENCE_CALL = "exchange-symbol-list";
   private static final Instant MONDAY = Instant.parse("2026-10-19T08:00:00Z");
-  private static final LocalDate THURSDAY = LocalDate.parse("2026-10-15");
+  private static final String THURSDAY_TEXT = "2026-10-15";
+  private static final String AIR_LIQUIDE = "Air Liquide";
+  private static final LocalDate THURSDAY = LocalDate.parse(THURSDAY_TEXT);
   private static final String FRIDAY_TEXT = "2026-10-16";
   private static final LocalDate FRIDAY = LocalDate.parse(FRIDAY_TEXT);
   private static final Isin AI = isin("FR000012007");
@@ -61,8 +64,8 @@ class EodhdMaintenanceIT {
 
   @Test
   void firstStartLoadsReferenceDataThenTracksBenchmarksAndLoadsTheirHistory() {
-    eodhd.reference(listed(AI, "AI", "Air Liquide"), listed(CW8, "CW8", "Amundi MSCI World"));
-    eodhd.history(CW8, close("2026-10-15", "705.10"), close(FRIDAY_TEXT, "709.55"));
+    eodhd.reference(listed(AI, "AI", AIR_LIQUIDE), listed(CW8, "CW8", "Amundi MSCI World"));
+    eodhd.history(CW8, close(THURSDAY_TEXT, "705.10"), close(FRIDAY_TEXT, "709.55"));
 
     maintenance(15).run();
 
@@ -78,7 +81,7 @@ class EodhdMaintenanceIT {
 
   @Test
   void referenceDataIsRefreshedOnlyWhenOlderThanItsMaximumAge() {
-    eodhd.reference(listed(AI, "AI", "Air Liquide"));
+    eodhd.reference(listed(AI, "AI", AIR_LIQUIDE));
     maintenance(15).run();
 
     clock.set(MONDAY.plus(Duration.ofDays(6)));
@@ -104,12 +107,31 @@ class EodhdMaintenanceIT {
   }
 
   @Test
+  void trackingAnInstrumentWithEuronextClosesLoadsItsHistoryAndKeepsThem() {
+    instruments.upsertReference(List.of(listed(AI, "AI", AIR_LIQUIDE)), MONDAY);
+    Instrument ai = find(AI);
+    var official = FakeProviders.euronextClose(ai.id(), FRIDAY, "173.16", 812_345L, 4_321);
+    prices.save(List.of(official), MONDAY);
+    instruments.markTracked(ai.id(), MONDAY);
+    eodhd.history(AI, close(THURSDAY_TEXT, "172.50", "700000"), close(FRIDAY_TEXT, "173.00", "1"));
+
+    maintenance(15).run();
+
+    assertThat(find(AI).historyLoaded()).isTrue();
+    assertThat(prices.findBetween(ai.id(), THURSDAY, FRIDAY))
+        .extracting(DailyClose::source, DailyClose::volume, DailyClose::tradeCount)
+        .containsExactly(
+            tuple(PriceSource.EODHD, 700_000L, null), tuple(PriceSource.EURONEXT, 812_345L, 4_321));
+    assertThat(prices.findLatest(ai.id())).hasValue(official);
+  }
+
+  @Test
   void catchUpComesFirstAndNeverReplacesEuronextCloses(CapturedOutput output) {
     Instrument ai = trackedWithHistory(AI, "AI");
     recorder.scheduleCatchUp(List.of(THURSDAY, FRIDAY), List.of(ai.id()));
     recorder.recordHistory(
         ai.id(), List.of(FakeProviders.euronextClose(ai.id(), FRIDAY, "173.16")));
-    eodhd.history(AI, close("2026-10-15", "172.50"), close(FRIDAY_TEXT, "173.00"));
+    eodhd.history(AI, close(THURSDAY_TEXT, "172.50"), close(FRIDAY_TEXT, "173.00"));
     trackedWithoutHistory(TTE, "TTE");
 
     maintenance(15).run();
@@ -182,7 +204,7 @@ class EodhdMaintenanceIT {
     assertThat(eodhd.calls()).as("empty list: a failure").containsExactly(REFERENCE_CALL);
 
     clock.set(MONDAY.plus(Duration.ofDays(1)));
-    eodhd.reference(listed(AI, "AI", "Air Liquide"));
+    eodhd.reference(listed(AI, "AI", AIR_LIQUIDE));
     job.run();
     assertThat(eodhd.calls()).hasSize(2);
     assertThat(instruments.lastReferenceRefresh()).isPresent();

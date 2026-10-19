@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Set;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationInfo;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,7 +52,18 @@ class MarketPersistenceIT {
   void marketMigrationIsApplied() {
     assertThat(flyway.info().applied())
         .extracting(MigrationInfo::getScript)
-        .contains("V2__market_data.sql");
+        .contains("V2__market_data.sql", "V3__daily_price_activity.sql");
+  }
+
+  @Test
+  void findAllListsEveryInstrumentTrackedOrNot() {
+    Instrument airLiquide = load(listed(isin(AI_BODY), "AI", AIR_LIQUIDE));
+    Instrument total = load(listed(isin("FR000012027"), "TTE", "TotalEnergies"));
+    instruments.markTracked(total.id(), NOW);
+
+    assertThat(instruments.findAll())
+        .extracting(Instrument::id)
+        .containsExactlyInAnyOrder(airLiquide.id(), total.id());
   }
 
   @Test
@@ -152,6 +164,34 @@ class MarketPersistenceIT {
   }
 
   @Test
+  void volumeAndTradeCountAreStoredAndReadBackUnknownStaysUnknown() {
+    Instrument instrument = load(listed(isin(AI_BODY), "AI", AIR_LIQUIDE));
+    var withActivity = activity(instrument, SESSION, PriceSource.EURONEXT, 812_345L, 4_321);
+    var unknown = close(instrument, SESSION.minusDays(1), "172", PriceSource.EODHD);
+
+    prices.save(List.of(withActivity, unknown), NOW);
+
+    assertThat(prices.findBetween(instrument.id(), SESSION.minusDays(1), SESSION))
+        .containsExactly(unknown, withActivity);
+  }
+
+  @Test
+  void euronextActivityIsNeverReplacedByEodhdAndReplacesIt() {
+    Instrument instrument = load(listed(isin(AI_BODY), "AI", AIR_LIQUIDE));
+    var eodhd = activity(instrument, SESSION.minusDays(1), PriceSource.EODHD, 900_000L, null);
+    var euronext = activity(instrument, SESSION, PriceSource.EURONEXT, 812_345L, 4_321);
+    prices.save(List.of(eodhd, euronext), NOW);
+
+    var newerEodhd = activity(instrument, SESSION, PriceSource.EODHD, 1L, null);
+    var officialThursday =
+        activity(instrument, SESSION.minusDays(1), PriceSource.EURONEXT, 700_000L, 3_000);
+    prices.save(List.of(newerEodhd, officialThursday), NOW);
+
+    assertThat(prices.findBetween(instrument.id(), SESSION.minusDays(1), SESSION))
+        .containsExactly(officialThursday, euronext);
+  }
+
+  @Test
   void closesAreReadByPeriodInDateOrder() {
     Instrument instrument = load(listed(isin(AI_BODY), "AI", AIR_LIQUIDE));
     var friday = close(instrument, SESSION, "173.16", PriceSource.EURONEXT);
@@ -169,6 +209,16 @@ class MarketPersistenceIT {
   private Instrument load(ListedInstrument entry) {
     instruments.upsertReference(List.of(entry), NOW);
     return instruments.findByListing(entry.listing()).orElseThrow();
+  }
+
+  private static DailyClose activity(
+      Instrument instrument,
+      LocalDate day,
+      PriceSource source,
+      Long volume,
+      @Nullable Integer tradeCount) {
+    return new DailyClose(
+        instrument.id(), day, new BigDecimal("173.16"), EUR, source, volume, tradeCount);
   }
 
   private static DailyClose close(

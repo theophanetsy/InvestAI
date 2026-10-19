@@ -16,6 +16,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class ValueObjectsTest {
 
+  private static final Currency EUR = Currency.getInstance("EUR");
+
   @ParameterizedTest
   @CsvSource({
     "709.5500000, 709.5500",
@@ -44,8 +46,57 @@ class ValueObjectsTest {
                     InstrumentId.newId(),
                     LocalDate.parse("2026-10-16"),
                     new BigDecimal("1.23456"),
-                    Currency.getInstance("EUR"),
+                    EUR,
                     PriceSource.EURONEXT));
+  }
+
+  @ParameterizedTest
+  @CsvSource(
+      value = {"-1, 3", "10, -1"},
+      nullValues = "null")
+  void dailyCloseRefusesANegativeActivity(Long volume, Integer tradeCount) {
+    assertThatIllegalArgumentException()
+        .isThrownBy(
+            () ->
+                new DailyClose(
+                    InstrumentId.newId(),
+                    LocalDate.parse("2026-10-16"),
+                    BigDecimal.TEN,
+                    EUR,
+                    PriceSource.EURONEXT,
+                    volume,
+                    tradeCount));
+  }
+
+  @Test
+  void dailyCloseWithoutActivityHasAnUnknownVolumeAndTradeCount() {
+    DailyClose close =
+        new DailyClose(
+            InstrumentId.newId(),
+            LocalDate.parse("2026-10-16"),
+            BigDecimal.TEN,
+            EUR,
+            PriceSource.EODHD);
+
+    assertThat(close.volume()).isNull();
+    assertThat(close.tradeCount()).isNull();
+  }
+
+  @ParameterizedTest
+  @CsvSource({"10.0, 10", "0, 0", "1E+3, 1000", "9223372036854775807, 9223372036854775807"})
+  void volumesAreWholeNumbersOfUnits(String raw, long expected) {
+    assertThat(Volumes.units(new BigDecimal(raw))).contains(expected);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"-1", "2.5", "0.0001", "9223372036854775808"})
+  void volumesThatAreNotWholeNonNegativeLongsAreUnknown(String raw) {
+    assertThat(Volumes.units(new BigDecimal(raw))).isEmpty();
+  }
+
+  @Test
+  void missingVolumeIsUnknown() {
+    assertThat(Volumes.units(null)).isEmpty();
   }
 
   @ParameterizedTest
@@ -69,7 +120,7 @@ class ValueObjectsTest {
   @Test
   void instrumentIsTrackedOnceItHasATrackingDate() {
     var listing = new Listing(new Isin("FR0000120073"), Mic.XPAR);
-    var eur = Currency.getInstance("EUR");
+    var eur = EUR;
     var id = InstrumentId.newId();
 
     assertThat(
@@ -100,7 +151,7 @@ class ValueObjectsTest {
             "AI",
             "Air Liquide",
             InstrumentType.STOCK,
-            Currency.getInstance("EUR")));
+            EUR));
 
     assertThat(data.instruments()).isEmpty();
     assertThat(data.ignored()).isEqualTo(2);
