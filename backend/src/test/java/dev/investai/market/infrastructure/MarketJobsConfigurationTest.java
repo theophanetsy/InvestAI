@@ -5,6 +5,7 @@ import static org.mockito.Mockito.mock;
 
 import dev.investai.market.application.DailyCollection;
 import dev.investai.market.application.EodhdMaintenance;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -12,6 +13,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.ConfigDataApplicationContextInitializer;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.scheduling.TaskScheduler;
+import org.springframework.scheduling.concurrent.SimpleAsyncTaskScheduler;
 import org.springframework.scheduling.config.CronTask;
 import org.springframework.scheduling.config.FixedDelayTask;
 import org.springframework.scheduling.config.ScheduledTask;
@@ -31,6 +34,8 @@ class MarketJobsConfigurationTest {
           .withInitializer(new ConfigDataApplicationContextInitializer())
           .withBean(DailyCollection.class, () -> mock(DailyCollection.class))
           .withBean(EodhdMaintenance.class, () -> mock(EodhdMaintenance.class))
+          .withBean(TaskScheduler.class, SimpleAsyncTaskScheduler::new)
+          .withBean(Clock.class, Clock::systemUTC)
           .withUserConfiguration(MarketJobsConfiguration.class);
 
   @Test
@@ -50,7 +55,7 @@ class MarketJobsConfigurationTest {
     assertThat(tasks)
         .filteredOn(CronTask.class::isInstance)
         .map(task -> ((CronTask) task).getExpression())
-        .containsExactly("0 0 9-18 * * *");
+        .containsExactly("0 0 9-23 * * *");
     assertThat(tasks)
         .filteredOn(task -> task instanceof FixedDelayTask && !(task instanceof CronTask))
         .map(FixedDelayTask.class::cast)

@@ -2,6 +2,15 @@ package dev.investai.market.infrastructure;
 
 import dev.investai.market.application.DailyCollection;
 import dev.investai.market.application.EodhdMaintenance;
+import java.time.Clock;
+import java.time.Duration;
+import java.util.Optional;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.atomic.AtomicReference;
+import org.jspecify.annotations.Nullable;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.annotation.Scheduled;
 
 /**
@@ -15,27 +24,64 @@ public class MarketJobs {
 
   private final DailyCollection collection;
   private final EodhdMaintenance maintenance;
+  private final TaskScheduler scheduler;
+  private final Clock clock;
+  private final Duration startupDelay;
+
+  /** Pending startup run; its failures are logged by the scheduler error handler. */
+  private final AtomicReference<@Nullable ScheduledFuture<?>> startupRun = new AtomicReference<>();
 
   /**
    * Creates the jobs.
    *
    * @param collection Euronext collection
    * @param maintenance EODHD maintenance
+   * @param scheduler runs the collection shortly after startup
+   * @param clock current time
+   * @param startupDelay delay between the application start and the first collection
    */
-  public MarketJobs(DailyCollection collection, EodhdMaintenance maintenance) {
+  public MarketJobs(
+      DailyCollection collection,
+      EodhdMaintenance maintenance,
+      TaskScheduler scheduler,
+      Clock clock,
+      Duration startupDelay) {
     this.collection = collection;
     this.maintenance = maintenance;
+    this.scheduler = scheduler;
+    this.clock = clock;
+    this.startupDelay = startupDelay;
   }
 
   /**
-   * Hourly from 9:00 to 18:00, Paris time, every day: collects the previous session, then catches
-   * up missed sessions with EODHD.
+   * Hourly from 9:00 to 23:00, Paris time, every day (the application often runs in the evening):
+   * collects the previous session, then catches up missed sessions with EODHD. Nothing is
+   * downloaded when the session is already complete.
    */
   @Scheduled(cron = "${investai.market.jobs.collection-cron}", zone = "Europe/Paris")
   public void collectDailyCloses() {
     if (collection.collect() == DailyCollection.Outcome.COLLECTED) {
       maintenance.run();
     }
+  }
+
+  /**
+   * Runs the same collection shortly after startup, whatever the time: the application may be
+   * started between two hourly runs, or outside the cron window.
+   */
+  @EventListener(ApplicationReadyEvent.class)
+  public void collectShortlyAfterStartup() {
+    startupRun.set(
+        scheduler.schedule(this::collectDailyCloses, clock.instant().plus(startupDelay)));
+  }
+
+  /**
+   * Returns the run scheduled after startup.
+   *
+   * @return the pending run, empty before the application is ready
+   */
+  Optional<ScheduledFuture<?>> startupRun() {
+    return Optional.ofNullable(startupRun.get());
   }
 
   /** At startup, then hourly: catch-up, history of tracked instruments, reference data. */

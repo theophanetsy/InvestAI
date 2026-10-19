@@ -90,6 +90,10 @@ Un package par module métier sous `dev.investai` : `portfolio`, `market`, `assi
   EODHD) ; l'API, et plus tard le dashboard, les simulations et les tools de l'agent, **lisent la
   base** (`MarketQueries`). Aucun endpoint ne déclenche un appel externe (suivre une valeur ne fait
   que poser `tracked_since`, l'historique arrive au passage suivant du job EODHD).
+- Collecte Euronext : toutes les heures de 9 h à 23 h (Paris) **et** 1 min après
+  `ApplicationReadyEvent` (`MarketJobs.collectShortlyAfterStartup`, même méthode que le cron,
+  planifiée sur le `TaskScheduler`, jamais exécutée dans le thread de démarrage). Idempotente :
+  aucun téléchargement si la séance est déjà complète.
 - Jobs coupés par `investai.market.jobs.enabled=false` : c'est le cas dans **tout**
   `@IntegrationTest` (avec `investai.market.eodhd.api-key=` vide) et dans `npm run stack:start`.
   Les tests déclenchent les cas d'usage eux-mêmes, avec de faux fournisseurs (`FakeTradeFiles`,

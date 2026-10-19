@@ -70,7 +70,7 @@ En local, l'app tourne avec `./mvnw spring-boot:run` (qui démarre Postgres) et 
 | Étape | Contenu |
 |---|---|
 | 2.0 ✅ | Choix des sources de données de marché ([ADR-0009](adr/0009-fournisseur-donnees-marche.md)). |
-| 2.1 🔄 | Module `market` ([spec](specs/phase-2-01-market-data-collection.md)) : référentiel EODHD de Paris (1 appel/semaine), clôtures quotidiennes depuis les fichiers MiFIR d'Euronext (job horaire 9 h-18 h), 1 an d'historique et rattrapage des jours manqués par EODHD dans un budget de 15 appels/jour, API de lecture et de suivi (`/api/v1/market`). Jobs `@Scheduled` sans ShedLock (une seule instance). |
+| 2.1 🔄 | Module `market` ([spec](specs/phase-2-01-market-data-collection.md)) : référentiel EODHD de Paris (1 appel/semaine), clôtures quotidiennes depuis les fichiers MiFIR d'Euronext (job horaire 9 h-23 h et au démarrage), 1 an d'historique et rattrapage des jours manqués par EODHD dans un budget de 15 appels/jour, API de lecture et de suivi (`/api/v1/market`). Jobs `@Scheduled` sans ShedLock (une seule instance). |
 | 2.2 | Comptes PEA / CTO et transactions (saisie manuelle), avec la recherche de valeurs dans l'UI. |
 | 2.3 | Positions et valorisation : PRU, plus-values, éligibilité PEA, plafond de versements, attributions gratuites. |
 | 2.4 | Import CSV des transactions. |

@@ -43,7 +43,8 @@ Le backend collecte seul les données de marché ([ADR-0009](adr/0009-fournisseu
 [spec 2.1](specs/phase-2-01-market-data-collection.md)) :
 
 - **Clôtures quotidiennes** : fichiers différés gratuits d'Euronext, sans clé. Job toutes les
-  heures de 9 h à 18 h (heure de Paris), séance précédente, un seul téléchargement réussi par
+  heures de 9 h à 23 h (heure de Paris) et 1 min après le démarrage, séance précédente, un seul
+  téléchargement réussi par
   fichier et par séance.
 - **Référentiel, 1 an d'historique, rattrapage des jours manqués** : offre gratuite d'EODHD.
   Créer un compte sur https://eodhd.com/register, copier la clé d'API du tableau de bord et
@@ -54,8 +55,8 @@ Le backend collecte seul les données de marché ([ADR-0009](adr/0009-fournisseu
   désactivées (un seul avertissement au démarrage). Sans référentiel, aucune valeur n'est suivie :
   la clé est nécessaire pour un usage réel.
 - Premier démarrage avec la clé : référentiel de Paris (1 appel), suivi automatique des
-  benchmarks (CAC, CW8, WPEA) et de leur historique (3 appels). Le lendemain matin, la collecte
-  ajoute la clôture de la veille.
+  benchmarks (CAC, CW8, WPEA) et de leur historique (3 appels). Au démarrage suivant (ou à la
+  prochaine heure pleine entre 9 h et 23 h), la collecte ajoute la clôture de la séance précédente.
 - Couper les jobs (dépannage) : `INVESTAI_MARKET_JOBS_ENABLED=false`. La stack de vérification
   (`npm run stack:start`) les coupe toujours.
 - Arrêter la base : `docker compose -f infra/docker-compose.yml stop` (Spring ne l'arrête pas,
