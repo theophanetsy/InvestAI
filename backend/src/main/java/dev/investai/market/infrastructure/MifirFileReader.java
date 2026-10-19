@@ -116,7 +116,7 @@ final class MifirFileReader {
     try {
       return Optional.of(columns.trade(fields.get()));
     } catch (IllegalArgumentException | DateTimeParseException ex) {
-      // NumberFormatException is an IllegalArgumentException; so are invalid ISIN, MIC, currency.
+      // Invalid price (NumberFormatException), mechanism, ISIN, MIC or currency.
       return Optional.empty();
     }
   }
@@ -204,8 +204,16 @@ final class MifirFileReader {
           Instant.parse(value(values, Column.TRADING_TIME)),
           new BigDecimal(value(values, Column.PRICE)),
           Currency.getInstance(value(values, Column.CURRENCY)),
-          Integer.parseInt(value(values, Column.MECHANISM)),
+          mechanism(value(values, Column.MECHANISM)),
           new Mic(value(values, Column.VENUE)));
+    }
+
+    private static int mechanism(String text) {
+      try {
+        return Integer.parseInt(text);
+      } catch (NumberFormatException ex) {
+        throw new IllegalArgumentException("MmtMarketMechanism is not a number", ex);
+      }
     }
 
     private String value(String[] values, Column column) {
