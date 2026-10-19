@@ -166,6 +166,9 @@ MSCI World Swap PEA (`IE0002XZSHO1`, WPEA, XPAR), Amundi CAC 40 Dist (`FR0007052
   première ligne (copyright) ignorée, horodatages UTC.
 - Clé EODHD : variable d'environnement (`INVESTAI_EODHD_API_KEY`), jamais dans une URL
   journalisée (logs HTTP client, messages d'exception, traces OpenTelemetry en Phase 3).
+  Phase 2.1 : la clé est ajoutée à la requête envoyée par un intercepteur, invisible pour
+  `RestClient` ; une instrumentation du client HTTP du JDK (agent OpenTelemetry) la verrait
+  encore : la masquer (`api_token`) avant de l'activer en Phase 3.
 - Budget d'appels EODHD tenu par l'application (compteur quotidien, refus au-delà de ~15 appels
   pour garder une marge), consommation visible dans les logs.
 - **Tests sans données réelles commitées** : publier des fichiers Euronext ou des réponses EODHD

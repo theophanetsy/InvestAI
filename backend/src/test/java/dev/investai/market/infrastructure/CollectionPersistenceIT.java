@@ -55,10 +55,23 @@ class CollectionPersistenceIT {
     assertThat(journal.isCollected(SESSION, TradeFileSegment.EQUITIES)).isTrue();
     assertThat(journal.isCollected(SESSION, TradeFileSegment.ETFS_FUNDS)).isFalse();
     assertThat(journal.isCollected(SESSION.minusDays(1), TradeFileSegment.ETFS_FUNDS)).isTrue();
-    assertThat(journal.lastSessionBefore(SESSION)).hasValue(SESSION.minusDays(1));
-    assertThat(journal.lastSessionBefore(SESSION.minusDays(1))).isEmpty();
+    assertThat(journal.catchUpStart(SESSION)).hasValue(SESSION);
+    assertThat(journal.catchUpStart(SESSION.minusDays(1))).isEmpty();
+    assertThat(journal.catchUpStart(SESSION.plusDays(3)))
+        .as("a session with one file out of two is not complete")
+        .hasValue(SESSION);
+    journal.recordFile(SESSION, TradeFileSegment.ETFS_FUNDS, 2, NOW);
+    assertThat(journal.catchUpStart(SESSION.plusDays(3))).hasValue(SESSION.plusDays(1));
     assertThat(jdbc.sql("SELECT count(*) FROM market_collection").query(Integer.class).single())
-        .isEqualTo(2);
+        .isEqualTo(3);
+  }
+
+  @Test
+  void withoutCompleteSessionTheCatchUpStartsAtTheFirstRecordedOne() {
+    journal.recordFile(SESSION.minusDays(2), TradeFileSegment.EQUITIES, 1, NOW);
+    journal.recordFile(SESSION, TradeFileSegment.ETFS_FUNDS, 1, NOW);
+
+    assertThat(journal.catchUpStart(SESSION.plusDays(3))).hasValue(SESSION.minusDays(2));
   }
 
   @Test
@@ -88,7 +101,10 @@ class CollectionPersistenceIT {
         .containsExactly(
             new CatchUpRequest(instrument.id(), SESSION.minusDays(3), SESSION.minusDays(1)));
 
-    catchUp.remove(instrument.id());
+    var stale = new CatchUpRequest(instrument.id(), SESSION.minusDays(3), SESSION.minusDays(2));
+    catchUp.remove(stale);
+    assertThat(catchUp.pending()).as("widened meanwhile by the other job: kept").hasSize(1);
+    catchUp.remove(catchUp.pending().getFirst());
     assertThat(catchUp.pending()).isEmpty();
   }
 

@@ -17,6 +17,7 @@ import dev.investai.market.domain.MifirTrade;
 import dev.investai.market.domain.TradeFileSegment;
 import java.io.IOException;
 import java.net.URI;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,7 +38,11 @@ class EuronextTradeFilesTest {
   private final MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
   private final EuronextTradeFiles files =
       EuronextTradeFiles.create(
-          builder, URI.create("https://euronext.test"), USER_AGENT, new MifirFileReader(1_000_000));
+          builder,
+          URI.create("https://euronext.test"),
+          USER_AGENT,
+          new MifirFileReader(1_000_000),
+          Duration.ofMinutes(1));
   private final List<MifirTrade> trades = new ArrayList<>();
 
   @Test
@@ -65,6 +70,24 @@ class EuronextTradeFilesTest {
     assertThatThrownBy(() -> files.read(TradeFileSegment.ETFS_FUNDS, trades::add))
         .isInstanceOf(MarketDataUnavailableException.class)
         .hasMessage("Euronext ETFS_FUNDS failed: HTTP 503");
+  }
+
+  @Test
+  void downloadLongerThanAllowedFails() {
+    var slow =
+        EuronextTradeFiles.create(
+            builder,
+            URI.create("https://euronext.test"),
+            USER_AGENT,
+            new MifirFileReader(1_000_000),
+            Duration.ZERO);
+    server
+        .expect(requestTo(URL))
+        .andRespond(withSuccess(zip(csv()), MediaType.parseMediaType("application/zip")));
+
+    assertThatThrownBy(() -> slow.read(TradeFileSegment.ETFS_FUNDS, trades::add))
+        .isInstanceOf(MarketDataUnavailableException.class)
+        .hasMessageContaining("DeadlineExceededException");
   }
 
   @Test

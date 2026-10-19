@@ -21,7 +21,8 @@ final class ApiTokenInterceptor implements ClientHttpRequestInterceptor {
   private final String encodedKey;
 
   ApiTokenInterceptor(String apiKey) {
-    this.encodedKey = UriUtils.encodeQueryParam(apiKey, StandardCharsets.UTF_8);
+    // Every reserved character encoded, + and & included.
+    this.encodedKey = UriUtils.encode(apiKey, StandardCharsets.UTF_8);
   }
 
   @Override

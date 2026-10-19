@@ -50,8 +50,12 @@ public record MarketProperties(
    *
    * @param baseUrl e.g. {@code https://marketdata.euronext.com}
    * @param maxUncompressedSize inflated size above which a file is rejected
+   * @param downloadTimeout maximum duration of a whole download
    */
-  public record Euronext(@NotNull URI baseUrl, @NotNull DataSize maxUncompressedSize) {}
+  public record Euronext(
+      @NotNull URI baseUrl,
+      @NotNull DataSize maxUncompressedSize,
+      @NotNull Duration downloadTimeout) {}
 
   /**
    * EODHD free plan.

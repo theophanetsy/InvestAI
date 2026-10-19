@@ -2,7 +2,6 @@ package dev.investai.market.domain;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -27,13 +26,11 @@ public final class SessionCloseCalculator {
   /** {@code MmtMarketMechanism} of the central limit order book. */
   public static final int CENTRAL_ORDER_BOOK = 1;
 
-  /** Time zone of Euronext Paris sessions. */
-  public static final ZoneId MARKET_ZONE = ZoneId.of("Europe/Paris");
-
   private final LocalDate session;
   private final Map<Isin, List<Instrument>> trackedByIsin;
   private final Map<Listing, Candidate> lastTrades = new HashMap<>();
   private final Set<Listing> tradedElsewhere = new HashSet<>();
+  private final Set<Listing> otherCurrency = new HashSet<>();
 
   /**
    * Creates a calculator.
@@ -62,7 +59,7 @@ public final class SessionCloseCalculator {
       if (!listing.mic().equals(trade.venue())) {
         tradedElsewhere.add(listing);
       } else if (trade.mechanism() == CENTRAL_ORDER_BOOK) {
-        offer(listing, trade);
+        offerInInstrumentCurrency(instrument, trade);
       }
     }
   }
@@ -74,7 +71,15 @@ public final class SessionCloseCalculator {
    * @return its session
    */
   public static LocalDate sessionOf(MifirTrade trade) {
-    return LocalDate.ofInstant(trade.tradingTime(), MARKET_ZONE);
+    return LocalDate.ofInstant(trade.tradingTime(), EuronextCalendar.ZONE);
+  }
+
+  private void offerInInstrumentCurrency(Instrument instrument, MifirTrade trade) {
+    if (trade.currency().equals(instrument.currency())) {
+      offer(instrument.listing(), trade);
+    } else {
+      otherCurrency.add(instrument.listing());
+    }
   }
 
   private void offer(Listing listing, MifirTrade trade) {
@@ -112,17 +117,18 @@ public final class SessionCloseCalculator {
               BigDecimal price = last.trade().price();
               Prices.exact(price)
                   .ifPresentOrElse(
-                      close -> closes.add(closeOf(instrument, last.trade(), close)),
+                      close -> closes.add(closeOf(instrument, close)),
                       () -> notStorable.add(listing));
               if (last.ambiguous()) {
                 ambiguous.add(listing);
               }
             });
-    return new SessionCloses(closes, ambiguous, elsewhereOnly, notStorable);
+    return new SessionCloses(closes, ambiguous, elsewhereOnly, notStorable, otherCurrency);
   }
 
-  private DailyClose closeOf(Instrument instrument, MifirTrade trade, BigDecimal close) {
-    return new DailyClose(instrument.id(), session, close, trade.currency(), PriceSource.EURONEXT);
+  private DailyClose closeOf(Instrument instrument, BigDecimal close) {
+    return new DailyClose(
+        instrument.id(), session, close, instrument.currency(), PriceSource.EURONEXT);
   }
 
   /** Last trade seen for a listing, and whether another trade had the same time and price. */

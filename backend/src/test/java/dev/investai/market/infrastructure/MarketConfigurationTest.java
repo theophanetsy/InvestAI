@@ -50,6 +50,23 @@ class MarketConfigurationTest {
   }
 
   @Test
+  void eodhdRefusesPlainHttp() {
+    MarketProperties base = properties(UUID.randomUUID().toString());
+    var plain =
+        new MarketProperties(
+            base.userAgent(),
+            base.http(),
+            base.euronext(),
+            new MarketProperties.Eodhd(
+                URI.create("http://eodhd.test/api"), base.eodhd().apiKey(), 15, Duration.ofDays(7)),
+            base.benchmarks());
+
+    assertThatIllegalStateException()
+        .isThrownBy(() -> configuration.eodhd(plain, client))
+        .withMessage("investai.market.eodhd.base-url must use https");
+  }
+
+  @Test
   void euronextSourceAndSettingsAreBuiltFromTheProperties() {
     MarketProperties properties = properties(null);
 
@@ -80,7 +97,8 @@ class MarketConfigurationTest {
     return new MarketProperties(
         "InvestAI/test",
         new MarketProperties.Http(Duration.ofSeconds(1), Duration.ofSeconds(1)),
-        new MarketProperties.Euronext(URI.create("https://euronext.test"), DataSize.ofMegabytes(1)),
+        new MarketProperties.Euronext(
+            URI.create("https://euronext.test"), DataSize.ofMegabytes(1), Duration.ofMinutes(1)),
         new MarketProperties.Eodhd(
             URI.create("https://eodhd.test/api"), key, 15, Duration.ofDays(7)),
         List.of("FR0007052782:XPAR"));

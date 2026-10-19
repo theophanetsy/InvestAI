@@ -47,10 +47,12 @@ public interface CollectionJournal {
   void refreshCatchUpCounts(LocalDate from, LocalDate to);
 
   /**
-   * Returns the last collected session before a date.
+   * Returns where missed sessions start before a date: the day after the last complete session (all
+   * its files collected, or caught up), or the first recorded session when none is complete. A
+   * session with a single file collected is not complete: its other file must be caught up.
    *
    * @param session exclusive upper bound
-   * @return the session, empty when nothing was collected before
+   * @return the first date that may hold missed sessions, empty when nothing was collected before
    */
-  Optional<LocalDate> lastSessionBefore(LocalDate session);
+  Optional<LocalDate> catchUpStart(LocalDate session);
 }

@@ -22,6 +22,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 /** {@link InstrumentRepository} on the {@code instrument} table. */
 @Repository
@@ -47,7 +48,9 @@ class JdbcInstrumentRepository implements InstrumentRepository {
       SELECT
           + """
           WHERE isin = :exact OR upper(ticker) = :exact
-             OR unaccent(lower(name)) LIKE unaccent(lower(:fragment)) ESCAPE '\\'
+             OR unaccent(lower(name)) LIKE '%' || replace(replace(replace(
+                  unaccent(lower(:fragment)), '\\', '\\\\'), '%', '\\%'), '_', '\\_') || '%'
+                ESCAPE '\\'
           ORDER BY tracked_since IS NULL, unaccent(lower(name)), isin
           LIMIT :limit
           """;
@@ -92,13 +95,14 @@ class JdbcInstrumentRepository implements InstrumentRepository {
     String fragment = SPACES.matcher(query.strip()).replaceAll(" ");
     return jdbc.sql(SEARCH)
         .param("exact", query.strip().toUpperCase(Locale.ROOT))
-        .param("fragment", "%" + escapeLike(fragment) + "%")
+        .param("fragment", fragment)
         .param("limit", limit)
         .query((rs, row) -> map(rs))
         .list();
   }
 
   @Override
+  @Transactional
   public void upsertReference(List<ListedInstrument> instruments, Instant seenAt) {
     OffsetDateTime at = Timestamps.of(seenAt);
     MapSqlParameterSource[] rows =
@@ -143,11 +147,6 @@ class JdbcInstrumentRepository implements InstrumentRepository {
         .query((rs, row) -> Optional.ofNullable(rs.getObject(1, OffsetDateTime.class)))
         .single()
         .map(OffsetDateTime::toInstant);
-  }
-
-  /** LIKE wildcards typed by the user are searched literally. */
-  private static String escapeLike(String text) {
-    return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
   }
 
   private static Instrument map(ResultSet rs) throws SQLException {

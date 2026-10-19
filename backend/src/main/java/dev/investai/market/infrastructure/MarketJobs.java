@@ -8,7 +8,8 @@ import org.springframework.scheduling.annotation.Scheduled;
  * The only callers of the market data providers (ADR-0009). Disabled with {@code
  * investai.market.jobs.enabled=false} (tests, verification stack): use cases are then triggered
  * explicitly. A single instance runs: no ShedLock before the multi-instance deployment (phase 10),
- * idempotence relies on unique constraints.
+ * idempotence relies on unique constraints. The two jobs may still run at the same time (scheduler
+ * on virtual threads): each use case has its own lock and their shared writes are safe.
  */
 public class MarketJobs {
 

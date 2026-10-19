@@ -89,7 +89,7 @@ public class DailyCollection {
       return Outcome.BUSY;
     }
     try {
-      LocalDate today = LocalDate.now(clock.withZone(SessionCloseCalculator.MARKET_ZONE));
+      LocalDate today = LocalDate.now(clock.withZone(EuronextCalendar.ZONE));
       return collect(calendar.previousTradingDay(today));
     } finally {
       running.unlock();
@@ -101,10 +101,12 @@ public class DailyCollection {
         Arrays.stream(TradeFileSegment.values())
             .filter(segment -> !journal.isCollected(session, segment))
             .toList();
+    List<Instrument> tracked = instruments.findTracked();
     if (pending.isEmpty()) {
+      // Idempotent: also covers a stop between the last file and the scheduling below.
+      scheduleCatchUp(session, tracked);
       return Outcome.ALREADY_COLLECTED;
     }
-    List<Instrument> tracked = instruments.findTracked();
     for (TradeFileSegment segment : pending) {
       Outcome outcome = collectSegment(session, segment, tracked);
       if (outcome != Outcome.COLLECTED) {
@@ -157,13 +159,16 @@ public class DailyCollection {
     return Outcome.COLLECTED;
   }
 
-  /** Sessions between the last collected one and this one were missed (application off). */
+  /**
+   * Sessions between the last complete one and this one were missed (application off, or a file
+   * never published): their closes come from EODHD.
+   */
   private void scheduleCatchUp(LocalDate session, List<Instrument> tracked) {
     LocalDate oldest = session.minus(CATCH_UP_WINDOW);
     List<LocalDate> missed =
         journal
-            .lastSessionBefore(session)
-            .map(last -> last.plusDays(1).isBefore(oldest) ? oldest : last.plusDays(1))
+            .catchUpStart(session)
+            .map(start -> start.isBefore(oldest) ? oldest : start)
             .map(from -> calendar.tradingDaysBetween(from, session.minusDays(1)))
             .orElse(List.of());
     if (missed.isEmpty()) {

@@ -3,8 +3,10 @@ package dev.investai.market.application;
 import dev.investai.market.domain.ApiCallCounter;
 import dev.investai.market.domain.CatchUpQueue;
 import dev.investai.market.domain.InstrumentRepository;
+import dev.investai.market.domain.Isin;
 import dev.investai.market.domain.Listing;
 import dev.investai.market.domain.MarketDataProvider;
+import dev.investai.market.domain.Mic;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
@@ -16,8 +18,9 @@ record MaintenanceFactory(
     ApiCallCounter usage,
     PriceRecorder recorder) {
 
-  EodhdMaintenance create(MarketDataProvider provider, Clock clock, int budget, Listing benchmark) {
-    var settings = new MarketSettings(budget, Duration.ofDays(7), List.of(benchmark));
+  EodhdMaintenance create(MarketDataProvider provider, Clock clock, int budget, Isin benchmark) {
+    var settings =
+        new MarketSettings(budget, Duration.ofDays(7), List.of(new Listing(benchmark, Mic.XPAR)));
     var callBudget = new CallBudget(usage, settings, clock);
     return new EodhdMaintenance(
         provider,

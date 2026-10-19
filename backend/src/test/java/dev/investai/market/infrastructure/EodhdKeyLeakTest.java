@@ -91,19 +91,12 @@ class EodhdKeyLeakTest {
     server
         .expect(ExpectedCount.once(), request -> {})
         .andRespond(withSuccess("{not json " + key, MediaType.APPLICATION_JSON));
-    var history =
-        new PriceHistoryLoader(
-            client,
-            budget,
-            instruments,
-            mock(CatchUpQueue.class),
-            mock(PriceRecorder.class),
-            clock);
     var reference = new ReferenceDataLoader(client, budget, instruments, settings, clock);
 
-    history.loadMissingHistories();
+    // A failed instrument waits for the next day: a fresh loader for each failing call.
+    historyLoader().loadMissingHistories();
     reference.refreshIfDue();
-    history.loadMissingHistories();
+    historyLoader().loadMissingHistories();
 
     server.verify();
     assertThat(output.getAll())
@@ -112,5 +105,10 @@ class EodhdKeyLeakTest {
         .contains("EODHD call failed")
         .doesNotContain(key)
         .doesNotContain("api_token");
+  }
+
+  private PriceHistoryLoader historyLoader() {
+    return new PriceHistoryLoader(
+        client, budget, instruments, mock(CatchUpQueue.class), mock(PriceRecorder.class), clock);
   }
 }

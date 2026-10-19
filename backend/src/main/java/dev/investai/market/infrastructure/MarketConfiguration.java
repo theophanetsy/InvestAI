@@ -30,6 +30,7 @@ public class MarketConfiguration {
 
   private static final Logger LOG = LoggerFactory.getLogger(MarketConfiguration.class);
   private static final String BENCHMARK_SEPARATOR = ":";
+  private static final String HTTPS = "https";
 
   /**
    * Settings of the market use cases.
@@ -73,7 +74,8 @@ public class MarketConfiguration {
         restClient(marketHttpClient, properties),
         properties.euronext().baseUrl(),
         properties.userAgent(),
-        new MifirFileReader(properties.euronext().maxUncompressedSize().toBytes()));
+        new MifirFileReader(properties.euronext().maxUncompressedSize().toBytes()),
+        properties.euronext().downloadTimeout());
   }
 
   /**
@@ -89,6 +91,10 @@ public class MarketConfiguration {
     if (key == null || key.isBlank()) {
       LOG.warn(EODHD_DISABLED);
       return new DisabledMarketDataProvider();
+    }
+    if (!HTTPS.equals(properties.eodhd().baseUrl().getScheme())) {
+      // The key travels in the query string: never over plain HTTP. No value in the message.
+      throw new IllegalStateException("investai.market.eodhd.base-url must use https");
     }
     return EodhdClient.create(
         restClient(marketHttpClient, properties),

@@ -13,8 +13,6 @@ import dev.investai.market.domain.DailyPriceRepository;
 import dev.investai.market.domain.Instrument;
 import dev.investai.market.domain.InstrumentRepository;
 import dev.investai.market.domain.Isin;
-import dev.investai.market.domain.Listing;
-import dev.investai.market.domain.Mic;
 import dev.investai.market.domain.PriceSource;
 import dev.investai.support.IntegrationTest;
 import java.time.Duration;
@@ -23,7 +21,10 @@ import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 /**
@@ -31,8 +32,10 @@ import org.springframework.jdbc.core.simple.JdbcClient;
  * reference data, within the daily budget (spec 2.1, criteria 4, 7, 8, 13 and 16).
  */
 @IntegrationTest
+@ExtendWith(OutputCaptureExtension.class)
 class EodhdMaintenanceIT {
 
+  private static final String REFERENCE_CALL = "exchange-symbol-list";
   private static final Instant MONDAY = Instant.parse("2026-10-19T08:00:00Z");
   private static final LocalDate THURSDAY = LocalDate.parse("2026-10-15");
   private static final String FRIDAY_TEXT = "2026-10-16";
@@ -63,8 +66,7 @@ class EodhdMaintenanceIT {
 
     maintenance(15).run();
 
-    assertThat(eodhd.calls())
-        .containsExactly("exchange-symbol-list", "eod CW8 2025-10-19 2026-10-19");
+    assertThat(eodhd.calls()).containsExactly(REFERENCE_CALL, "eod CW8 2025-10-19 2026-10-16");
     Instrument cw8 = find(CW8);
     assertThat(cw8.tracked()).isTrue();
     assertThat(cw8.historyLoaded()).isTrue();
@@ -84,7 +86,7 @@ class EodhdMaintenanceIT {
     clock.set(MONDAY.plus(Duration.ofDays(8)));
     maintenance(15).run();
 
-    assertThat(eodhd.calls()).containsExactly("exchange-symbol-list", "exchange-symbol-list");
+    assertThat(eodhd.calls()).containsExactly(REFERENCE_CALL, REFERENCE_CALL);
   }
 
   @Test
@@ -95,16 +97,16 @@ class EodhdMaintenanceIT {
     maintenance(15).run();
     maintenance(15).run();
 
-    assertThat(eodhd.calls()).containsExactly("eod AI 2025-10-19 2026-10-19");
+    assertThat(eodhd.calls()).containsExactly("eod AI 2025-10-19 2026-10-16");
     assertThat(prices.findBetween(ai.id(), LocalDate.parse("2025-10-19"), FRIDAY))
         .extracting(close -> close.close().toPlainString())
         .containsExactly("173.0400", "173.1600");
   }
 
   @Test
-  void catchUpComesFirstAndNeverReplacesEuronextCloses() {
+  void catchUpComesFirstAndNeverReplacesEuronextCloses(CapturedOutput output) {
     Instrument ai = trackedWithHistory(AI, "AI");
-    recorder.scheduleCatchUp(List.of(THURSDAY), List.of(ai.id()));
+    recorder.scheduleCatchUp(List.of(THURSDAY, FRIDAY), List.of(ai.id()));
     recorder.recordHistory(
         ai.id(), List.of(FakeProviders.euronextClose(ai.id(), FRIDAY, "173.16")));
     eodhd.history(AI, close("2026-10-15", "172.50"), close(FRIDAY_TEXT, "173.00"));
@@ -112,7 +114,7 @@ class EodhdMaintenanceIT {
 
     maintenance(15).run();
 
-    assertThat(eodhd.calls()).first().isEqualTo("eod AI 2026-10-15 2026-10-15");
+    assertThat(eodhd.calls()).first().isEqualTo("eod AI 2026-10-15 2026-10-16");
     assertThat(queue.pending()).isEmpty();
     assertThat(prices.findBetween(ai.id(), THURSDAY, FRIDAY))
         .extracting(DailyClose::source)
@@ -123,6 +125,10 @@ class EodhdMaintenanceIT {
                 .query(Integer.class)
                 .single())
         .isEqualTo(1);
+    assertThat(output.getAll())
+        .as("instrument and date, never the prices (criterion 12)")
+        .contains("Euronext and EODHD closes differ: instrument=" + ai.id() + ", date=2026-10-16")
+        .doesNotContain("173.00");
   }
 
   @Test
@@ -148,12 +154,38 @@ class EodhdMaintenanceIT {
     recorder.scheduleCatchUp(List.of(THURSDAY), List.of(ai.id()));
     trackedWithoutHistory(TTE, "TTE");
     eodhd.failing(true);
+    EodhdMaintenance job = maintenance(15);
 
-    maintenance(15).run();
-
+    job.run();
     assertThat(eodhd.calls()).as("stops at the first failure").hasSize(1);
+    job.run();
+    job.run();
+    assertThat(eodhd.calls())
+        .as("a failed instrument waits for the next day, the others still get their turn")
+        .containsExactly("eod AI 2026-10-15 2026-10-15", "eod TTE 2025-10-19 2026-10-16");
     assertThat(queue.pending()).hasSize(1);
     assertThat(find(TTE).historyLoaded()).isFalse();
+
+    clock.set(MONDAY.plus(Duration.ofDays(1)));
+    eodhd.failing(false);
+    job.run();
+    assertThat(queue.pending()).isEmpty();
+    assertThat(find(TTE).historyLoaded()).isTrue();
+  }
+
+  @Test
+  void failedOrEmptyReferenceDataIsRetriedTheNextDayOnly() {
+    EodhdMaintenance job = maintenance(15);
+
+    job.run();
+    job.run();
+    assertThat(eodhd.calls()).as("empty list: a failure").containsExactly(REFERENCE_CALL);
+
+    clock.set(MONDAY.plus(Duration.ofDays(1)));
+    eodhd.reference(listed(AI, "AI", "Air Liquide"));
+    job.run();
+    assertThat(eodhd.calls()).hasSize(2);
+    assertThat(instruments.lastReferenceRefresh()).isPresent();
   }
 
   @Test
@@ -168,7 +200,7 @@ class EodhdMaintenanceIT {
 
   private EodhdMaintenance maintenance(int budget) {
     return new MaintenanceFactory(instruments, queue, usage, recorder)
-        .create(eodhd, clock, budget, new Listing(CW8, Mic.XPAR));
+        .create(eodhd, clock, budget, CW8);
   }
 
   private Instrument trackedWithoutHistory(Isin isin, String ticker) {
@@ -185,6 +217,6 @@ class EodhdMaintenanceIT {
   }
 
   private Instrument find(Isin isin) {
-    return instruments.findByListing(new Listing(isin, Mic.XPAR)).orElseThrow();
+    return instruments.search(isin.value(), 1).getFirst();
   }
 }

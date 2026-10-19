@@ -134,6 +134,8 @@ class MarketPersistenceIT {
         .containsExactly(total.id());
     assertThat(instruments.search("o", 2)).hasSize(2);
     assertThat(instruments.search("%", 20)).isEmpty();
+    assertThat(instruments.search("_", 20)).isEmpty();
+    assertThat(instruments.search("é\\", 20)).isEmpty();
   }
 
   @Test

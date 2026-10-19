@@ -30,11 +30,12 @@ public interface CatchUpQueue {
   List<CatchUpRequest> pending();
 
   /**
-   * Removes the entry of an instrument once caught up.
+   * Removes an entry once caught up, only if it was not widened meanwhile (the collection job may
+   * run at the same time): a widened entry stays for the next run.
    *
-   * @param instrument the instrument
+   * @param request the entry as it was read
    */
-  void remove(InstrumentId instrument);
+  void remove(CatchUpRequest request);
 
   /**
    * A period of closes to fetch for one instrument.

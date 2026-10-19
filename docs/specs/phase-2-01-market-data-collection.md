@@ -210,4 +210,10 @@ Constatés pendant l'implémentation (PR de la phase 2.1) ; le reste de la spec 
 | 5 | Règles MIC et type testées sur les **6 valeurs parisiennes** du panel. ASML (`XAMS`) n'apparaît pas dans la liste `PA` : `symbolOf` refuse les autres places (hors périmètre). | Les autres places Euronext sont hors périmètre. |
 | 7 | Benchmarks configurés au format `ISIN:MIC` (`investai.market.benchmarks`). | Le MIC fait partie de l'identifiant pivot. |
 | 9, 14 | Tant que le fichier contient l'ancienne séance, chaque essai horaire le télécharge à nouveau (au plus 10 par jour et par segment). | Pas de requête conditionnelle (`ETag` / `If-None-Match`) dans cette étape : point ouvert. |
+| 9, 13 | Une séance dont **un seul fichier** a été collecté est rattrapée par EODHD comme une séance manquée (après la séance suivante complète). | Le fichier de la veille n'est publié qu'un jour : sinon ses clôtures seraient perdues (revue Java). |
+| 13, 16 | Un appel EODHD en échec arrête le passage et **reporte la valeur au lendemain** (UTC) ; un référentiel en échec ou **vide** aussi. Le rattrapage est replanifié à chaque passage (idempotent), même si le processus s'est arrêté juste après la collecte. | Une valeur radiée (404 permanent) ne doit pas consommer tout le budget ni bloquer les autres. |
+| 8 | L'historique va jusqu'à la **séance précédente**, pas jusqu'à aujourd'hui. | La barre du jour peut encore bouger. |
+| 10 | Une transaction dans une **autre devise** que celle de l'instrument est ignorée et signalée ; les clôtures portent la devise de l'instrument. | Une série ne mélange jamais deux devises. |
+| 11 | Ligne CSV limitée à 16 Kio ; téléchargement limité à 10 min en tout (`investai.market.euronext.download-timeout`). | Revue sécurité : mémoire et job bloqué par un serveur lent. |
+| 15 | URL d'EODHD en `https` obligatoire (refus au démarrage) ; clé encodée en entier dans la query string. | La clé passe dans l'URL. |
 | 18 | Les jobs sont aussi coupés dans la stack de vérification (`npm run stack:start`, `INVESTAI_MARKET_JOBS_ENABLED=false`). | Base jetable : sinon chaque démarrage retéléchargerait les fichiers et consommerait le quota EODHD. |

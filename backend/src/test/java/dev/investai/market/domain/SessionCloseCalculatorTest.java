@@ -140,6 +140,23 @@ class SessionCloseCalculatorTest {
     assertThat(result.notStorable()).containsExactly(total.listing());
   }
 
+  @Test
+  void tradesInAnotherCurrencyThanTheInstrumentAreIgnoredAndReported() {
+    calculator.accept(
+        new MifirTrade(
+            TOTAL,
+            Instant.parse(SESSION + "T15:35:00Z"),
+            new BigDecimal("60"),
+            Currency.getInstance("USD"),
+            ORDER_BOOK,
+            Mic.XPAR));
+
+    SessionCloses result = calculator.result();
+
+    assertThat(result.closes()).isEmpty();
+    assertThat(result.otherCurrency()).containsExactly(total.listing());
+  }
+
   private static BigDecimal price(String value) {
     return new BigDecimal(value).setScale(Prices.SCALE);
   }

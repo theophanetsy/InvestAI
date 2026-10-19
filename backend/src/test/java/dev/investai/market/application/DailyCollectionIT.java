@@ -36,6 +36,7 @@ class DailyCollectionIT {
   private static final Instant MONDAY_MORNING = Instant.parse("2026-10-19T08:00:00Z");
   private static final LocalDate FRIDAY = LocalDate.parse("2026-10-16");
   private static final LocalDate THURSDAY = LocalDate.parse("2026-10-15");
+  private static final LocalDate WEDNESDAY = LocalDate.parse("2026-10-14");
   private static final Isin AI = isin("FR000012007");
   private static final Isin CW8 = isin("LU168104359");
   private static final String AI_FRIDAY_CLOSE_TIME = "2026-10-16T15:35:24Z";
@@ -139,8 +140,8 @@ class DailyCollectionIT {
 
   @Test
   void missedSessionsAreQueuedForCatchUpAfterASuccessfulCollection() {
-    LocalDate wednesday = LocalDate.parse("2026-10-14");
-    journal.recordFile(wednesday, TradeFileSegment.EQUITIES, 1, MONDAY_MORNING);
+    journal.recordFile(WEDNESDAY, TradeFileSegment.EQUITIES, 1, MONDAY_MORNING);
+    journal.recordFile(WEDNESDAY, TradeFileSegment.ETFS_FUNDS, 1, MONDAY_MORNING);
     instruments.markHistoryLoaded(airLiquide.id(), MONDAY_MORNING);
 
     collection.collect();
@@ -155,6 +156,33 @@ class DailyCollectionIT {
                 .query(String.class)
                 .single())
         .isEqualTo("EODHD");
+  }
+
+  @Test
+  void sessionWithASingleCollectedFileIsCaughtUpToo() {
+    // Wednesday: the ETF file never came (application stopped at 10:00), Thursday: nothing.
+    journal.recordFile(WEDNESDAY, TradeFileSegment.EQUITIES, 1, MONDAY_MORNING);
+    instruments.markHistoryLoaded(airLiquide.id(), MONDAY_MORNING);
+
+    collection.collect();
+
+    assertThat(queue.pending())
+        .containsExactly(new CatchUpRequest(airLiquide.id(), WEDNESDAY, THURSDAY));
+  }
+
+  @Test
+  void catchUpIsScheduledEvenWhenTheProcessStoppedRightAfterTheCollection() {
+    journal.recordFile(WEDNESDAY, TradeFileSegment.EQUITIES, 1, MONDAY_MORNING);
+    journal.recordFile(WEDNESDAY, TradeFileSegment.ETFS_FUNDS, 1, MONDAY_MORNING);
+    journal.recordFile(FRIDAY, TradeFileSegment.EQUITIES, 1, MONDAY_MORNING);
+    journal.recordFile(FRIDAY, TradeFileSegment.ETFS_FUNDS, 1, MONDAY_MORNING);
+    instruments.markHistoryLoaded(airLiquide.id(), MONDAY_MORNING);
+
+    assertThat(collection.collect()).isEqualTo(DailyCollection.Outcome.ALREADY_COLLECTED);
+
+    assertThat(queue.pending())
+        .containsExactly(new CatchUpRequest(airLiquide.id(), THURSDAY, THURSDAY));
+    assertThat(files.downloads()).isEmpty();
   }
 
   @Test

@@ -5,6 +5,7 @@ import dev.investai.market.domain.MifirTrade;
 import dev.investai.market.domain.TradeFileSegment;
 import dev.investai.market.domain.TradeFileSource;
 import java.net.URI;
+import java.time.Duration;
 import java.util.function.Consumer;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.client.RestClient;
@@ -22,10 +23,12 @@ final class EuronextTradeFiles implements TradeFileSource {
 
   private final RestClient rest;
   private final MifirFileReader reader;
+  private final Duration downloadTimeout;
 
-  private EuronextTradeFiles(RestClient rest, MifirFileReader reader) {
+  private EuronextTradeFiles(RestClient rest, MifirFileReader reader, Duration downloadTimeout) {
     this.rest = rest;
     this.reader = reader;
+    this.downloadTimeout = downloadTimeout;
   }
 
   /**
@@ -35,12 +38,19 @@ final class EuronextTradeFiles implements TradeFileSource {
    * @param baseUrl e.g. {@code https://marketdata.euronext.com}
    * @param userAgent identifiable user agent (spec 2.1, criterion 14)
    * @param reader the file reader
+   * @param downloadTimeout maximum duration of a whole download
    * @return the source
    */
   static EuronextTradeFiles create(
-      RestClient.Builder builder, URI baseUrl, String userAgent, MifirFileReader reader) {
+      RestClient.Builder builder,
+      URI baseUrl,
+      String userAgent,
+      MifirFileReader reader,
+      Duration downloadTimeout) {
     return new EuronextTradeFiles(
-        builder.baseUrl(baseUrl).defaultHeader(HttpHeaders.USER_AGENT, userAgent).build(), reader);
+        builder.baseUrl(baseUrl).defaultHeader(HttpHeaders.USER_AGENT, userAgent).build(),
+        reader,
+        downloadTimeout);
   }
 
   @Override
@@ -61,7 +71,10 @@ final class EuronextTradeFiles implements TradeFileSource {
                                 + " failed: HTTP "
                                 + response.getStatusCode().value());
                       }
-                      return reader.read(label, response.getBody(), trades);
+                      return reader.read(
+                          label,
+                          new DeadlineInputStream(response.getBody(), downloadTimeout),
+                          trades);
                     }));
   }
 }

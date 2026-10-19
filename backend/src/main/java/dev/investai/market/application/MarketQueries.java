@@ -2,12 +2,12 @@ package dev.investai.market.application;
 
 import dev.investai.market.domain.DailyClose;
 import dev.investai.market.domain.DailyPriceRepository;
+import dev.investai.market.domain.EuronextCalendar;
 import dev.investai.market.domain.Instrument;
 import dev.investai.market.domain.InstrumentId;
 import dev.investai.market.domain.InstrumentRepository;
 import dev.investai.market.domain.InvalidPriceRangeException;
 import dev.investai.market.domain.PriceRange;
-import dev.investai.market.domain.SessionCloseCalculator;
 import dev.investai.shared.domain.ResourceNotFoundException;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -73,14 +73,14 @@ public class MarketQueries {
    * @param from first session, default one year before {@code to}
    * @param to last session, default today
    * @return closes by ascending date
+   * @throws ResourceNotFoundException when the instrument is unknown (checked first)
    * @throws InvalidPriceRangeException when the period is invalid
-   * @throws ResourceNotFoundException when the instrument is unknown
    */
   public List<DailyClose> closes(
       InstrumentId id, @Nullable LocalDate from, @Nullable LocalDate to) {
-    LocalDate today = LocalDate.now(clock.withZone(SessionCloseCalculator.MARKET_ZONE));
-    PriceRange range = PriceRange.resolve(from, to, today);
+    LocalDate today = LocalDate.now(clock.withZone(EuronextCalendar.ZONE));
     find(id);
+    PriceRange range = PriceRange.resolve(from, to, today);
     return prices.findBetween(id, range.from(), range.to());
   }
 

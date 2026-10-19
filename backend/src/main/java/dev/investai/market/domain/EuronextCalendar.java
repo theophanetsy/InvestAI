@@ -3,6 +3,7 @@ package dev.investai.market.domain;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.MonthDay;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -12,6 +13,9 @@ import java.util.Set;
  * May, 25 and 26 December. Easter is computed (anonymous Gregorian algorithm), never hard-coded.
  */
 public final class EuronextCalendar {
+
+  /** Time zone of Euronext Paris: sessions are dates in this zone. */
+  public static final ZoneId ZONE = ZoneId.of("Europe/Paris");
 
   private static final int MIN_YEAR = 1900;
   private static final int MAX_YEAR = 2199;

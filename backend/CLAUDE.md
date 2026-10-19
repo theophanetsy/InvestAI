@@ -104,11 +104,19 @@ Un package par module métier sous `dev.investai` : `portfolio`, `market`, `assi
 - Persistance en **`JdbcClient`** (pas d'entité JPA) : upserts `ON CONFLICT` idempotents en lot,
   réservation atomique du budget (`INSERT … ON CONFLICT … WHERE calls < :limit RETURNING`).
   `timestamptz` lié en `OffsetDateTime` (`Timestamps`) : le driver PostgreSQL ne lie pas `Instant`.
-- Fuseaux : séances en `Europe/Paris` (`SessionCloseCalculator.MARKET_ZONE`), budget EODHD en
+- Fuseaux : séances en `Europe/Paris` (`EuronextCalendar.ZONE`), budget EODHD en
   jours **UTC** (comme le quota).
 - **Budget EODHD** : `CallBudget.tryReserve(...)` **avant** chaque appel ; ordre de priorité dans
-  `EodhdMaintenance` (rattrapage, historique, référentiel). Un échec arrête le passage, le travail
-  reste en file (`price_catch_up`, `history_loaded = false`).
+  `EodhdMaintenance` (rattrapage, historique, référentiel). Un échec arrête le passage et reporte
+  la valeur (ou le référentiel) **au lendemain UTC** : une erreur permanente (valeur radiée) ne doit
+  ni consommer tout le budget ni bloquer les autres ; le travail reste en file (`price_catch_up`,
+  `history_loaded = false`).
+- **Séance complète** = ses deux fichiers collectés, ou rattrapée par EODHD (`segment` nul). Une
+  séance à un seul fichier est rattrapée comme une séance manquée (`CollectionJournal.catchUpStart`).
+- **Les deux jobs peuvent tourner en même temps** (planificateur sur threads virtuels,
+  `spring.threads.virtual.enabled=true`) : un verrou par cas d'usage ne les sérialise pas entre
+  eux → transitions d'état sûres en base (`CatchUpQueue.remove` ne supprime qu'une entrée non
+  élargie entre-temps).
 - **Clé EODHD** : uniquement `INVESTAI_EODHD_API_KEY`, ajoutée sur la requête envoyée par
   `ApiTokenInterceptor` (l'URI connue de `RestClient` ne la contient jamais) ; tout appel passe par
   `HttpCalls.call`, qui ne garde ni message Spring, ni corps, ni cause (`RedactedCause` conserve la
@@ -216,6 +224,13 @@ Format : symptôme → cause → bonne pratique. Compléter à chaque étape (wo
   secret » déclenchée par `"api_token=" + key + "…"` dans un test → `String.join("=", "api_token", key)`.
 - **PMD `UnitTestShouldIncludeAssert`** ne voit pas `then(mock).should()` (BDDMockito) →
   `Mockito.verify(...)` quand le test n'a pas d'autre assertion.
+- **Clé EODHD visible par une instrumentation du client HTTP du JDK** : l'intercepteur la cache à
+  `RestClient`, pas à la requête envoyée → en Phase 3 (OpenTelemetry), masquer `api_token` dans
+  `url.full` ou désactiver l'instrumentation `java-http-client`, avec un test sur un span exporté ;
+  ne jamais activer `-Djdk.httpclient.HttpClient.log`.
+- **`@Scheduled` en parallèle** : avec les threads virtuels, Boot fournit un
+  `SimpleAsyncTaskScheduler` → deux tâches planifiées s'exécutent simultanément (pas de thread
+  unique) → protéger chaque cas d'usage et rendre les écritures concurrentes sûres.
 - **`@RequestParam LocalDate`** : sans `@DateTimeFormat(iso = ISO.DATE)`, le format attendu dépend
   de la locale → toujours l'annoter. Une URL de test avec `/` final (`/instruments/?query=`) donne 404.
 

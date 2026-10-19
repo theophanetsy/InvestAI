@@ -40,6 +40,17 @@ class JdbcCollectionJournal implements CollectionJournal {
       WHERE c.source = 'EODHD' AND c.trading_date BETWEEN :from AND :to
       """;
 
+  /** Complete: caught up (segment null), or one row per segment. */
+  private static final String CATCH_UP_START =
+      """
+      SELECT coalesce(
+        (SELECT max(trading_date) + 1 FROM (
+           SELECT trading_date FROM market_collection WHERE trading_date < :session
+           GROUP BY trading_date
+           HAVING bool_or(segment IS NULL) OR count(DISTINCT segment) = :segments) complete),
+        (SELECT min(trading_date) FROM market_collection WHERE trading_date < :session))
+      """;
+
   private static final String SESSION = "session";
 
   private final JdbcClient jdbc;
@@ -93,9 +104,10 @@ class JdbcCollectionJournal implements CollectionJournal {
   }
 
   @Override
-  public Optional<LocalDate> lastSessionBefore(LocalDate session) {
-    return jdbc.sql("SELECT max(trading_date) FROM market_collection WHERE trading_date < :session")
+  public Optional<LocalDate> catchUpStart(LocalDate session) {
+    return jdbc.sql(CATCH_UP_START)
         .param(SESSION, session)
+        .param("segments", TradeFileSegment.values().length)
         .query((rs, row) -> Optional.ofNullable(rs.getDate(1)))
         .single()
         .map(Date::toLocalDate);

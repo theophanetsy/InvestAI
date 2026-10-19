@@ -25,6 +25,8 @@ final class AnomalyReport {
         session,
         result.tradedElsewhereOnly());
     logEach("Close has more than 4 decimal places, not stored", session, result.notStorable());
+    logEach(
+        "Trades in another currency than the instrument, ignored", session, result.otherCurrency());
   }
 
   private static void logEach(String anomaly, LocalDate session, Set<Listing> listings) {

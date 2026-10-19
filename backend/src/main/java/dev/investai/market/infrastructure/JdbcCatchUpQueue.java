@@ -64,9 +64,13 @@ class JdbcCatchUpQueue implements CatchUpQueue {
   }
 
   @Override
-  public void remove(InstrumentId instrument) {
-    jdbc.sql("DELETE FROM price_catch_up WHERE instrument_id = :id")
-        .param("id", instrument.value())
+  public void remove(CatchUpRequest request) {
+    jdbc.sql(
+            "DELETE FROM price_catch_up"
+                + " WHERE instrument_id = :id AND from_date = :from AND to_date = :to")
+        .param("id", request.instrumentId().value())
+        .param("from", request.from())
+        .param("to", request.to())
         .update();
   }
 }

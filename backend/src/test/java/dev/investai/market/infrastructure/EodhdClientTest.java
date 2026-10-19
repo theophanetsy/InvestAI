@@ -87,6 +87,20 @@ class EodhdClientTest {
   }
 
   @Test
+  void keyIsFullyEncodedInTheQueryString() {
+    RestClient.Builder other = RestClient.builder();
+    MockRestServiceServer otherServer = MockRestServiceServer.bindTo(other).build();
+    String special = "a+b&c=d";
+    otherServer
+        .expect(requestTo(Matchers.endsWith("api_token=a%2Bb%26c%3Dd")))
+        .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
+
+    EodhdClient.create(other, BASE_URL, special, USER_AGENT).referenceData();
+
+    otherServer.verify();
+  }
+
+  @Test
   void dailyClosesUseTheRawCloseNeverTheAdjustedOne() {
     server
         .expect(requestTo(Matchers.startsWith(BASE_URL + "/eod/AI.PA")))

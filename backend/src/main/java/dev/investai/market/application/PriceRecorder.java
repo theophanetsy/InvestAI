@@ -96,7 +96,7 @@ public class PriceRecorder {
   @Transactional
   public void recordCatchUp(CatchUpRequest request, List<DailyClose> closes) {
     record(closes);
-    queue.remove(request.instrumentId());
+    queue.remove(request);
     journal.refreshCatchUpCounts(request.from(), request.to());
   }
 

@@ -181,6 +181,15 @@ class MifirFileReaderTest {
   }
 
   @Test
+  void lineWithoutEndIsRejectedBeforeFillingTheMemory() {
+    String content = csv() + "x".repeat(100_000);
+
+    assertThatThrownBy(() -> read(zip(content)))
+        .isInstanceOf(MarketDataUnavailableException.class)
+        .hasMessageContaining("line too long");
+  }
+
+  @Test
   void notAZipFails() {
     assertThatThrownBy(() -> read("not a zip".getBytes(StandardCharsets.UTF_8)))
         .isInstanceOf(MarketDataUnavailableException.class);

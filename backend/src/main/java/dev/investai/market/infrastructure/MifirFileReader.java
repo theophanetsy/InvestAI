@@ -6,7 +6,6 @@ import dev.investai.market.domain.Mic;
 import dev.investai.market.domain.MifirTrade;
 import dev.investai.market.domain.SessionCloseCalculator;
 import dev.investai.market.domain.TradeFileSource;
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -36,6 +35,9 @@ final class MifirFileReader {
 
   private static final String CSV_EXTENSION = ".csv";
 
+  /** A MiFIR line is about 250 characters, the copyright notice about 520. */
+  private static final int MAX_LINE_LENGTH = 16_384;
+
   private final long maxUncompressedBytes;
 
   /**
@@ -61,6 +63,8 @@ final class MifirFileReader {
       return readArchive(label, zip, trades);
     } catch (BoundedInputStream.LimitExceededException ex) {
       throw failure(label, "uncompressed size limit exceeded", ex);
+    } catch (BoundedLineReader.LineTooLongException ex) {
+      throw failure(label, "line too long", ex);
     } catch (IOException ex) {
       throw failure(label, "read failed (" + ex.getClass().getSimpleName() + ")", ex);
     }
@@ -86,7 +90,8 @@ final class MifirFileReader {
   private TradeFileSource.Summary readCsv(
       String label, InputStream csv, Consumer<MifirTrade> trades) throws IOException {
     // Not closed here: closing would close the ZIP stream before its next entry is checked.
-    BufferedReader lines = new BufferedReader(new InputStreamReader(csv, StandardCharsets.UTF_8));
+    BoundedLineReader lines =
+        new BoundedLineReader(new InputStreamReader(csv, StandardCharsets.UTF_8), MAX_LINE_LENGTH);
     lines.readLine(); // copyright notice
     String header = lines.readLine();
     if (header == null) {
