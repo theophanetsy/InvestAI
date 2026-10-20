@@ -136,6 +136,22 @@ public final class IndicatorCalculator {
   }
 
   /**
+   * Correlation of the daily returns of two series of the same sessions (e.g. two lines of a
+   * portfolio), at scale 2.
+   *
+   * @param first values of the first series
+   * @param second values of the second series
+   * @return the correlation; insufficient when either series is, not computable when either never
+   *     moves
+   */
+  public static Indicator correlation(ClosingPrices first, ClosingPrices second) {
+    if (!first.sufficient() || !second.sufficient()) {
+      return Indicator.INSUFFICIENT_HISTORY;
+    }
+    return coefficient(first.dailyReturns().correlation(second.dailyReturns()));
+  }
+
+  /**
    * Mean daily traded amount (Euronext close × volume) over the sessions of a window that have one,
    * at scale 2; needs a known amount on at least 80 % of the sessions.
    *
