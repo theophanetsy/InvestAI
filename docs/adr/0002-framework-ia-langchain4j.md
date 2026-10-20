@@ -1,6 +1,7 @@
 # 0002 — Framework IA : LangChain4j
 
-- **Statut** : Accepté
+- **Statut** : Remplacé par [0010](0010-ia-via-mcp-uniquement.md) (2026-10-20, voir la mise à jour
+  en fin de document)
 - **Date** : 2026-10-13
 
 ## Contexte
@@ -39,3 +40,17 @@ Spring Boot) sont acceptés, avec trois garde-fous :
   `application` ne voient que des ports : changer de framework ne touche que les adaptateurs.
 - Une API beta qui casse lors d'une montée de version est corrigée dans l'adaptateur, jamais en
   contournant un contrôle qualité.
+
+## Mise à jour — 2026-10-20 : remplacé par l'ADR-0010
+
+Le propriétaire a décidé que l'IA ne doit rien lui coûter au-delà de son abonnement Claude.
+L'application n'aura donc ni agent intégré ni appel à l'API Anthropic : elle expose un serveur
+MCP, branché sur Claude Desktop ou Claude Code ([ADR-0010](0010-ia-via-mcp-uniquement.md)).
+
+- **Abandonné** :
+  - LangChain4j, qui n'a jamais été ajouté au `pom.xml` ;
+  - l'agent conversationnel, sa mémoire et le streaming ;
+  - l'agent planifié des news ;
+  - l'observabilité des appels au modèle.
+- **Conservé** : le confinement de la bibliothèque d'IA dans `..infrastructure..` (règle
+  ArchUnit), appliqué à la bibliothèque MCP choisie par l'ADR-0010.
