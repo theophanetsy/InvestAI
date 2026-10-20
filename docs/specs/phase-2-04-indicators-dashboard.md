@@ -112,15 +112,23 @@ propriétaire) : corrigé en « Non ajustée ».
 - **Volatilité** : écart-type **échantillon** (n − 1) des rendements disponibles sur un an × √252,
   en %. **Pire baisse** : plus forte chute d'un plus haut vers un plus bas ultérieur parmi les
   clôtures disponibles de l'année, en % (≤ 0).
-- **Surperformance** : performance à un an de la valeur moins celle de l'ETF, en points (calculée
-  sur les performances non arrondies). **Corrélation** (Pearson) et **bêta** (covariance / variance
+- **Surperformance** : performance à un an de la valeur moins celle de l'ETF, en points, toutes
+  deux mesurées sur la **même période** (de la première à la dernière séance où les deux ont une
+  clôture), sur les valeurs non arrondies. **Corrélation** (Pearson) et **bêta** (covariance / variance
   de l'ETF) : sur les séances où les deux rendements existent. Une série constante rend la
   corrélation `NOT_COMPUTABLE` (le bêta d'une valeur constante vaut 0, celui contre un ETF
   constant est `NOT_COMPUTABLE`).
 - **Liquidité** : moyenne de clôture × volume sur les 63 dernières séances, **volumes Euronext
-  uniquement** (définition différente chez EODHD, spec 2.2), dans la devise de la valeur ; il faut
-  un volume Euronext sur 80 % des 63 séances (51). Conséquence : « historique insuffisant » pour
-  toutes les valeurs jusqu'à environ trois mois de collecte après la mise en service de la 2.2.
+  uniquement** (définition différente chez EODHD, spec 2.2), dans la devise de la valeur. Une
+  séance dont les **deux fichiers Euronext ont été collectés** (journal `market_collection`) mais
+  où la valeur n'a aucune clôture compte pour **0** (aucun échange) : sans cela, une valeur peu
+  échangée paraîtrait plus liquide qu'elle ne l'est. Une séance non collectée, ou une clôture au
+  volume illisible ou venant d'EODHD, est inconnue ; il faut 80 % de séances connues (51 sur 63).
+  Conséquence : « historique insuffisant » pour toutes les valeurs jusqu'à environ trois mois de
+  collecte après la mise en service de la 2.2.
+- **Valeurs peu échangées** : une séance sans échange n'a pas de clôture, ce qui supprime deux
+  rendements ; leur **volatilité est donc sous-estimée** (le mouvement qui enjambe la séance n'est
+  pas compté). Limite assumée, à rappeler à l'agent avec la liquidité.
 - **Précision** : prix et ratios de prix en `BigDecimal` (`MathContext.DECIMAL64`), arrondis
   HALF_EVEN à 2 décimales (pourcentages, montants) ; statistiques des rendements (volatilité,
   corrélation, bêta) en `double`, puis arrondies HALF_EVEN à 2 décimales. Tout est exposé en
@@ -136,9 +144,12 @@ propriétaire) : corrigé en « Non ajustée ».
 - `IndicatorComputation.refresh()` est appelé par les jobs du marché **après** la collecte
   Euronext (même si rien n'est collecté) et après la maintenance EODHD (historique chargé, séance
   rattrapée) ; désactivé dans les tests comme les autres jobs. **Idempotent** : rien n'est calculé
-  si la dernière exécution couvre déjà `asOf` et qu'aucune clôture n'a été écrite depuis ; sinon
-  toutes les lignes sont remplacées (upsert en lot, une transaction). Horodaté au **début** du
-  calcul : une clôture écrite pendant le calcul déclenche un nouveau calcul au passage suivant.
+  si la dernière exécution couvre déjà `asOf` (ramenée à une séance du calendrier : une clôture
+  datée d'un samedi ne relance pas le calcul à chaque passage) et qu'aucune clôture n'a été écrite
+  depuis ; sinon toutes les lignes sont remplacées (upsert en lot, une transaction). Horodaté au
+  **début** du calcul, avec une **marge de 10 min** : une clôture est horodatée avant la validation
+  de sa transaction, donc une écriture datée de moins de 10 min avant un calcul déclenche un
+  nouveau calcul au passage suivant (~2 s de plus) au lieu d'être ignorée jusqu'au lendemain.
   Verrou par cas d'usage (`tryLock`, comme la collecte). Clôtures lues par lots de 200 valeurs.
 - **Mesures** (`IndicatorPerformanceIT`, 1 300 actions + 2 ETF × 253 séances = 337 218 clôtures
   synthétiques, PostgreSQL Testcontainers, poste Windows du propriétaire) : calcul complet
@@ -178,6 +189,9 @@ propriétaire) : corrigé en « Non ajustée ».
   série du portefeuille. Lignes **exclues et signalées** (`exclusion`) : `NOT_VALUED` (pas de
   clôture en euros) ou `INSUFFICIENT_HISTORY` (moins de 80 % des clôtures de l'année). Sans aucune
   ligne retenue : `INSUFFICIENT_HISTORY` si une ligne manque d'historique, `NOT_COMPUTABLE` sinon.
+  Des lignes suffisantes une à une peuvent ne pas l'être ensemble (trous à des séances
+  différentes) : le risque du portefeuille est alors `INSUFFICIENT_HISTORY` sans ligne exclue, et
+  le dashboard l'annonce.
 - **Courbe base 100** : à partir de la première séance où le portefeuille et chaque ETF d'historique
   suffisant ont une valeur ; un ETF d'historique insuffisant est absent de la courbe ; un trou reste
   un trou. **Matrice de corrélations** entre les lignes retenues, dans l'ordre d'affichage.
@@ -191,8 +205,10 @@ propriétaire) : corrigé en « Non ajustée ».
 - Page « Tableau de bord » : cartes (valeur totale et date des cours, risque, concentration,
   répartition), avertissements (lignes exclues, historique insuffisant, mention permanente
   « cours possiblement non ajustés »), courbe, tableau des lignes (performances 1/3/6/12 mois,
-  volatilité, pire baisse, bêta MSCI World, prise en compte dans le risque), matrice de
-  corrélations ; invitation vers « Mon portefeuille » sans ligne déclarée.
+  volatilité, pire baisse, écart en points, corrélation et bêta face à chaque ETF, échanges
+  quotidiens moyens, prise en compte dans le risque), matrice de corrélations ; invitation vers
+  « Mon portefeuille » sans ligne déclarée. Tableaux larges dans des zones défilantes atteignables
+  au clavier, titres hors de la zone défilante.
 - **Courbe en SVG dessiné à la main, sans dépendance** : titre et description reliés
   (`role="img"`, `aria-labelledby`, `aria-describedby`), tableau des 253 valeurs dans un
   `<details>`, séries distinguées par le motif du trait (plein, tirets, pointillés) en plus de la
@@ -200,6 +216,37 @@ propriétaire) : corrigé en « Non ajustée ».
   `--mat-sys-secondary` plutôt que `tertiary`, égal au primaire avec une seule palette). Les séances
   sont régulièrement espacées en abscisse (pas le temps calendaire). Les valeurs base 100 ne
   deviennent des nombres que pour placer les points ; tout chiffre affiché reste la chaîne de l'API.
+
+### Revues et vérification dans la vraie application
+
+- **`java-reviewer`** : calculs refaits à la main et justes. Corrigés à sa demande : surperformance
+  sur la période commune, séances collectées sans échange comptées à 0 pour la liquidité, marge de
+  10 min et séance normalisée pour le critère de fraîcheur, quantités d'un même instrument
+  additionnées, noms harmonisés (`averageDailyTradedAmount`), tests ajoutés (calcul concurrent
+  `BUSY`, première clôture disponible, dernière séance manquante, portefeuille dont les lignes ne
+  se recouvrent pas, paramètres invalides). Un test cassé et 15 remarques PMD corrigés (le
+  `verify` lancé en arrière-plan avait été lu à tort comme vert).
+- **`angular-reviewer`** : point isolé de la courbe dessiné (segment de longueur nulle, extrémités
+  rondes), ancrage des dates, ETF sans valeurs gardé dans la légende (« non disponible »), zones
+  défilantes atteignables au clavier, devise explicite pour les montants, toutes les colonnes de la
+  spec dans le tableau des lignes, libellés lisibles sur téléphone, nom accessible court pour le
+  SVG (la légende de la figure le nomme déjà), test de contraste 3:1 en thème clair et sombre.
+- **`security-reviewer`** : aucun constat élevé ou moyen. Matrice de corrélations calculée une fois
+  par paire avec les rendements mis en cache, recherche de séance en O(1). Reportés en points
+  ouverts : plafond du nombre de lignes déclarées, isolement d'une valeur en échec dans le calcul
+  quotidien, consignes pour les tools de la Phase 3.
+- **Vérification dans la vraie application** (`app-verifier`, stack jetable, données de marché
+  **synthétiques** insérées en base : 6 instruments fictifs ou aux prix générés, 253 séances) :
+  parcours 2.3 (profil, recherche avec badges d'éligibilité, ajout, modification, correction
+  d'éligibilité et suppression de lignes, espèces, doublon) et dashboard 2.4 (cartes,
+  avertissements, courbe et ses données avec le trou d'une séance manquante, tableau des lignes,
+  matrice, état vide, téléphone 390 px) **conformes**, chiffres recalculés à la main (total,
+  Herfindahl, base 100). Anomalies mineures corrigées : espace manquante avant « (espèces
+  comprises) » (2.3), en-tête « Valeur » mal aligné et titre du tableau coupé sur téléphone (2.4).
+  Les dialogues signalés sans nom l'ont bien (l'E2E vérifie leur nom accessible). Restent en points
+  ouverts : aide du champ « exclusions » qui chevauche le libellé suivant, champ « Quantité » en
+  erreur après un ajout validé par Entrée dans ce champ, montants relus sans séparateur de milliers
+  (formulaires 2.3).
 
 ### Points ouverts
 
@@ -209,3 +256,16 @@ propriétaire) : corrigé en « Non ajustée ».
 - Liquidité indisponible tant que trois mois de volumes Euronext ne sont pas collectés.
 - Le filtre n'a pas de critère de type (action / ETF) : à ajouter si l'agent en a besoin.
 - Pas d'écran pour le filtre de tout Paris (utilisé par l'agent en Phase 3).
+- **Sécurité** : pas de plafond du nombre de lignes déclarées (le calcul à la demande est
+  quadratique en nombre de lignes pour la matrice) ; une exception imprévue sur une valeur ferait
+  échouer tout le calcul quotidien (non atteignable aujourd'hui : prix bornés par le schéma).
+- **Phase 3 (tools de l'agent)** : noms d'instruments = données non fiables, à transmettre
+  délimitées par une projection dédiée (pas les DTO REST) ; une cotation aberrante ou une division
+  place une valeur en tête du tri par performance (indicateur de plausibilité à prévoir) ; résumé
+  du portefeuille sans la courbe ; toujours transmettre `asOf` et `computedAt`.
+- **Convention de la séance de référence** : quand elle manque, la performance part de la première
+  clôture **dans** la fenêtre (période raccourcie) plutôt que de la dernière clôture **avant**
+  elle (convention de marché) ; à confirmer par le propriétaire.
+- **Date de valorisation** : les poids et le total viennent de la dernière clôture (parfois celle
+  du jour, EODHD le soir), le risque et la courbe s'arrêtent à `asOf` (veille) : à exposer si
+  l'écart gêne.

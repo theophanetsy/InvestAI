@@ -91,6 +91,9 @@ src/app/
   couleur, couleurs `--mat-sys-*` (clair / sombre automatiques). Seule exception à « jamais de
   `number` » : convertir une valeur pour placer un point (`toNumbers`), jamais pour un chiffre
   affiché.
+- **Tableau large** : dans une zone `overflow: auto` atteignable au clavier (`tabindex="0"`,
+  `role="region"`, `aria-label`), titre **hors** de la zone (`<p id>` + `aria-labelledby` sur la
+  table) pour qu'il reste lisible sur téléphone.
 - Sélecteurs préfixés `inv-`. Texte UI en français.
 - Limites ESLint : complexité ≤ 10, fichier ≤ 300 lignes, profondeur ≤ 3, ≤ 4 paramètres.
 
@@ -260,6 +263,9 @@ Format : symptôme → cause → bonne pratique. Compléter à chaque étape (wo
   avertissement → toujours ajouter `--no-warn-ignored` quand on lint une liste de fichiers
   (hook Stop, Lefthook).
 
+- **Texte collé à l'élément précédent** (« 0,00 €(espèces comprises) ») : Angular supprime le blanc
+  seul entre deux éléments (`preserveWhitespaces: false`), et `&ngsp;` n'y a rien changé → mettre
+  l'espace dans l'élément (`<span>&nbsp;(…)</span>`), test de non-régression sur le texte.
 - **`Array.prototype.findLast` / `toReversed` refusés par `tsc`** : lib ES2023 absente (tsconfig
   protégé) → `[...values].reverse().find(...)`.
 - **Deux séries de même couleur dans le thème sombre** : avec une seule palette

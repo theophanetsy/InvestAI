@@ -202,6 +202,15 @@ Un package par module métier sous `dev.investai` : `portfolio`, `market`, `assi
   demande). Le filtre lit la table et filtre en mémoire (éligibilité PEA résolue en Java). Les
   indicateurs du portefeuille sont calculés à la demande (`PortfolioQueries.indicators`), pas
   stockés. Les tools de l'agent (Phase 3) liront `IndicatorQueries` et `PortfolioQueries`.
+- **Choix à ne pas défaire sans relire la spec** : surperformance sur les séances communes à la
+  valeur et à l'ETF ; liquidité = séances collectées par Euronext (`CollectionJournal.
+  euronextSessions`) sans clôture comptées à 0, séances inconnues exclues ; fraîcheur avec une
+  marge `IndicatorComputation.WRITE_GRACE` (10 min, une clôture est horodatée avant le commit de
+  sa transaction) et `asOf` ramené à une séance du calendrier.
+- **Pour les tools de l'agent (Phase 3)** : projection dédiée (pas les DTO REST) avec les noms
+  d'instruments délimités (données non fiables), `asOf` et `computedAt` toujours transmis, limites
+  rappelées (clôtures brutes, volatilité sous-estimée des valeurs peu échangées, cotation aberrante
+  possible en tête du tri par performance), résumé du portefeuille sans la courbe.
 - **Indices** : `investai.market.indicators.msci-world` / `.cac40` doivent être dans
   `investai.market.benchmarks` (vérifié au démarrage par `MarketConfiguration.indicatorSettings`).
 - **Tests** : séries synthétiques dont chaque valeur attendue est dérivée à la main dans le
@@ -395,9 +404,6 @@ Format : symptôme → cause → bonne pratique. Compléter à chaque étape (wo
 - **NullAway « initializer method does not guarantee @NonNull fields »** dans un test : champ
   affecté dans une méthode d'aide appelée par certains tests seulement → l'affecter dans le
   `@BeforeEach`.
-- **Testcontainers « Could not find a valid Docker environment »** sur le poste Windows : Docker
-  Desktop arrêté (le moteur `dockerDesktopLinuxEngine` est absent) → le démarrer
-  (`%LOCALAPPDATA%\Programs\DockerDesktop\Docker Desktop.exe`) et attendre `docker info`.
 - **Lancer quelques IT sans `verify`** (qui échoue sur la couverture JaCoCo partielle) :
   `./mvnw test-compile failsafe:integration-test failsafe:verify -Dit.test='XxxIT'`. Le contrat
   `target/openapi.json` s'obtient de même avec `-Dit.test=OpenApiContractIT`, puis
