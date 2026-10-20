@@ -16,7 +16,7 @@ Limite assumée : aucun modèle ne prédit de façon fiable quelles actions vont
 
 Décisions prises :
 - **Stack** : Java 25 + Spring Boot 4, Angular 22 (standalone, signals, zoneless), PostgreSQL 18, monorepo ([ADR-0001](adr/0001-stack-technique.md)).
-- **IA** : **serveur MCP uniquement** ([ADR-0010](adr/0010-ia-via-mcp-uniquement.md), proposé ; remplace l'[ADR-0002](adr/0002-framework-ia-langchain4j.md) LangChain4j).
+- **IA** : **serveur MCP uniquement** ([ADR-0010](adr/0010-ia-via-mcp-uniquement.md), accepté le 2026-10-20 ; remplace l'[ADR-0002](adr/0002-framework-ia-langchain4j.md) LangChain4j).
   - L'application n'appelle jamais l'API Anthropic : pas de clé d'API IA, pas de chat intégré, pas d'agent planifié. **Budget IA : 0 €** au-delà de l'abonnement Claude du propriétaire.
   - Le modèle est celui de l'abonnement, choisi dans le client.
 - **Hébergement** : local d'abord, cloud en dernière phase.
@@ -28,9 +28,7 @@ Décisions prises :
 - L'ancienne Phase 6 (MCP) est fusionnée dans la Phase 3, qui devient « Conseil via MCP ».
 - L'ancienne Phase 7 (évaluations avancées par l'API) est réécrite sans API : c'est la nouvelle Phase 6.
 - Les anciennes phases 8, 9 et 10 deviennent les phases 7, 8 et 9.
-- Quelques commentaires du code citent encore l'ancienne numérotation ou le chat. Ils seront corrigés avec le code qu'ils accompagnent, en Phase 3 :
-  - « phase 10 » pour ShedLock dans `MarketJobs` ;
-  - pages Angular « Bientôt disponible » de l'assistant, de l'Actu et de la Simulation.
+- Les commentaires du code et les pages qui citaient l'ancienne numérotation ou le chat ont été corrigés en 3.0 (ShedLock « phase 9 » dans `MarketJobs`, page Assistant sans chat, Actu en Phase 4, Simulation en Phase 5).
 
 Principe directeur : **chaque phase se termine par une app qui tourne, CI verte, quality gate passé**. Aucune ligne de code métier avant que la Phase 0 soit en place.
 
@@ -52,7 +50,9 @@ Principe directeur : **chaque phase se termine par une app qui tourne, CI verte,
 | Phase 2.2 — Clôtures de toutes les valeurs de Paris ([spec](specs/phase-2-02-all-paris-closes.md)) | ✅ Terminée (PR #19) |
 | Phase 2.3 — Profil investisseur, portefeuille déclaré, éligibilité PEA ([spec](specs/phase-2-03-profile-portfolio.md)) | ✅ Terminée (PR #20) ; vérifiée dans la vraie application pendant la 2.4 (anomalies mineures : #21) |
 | Phase 2.4 — Indicateurs calculés et dashboard ([spec](specs/phase-2-04-indicators-dashboard.md)) | ✅ Terminée (PR #22) ; points ouverts tranchés le 2026-10-20 (séance de référence, plausibilité reportée) |
-| **Phase 3 — Conseil via MCP** ([ADR-0010](adr/0010-ia-via-mcp-uniquement.md)) | ⏳ À démarrer : ADR-0010 à valider par le propriétaire |
+| **Phase 3 — Conseil via MCP** ([ADR-0010](adr/0010-ia-via-mcp-uniquement.md)) | ⏳ En cours : ADR-0010 accepté le 2026-10-20 |
+| Phase 3.0 — Squelette du serveur MCP ([spec](specs/phase-3-00-mcp-server.md)) | ✅ Terminée (PR #24) : `/mcp` sécurisé, outil `getHealth`, passerelle Claude Desktop, [modèle de menace](security/ai-threat-model.md) |
+| Phase 3.0b — Observabilité des appels d'outils | ⏳ À faire (sortie de la 3.0) |
 
 ---
 
@@ -156,9 +156,6 @@ n'appelle jamais de modèle.
   - Claude Code : `claude mcp add --transport http`, en portée utilisateur, **jamais dans le
     `.mcp.json` du dépôt** ;
   - Claude Desktop : passerelle stdio locale.
-- **Observabilité des appels d'outils** : Micrometer et OpenTelemetry vers Grafana LGTM (un
-  conteneur dans le compose), traces client MCP → outil → base corrélées au `requestId`. Les
-  appels au modèle restent invisibles : ils se font côté Claude.
 - **Modèle de menace IA** (OWASP Top 10 LLM), rédigé avant le premier outil métier dans
   `docs/security/` :
   - données non fiables (noms d'instruments, texte libre du profil, news) ;
@@ -166,6 +163,18 @@ n'appelle jamais de modèle.
   - futur outil d'écriture (Phase 5).
 - **Tests** d'intégration du point `/mcp` : 401 sans jeton, 403 avec `Origin`, cookie de session
   refusé, liste d'outils figée.
+- Spec : [phase-3-00-mcp-server.md](specs/phase-3-00-mcp-server.md).
+
+### 3.0b — Observabilité des appels d'outils
+
+Sortie de la 3.0 pour ne pas alourdir le squelette (dépendances, conteneur, masquage de la clé
+EODHD dans les spans) :
+
+- Micrometer et OpenTelemetry vers Grafana LGTM (un conteneur dans le compose), traces client
+  MCP → outil → base corrélées au `requestId`.
+- **Masquer `api_token` (clé EODHD)** dans les spans du client HTTP du JDK, ou désactiver cette
+  instrumentation, avec un test sur un span exporté (piège de `backend/CLAUDE.md`).
+- Les appels au modèle restent invisibles : ils se font côté Claude.
 
 ### 3.1 — Outils en lecture et consignes de conseil
 

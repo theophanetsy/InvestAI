@@ -2,7 +2,9 @@ package dev.investai.architecture;
 
 import static com.tngtech.archunit.base.DescribedPredicate.not;
 import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAPackage;
+import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAnyPackage;
 import static com.tngtech.archunit.core.domain.JavaClass.Predicates.simpleName;
+import static com.tngtech.archunit.core.domain.JavaClass.Predicates.simpleNameEndingWith;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noFields;
@@ -36,6 +38,8 @@ class ArchitectureTest {
   static final String INFRASTRUCTURE = "..infrastructure..";
   static final String API = "..api..";
   static final String JPA = "jakarta.persistence..";
+  static final String MCP_SDK = "io.modelcontextprotocol..";
+  static final String SPRING_AI = "org.springframework.ai..";
 
   @ArchTest
   static final ArchRule ENTITIES_LIVE_IN_INFRASTRUCTURE =
@@ -79,7 +83,8 @@ class ArchitectureTest {
               JPA,
               "tools.jackson..",
               "com.fasterxml.jackson..",
-              "dev.langchain4j..")
+              "dev.langchain4j..",
+              MCP_SDK)
           .because("the domain model must stay pure Java and testable in isolation");
 
   @ArchTest
@@ -144,6 +149,40 @@ class ArchitectureTest {
                           .and(not(simpleName("IndicatorResponse")))
                           .and(not(simpleName("IndicatorsResponse")))))
           .because("a module calls another one through its application package");
+
+  /**
+   * The MCP library (ADR-0010) is an adapter detail, like JPA: tools live in {@code infrastructure}
+   * and call use cases.
+   */
+  @ArchTest
+  static final ArchRule ONLY_INFRASTRUCTURE_USES_MCP =
+      noClasses()
+          .that()
+          .resideOutsideOfPackage(INFRASTRUCTURE)
+          .should()
+          .dependOnClassesThat()
+          .resideInAnyPackage(MCP_SDK, SPRING_AI)
+          .because("the MCP library is confined to adapters (ADR-0010)");
+
+  /**
+   * The assistant (MCP tools, phase 3) reads the other modules through their use cases only: never
+   * their repositories (domain ports), adapters or controllers. The shared kernel ({@code
+   * shared.api.RequestIdFilter}, logging) is allowed.
+   */
+  @ArchTest
+  static final ArchRule ASSISTANT_USES_OTHER_MODULES_THROUGH_THEIR_APPLICATION =
+      noClasses()
+          .that()
+          .resideInAPackage("dev.investai.assistant..")
+          .should()
+          .dependOnClassesThat(
+              not(resideInAnyPackage("dev.investai.assistant..", "dev.investai.shared.."))
+                  .and(
+                      resideInAnyPackage("dev.investai.*.infrastructure..", "dev.investai.*.api..")
+                          .or(
+                              resideInAPackage("dev.investai..")
+                                  .and(simpleNameEndingWith("Repository")))))
+          .because("MCP tools call use cases, never repositories (ADR-0010)");
 
   @ArchTest
   static final ArchRule NO_FIELD_INJECTION =

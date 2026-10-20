@@ -11,6 +11,6 @@
 | [0007](0007-authentification-mono-utilisateur.md) | Authentification mono-utilisateur : session, CSRF, identifiants hors du code | Accepté |
 | [0008](0008-bibliotheque-ui-angular-material.md) | Bibliothèque UI : Angular Material | Accepté |
 | [0009](0009-fournisseur-donnees-marche.md) | Données de marché : fichiers différés Euronext (MiFIR) + EODHD gratuit | Accepté |
-| [0010](0010-ia-via-mcp-uniquement.md) | IA via un serveur MCP uniquement (Claude Desktop / Claude Code, sans appel à l'API) | Proposé |
+| [0010](0010-ia-via-mcp-uniquement.md) | IA via un serveur MCP uniquement (Claude Desktop / Claude Code, sans appel à l'API) | Accepté |
 
 Créer un nouvel ADR : commande `/new-adr <titre>` (modèle : [template.md](template.md)).

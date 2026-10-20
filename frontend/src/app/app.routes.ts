@@ -34,7 +34,7 @@ export const routes: Routes = [
       {
         path: 'assistant',
         title: 'Assistant · InvestAI',
-        loadComponent: () => import('./features/chat/chat').then((m) => m.Chat),
+        loadComponent: () => import('./features/assistant/assistant').then((m) => m.Assistant),
       },
       {
         path: 'actu',

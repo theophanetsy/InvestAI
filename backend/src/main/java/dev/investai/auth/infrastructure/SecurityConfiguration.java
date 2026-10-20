@@ -10,6 +10,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AuthorizeHttpRequestsConfigurer;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
 import org.springframework.security.web.authentication.session.ChangeSessionIdAuthenticationStrategy;
@@ -30,7 +31,11 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
  * no form login nor HTTP Basic.
  */
 @Configuration(proxyBeanMethods = false)
-@Import({SingleUserConfiguration.class, HttpFirewallConfiguration.class})
+@Import({
+  SingleUserConfiguration.class,
+  HttpFirewallConfiguration.class,
+  McpSecurityConfiguration.class
+})
 public class SecurityConfiguration {
 
   /** Logout URL, handled by Spring Security's logout filter. */
@@ -76,12 +81,20 @@ public class SecurityConfiguration {
                     .logoutSuccessHandler(
                         new HttpStatusReturningLogoutSuccessHandler(HttpStatus.NO_CONTENT))
                     .deleteCookies(SESSION_COOKIE))
-        .headers(
-            headers ->
-                headers
-                    .contentSecurityPolicy(csp -> csp.policyDirectives(CONTENT_SECURITY_POLICY))
-                    .referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.NO_REFERRER)));
+        .headers(SecurityConfiguration::secureHeaders);
     return http.build();
+  }
+
+  /**
+   * Response headers of every security chain (the API and {@code /mcp}): JSON only, never framed,
+   * no referrer.
+   *
+   * @param headers the headers configurer
+   */
+  static void secureHeaders(HeadersConfigurer<HttpSecurity> headers) {
+    headers
+        .contentSecurityPolicy(csp -> csp.policyDirectives(CONTENT_SECURITY_POLICY))
+        .referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.NO_REFERRER));
   }
 
   /** Public endpoints are listed explicitly; everything else requires a session. */

@@ -1,0 +1,3 @@
+# Mounts /mcp only when INVESTAI_MCP_TOKEN_HASH is set (ADR-0010, spec 3.0).
+org.springframework.boot.EnvironmentPostProcessor=\
+dev.investai.auth.infrastructure.McpEndpointActivation

@@ -28,7 +28,7 @@ function notInFuture(control: AbstractControl): ValidationErrors | null {
   return typeof value === 'string' && value !== '' && value > today() ? { future: true } : null;
 }
 
-/** "Mon profil": what the owner wants, read by the advice agent (phase 3). */
+/** "Mon profil": what the owner wants, read by Claude through the MCP tools (phase 3.1). */
 @Component({
   selector: 'inv-profile',
   imports: [

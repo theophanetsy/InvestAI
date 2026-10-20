@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
   selector: 'inv-simulation',
   template: `
     <h1>Simulation</h1>
-    <p>Bientôt disponible (Phase 4).</p>
+    <p>Bientôt disponible (Phase 5).</p>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

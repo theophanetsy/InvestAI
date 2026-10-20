@@ -32,7 +32,8 @@ cd frontend && npm start             # http://localhost:4200 (proxy /api → :80
 - `infra/.env` contient `POSTGRES_PASSWORD`, `INVESTAI_USERNAME` et `INVESTAI_PASSWORD_HASH`
   (hash PBKDF2, jamais le mot de passe en clair ; [ADR-0007](adr/0007-authentification-mono-utilisateur.md)).
   Sans eux, le backend refuse de démarrer. Il contient aussi `INVESTAI_EODHD_API_KEY`, facultative
-  (données de marché, voir plus bas).
+  (données de marché, voir plus bas), et `INVESTAI_MCP_TOKEN_HASH`, facultative (serveur MCP pour
+  Claude, voir plus bas).
 - Ouvrir http://localhost:4200 : l'écran de connexion demande `INVESTAI_USERNAME` et le mot de
   passe dont le hash est dans `INVESTAI_PASSWORD_HASH`.
 - Santé : http://localhost:8080/actuator/health/readiness (détail de la base une fois connecté).
@@ -62,6 +63,90 @@ Le backend collecte seul les données de marché ([ADR-0009](adr/0009-fournisseu
 - Arrêter la base : `docker compose -f infra/docker-compose.yml stop` (Spring ne l'arrête pas,
   `lifecycle-management=start-only`). Repartir de zéro : `... down -v` (supprime les données).
 
+### Brancher Claude sur InvestAI (serveur MCP, Phase 3)
+
+Le conseil se fait dans Claude Code ou Claude Desktop (abonnement), qui lisent les données
+d'InvestAI par le serveur MCP du backend ([ADR-0010](adr/0010-ia-via-mcp-uniquement.md),
+[spec 3.0](specs/phase-3-00-mcp-server.md)) : `http://127.0.0.1:8080/mcp`, Streamable HTTP sans
+état, jeton porteur dédié. L'application n'appelle jamais l'API Anthropic. Le backend doit tourner
+pendant la session de conseil.
+
+1. **Générer le jeton** (une fois) :
+
+   ```bash
+   node scripts/mcp-token.mjs     # → INVESTAI_MCP_TOKEN_HASH=<empreinte>
+   ```
+
+   Le jeton n'est jamais affiché : il est écrit dans `~/.investai/mcp-token` (hors du dépôt,
+   jamais écrasé sans `--force`). Copier la ligne affichée dans `infra/.env`, puis redémarrer le
+   backend. Le backend ne connaît que l'empreinte SHA-256.
+   - Sans `INVESTAI_MCP_TOKEN_HASH`, `/mcp` n'est pas monté (avertissement au démarrage
+     « MCP server disabled ») ; le reste de l'application fonctionne.
+   - Une empreinte mal formée (ou le jeton collé à sa place) empêche le démarrage.
+   - Changer de jeton : `node scripts/mcp-token.mjs --force`, remplacer la ligne de `infra/.env`,
+     redémarrer, puis rebrancher les clients.
+2. **Vérifier** (Git Bash ; l'en-tête est passé par un fichier temporaire du shell, pour que le
+   jeton n'apparaisse pas dans les arguments d'un processus) :
+
+   ```bash
+   curl -s http://127.0.0.1:8080/mcp      -H @<(printf 'Authorization: Bearer %s' "$(cat ~/.investai/mcp-token)")      -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream'      -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"getHealth","arguments":{}}}'
+   ```
+
+   Réponse attendue : `structuredContent` avec `status`, `version`, `closesAsOf`,
+   `indicatorsAsOf`, `indicatorsComputedAt`. Sans jeton : 401 ; avec un en-tête `Origin` : 403 ;
+   plus de 120 requêtes par minute : 429.
+3. **Claude Code**, en portée **locale d'un dossier dédié hors du dépôt** :
+
+   ```bash
+   mkdir -p ~/investai-conseil && cd ~/investai-conseil
+   cat > investai-mcp.json <<'EOF'
+   {"type":"http","url":"http://127.0.0.1:8080/mcp","headersHelper":"printf '{\"Authorization\":\"Bearer %s\"}' \"$(cat ~/.investai/mcp-token)\""}
+   EOF
+   claude mcp add-json --scope local investai "$(cat investai-mcp.json)" && rm investai-mcp.json
+   ```
+
+   Puis lancer `claude` depuis `~/investai-conseil` pour les sessions de conseil.
+   - **Pourquoi pas la portée utilisateur** : `--scope user` rend le serveur disponible dans
+     **tous** les projets, y compris les sessions ouvertes dans `C:/dev/InvestAI` et leurs
+     sous-agents : un agent de code manipulé par un contenu piégé pourrait lire les données
+     patrimoniales réelles ([modèle de menace](security/ai-threat-model.md), LLM02). La portée
+     `local` ne charge le serveur que dans le dossier où la commande a été lancée.
+   - **Jamais dans le `.mcp.json` du dépôt** (ni `--scope project`), pour la même raison.
+   - Le `headersHelper` lit le jeton à chaque connexion : il n'est ni copié dans `~/.claude.json`
+     ni passé en argument. Plus simple mais moins discret :
+     `--header "Authorization: Bearer $(cat ~/.investai/mcp-token)"` (jeton rangé en clair dans
+     `~/.claude.json`).
+   - `/mcp` dans Claude Code affiche l'état du serveur ; l'outil `getHealth` doit apparaître.
+4. **Claude Desktop** : il ne lance que des serveurs locaux en stdio, d'où la passerelle sans
+   dépendance `scripts/mcp-stdio-gateway.mjs`. Dans `claude_desktop_config.json` (Paramètres →
+   Développeur → Modifier la configuration ; `%APPDATA%\Claude\` sous Windows) :
+
+   ```json
+   {
+     "mcpServers": {
+       "investai": {
+         "command": "node",
+         "args": ["C:/dev/InvestAI/scripts/mcp-stdio-gateway.mjs"]
+       }
+     }
+   }
+   ```
+
+   - La passerelle lit le jeton dans `~/.investai/mcp-token` ; autre emplacement :
+     `"env": { "INVESTAI_MCP_TOKEN_FILE": "C:/…/mcp-token" }`. **Jamais le jeton dans `args`.**
+   - Autre URL (stack de vérification par exemple) : `"INVESTAI_MCP_URL"` dans `env`, en HTTP sur
+     `127.0.0.1`, `localhost` ou `[::1]` uniquement.
+   - Si Claude Desktop ne trouve pas `node`, mettre le chemin complet
+     (`C:/Program Files/nodejs/node.exe`). Diagnostics de la passerelle (préfixe
+     `[investai-mcp]`, jamais le jeton) dans les journaux MCP de Claude Desktop.
+5. **Règles d'usage** (ADR-0010) :
+   - analyser (surtout des news, Phase 4) dans une conversation ou un projet Claude où **seul le
+     connecteur InvestAI est activé** : une donnée piégée pourrait pousser le modèle à recopier
+     le portefeuille via un autre connecteur ([modèle de menace](security/ai-threat-model.md)) ;
+   - ne jamais choisir « toujours autoriser » pour un outil d'écriture (Phase 5) ;
+   - vérifier le réglage de confidentialité du compte Claude (utilisation des conversations pour
+     l'entraînement) : le profil et le portefeuille partent chez Anthropic par le client.
+
 ## Vérifier l'application réelle (agent `app-verifier`)
 
 ```bash
@@ -70,6 +155,9 @@ npm run stack:status   # rappelle l'URL et l'identifiant
 npm run stack:stop     # arrête tout, supprime la base jetable et les snapshots du navigateur
 ```
 
+- `/mcp` y est monté avec un **jeton jetable** (champ `mcpToken` de `.local-stack/state.json`,
+  jamais affiché ; l'empreinte de `infra/.env` est ignorée) : `http://127.0.0.1:18080/mcp`, ou la
+  passerelle avec `INVESTAI_MCP_URL=http://127.0.0.1:18080/mcp`.
 - Copie **isolée** de l'app (projet Compose `investai-verify`, ports 15432 / 18080 / 14200) :
   elle peut tourner en même temps que la stack de développement, sans toucher à ses données ni
   à `infra/.env`. Identifiant `verifier` affiché au démarrage ; mot de passe aléatoire

@@ -14,7 +14,7 @@ src/app/
   shared/          composants/pipes UI réutilisables, sans logique métier
     format/        decimal.ts : montants en chaînes décimales, format français (jamais de float)
     pea-eligibility/, confirm-dialog/
-  features/<nom>/  login, dashboard, profile, portfolio, chat, news, simulation — lazy (router)
+  features/<nom>/  login, dashboard, profile, portfolio, assistant, news, simulation — lazy (router)
   api/generated/   client OpenAPI généré (ne jamais éditer à la main)
 ```
 
@@ -157,7 +157,7 @@ src/app/
   - `getProfile()` → `GET /api/v1/profile` : `ProfileResponse` ; **404 `profile.not-found`** tant
     qu'il n'est pas rempli (état « vide », pas une erreur). `saveProfile(ProfileRequest)` → `PUT`,
     idempotent, renvoie le profil. `listRiskProfiles()` → `[{ code, label, description }]` :
-    libellés et descriptions à afficher tels quels (même texte que pour l'agent).
+    libellés et descriptions à afficher tels quels (même texte que celui transmis à Claude par MCP).
   - `objectives` : texte libre **non fiable** (≤ 500), à afficher par interpolation uniquement.
   - `getPortfolio()` → `PortfolioResponse` : `lines` triées par nom, `total` (espèces comprises),
     `cash?`, `complete` / `unpricedLines`. Une ligne sans clôture n'a ni `lastClose`, ni `value`,
@@ -191,10 +191,13 @@ src/app/
     `performanceOneYear` (hors dividendes), `volatility`, `maxDrawdown`, `msciWorld` / `cac40`
     (`outperformance`, `correlation`, `beta`), `averageDailyTradedAmount` (+ `currency`).
   - `MarketService.getInstrumentIndicators(id)` (404 `indicators.not-computed` avant le premier
-    calcul) et `screenInstruments(...)` (filtre de tout Paris, 50 résultats au plus) existent pour
-    l'agent ; pas encore d'écran.
+    calcul) et `screenInstruments(...)` (filtre de tout Paris, 50 résultats au plus) existent sans
+    écran pour l'instant ; Claude ne les appelle pas (ses outils MCP lisent les cas d'usage du
+    backend, ADR-0010).
   - **Limite à toujours afficher** : clôtures brutes, pas d'ajustement des divisions ni des
     attributions gratuites (`RAW_CLOSES_LIMIT` dans `dashboard-warnings.ts`).
+- **Page Assistant** (`features/assistant`) : statique, aucun chat dans l'application
+  (ADR-0010) ; le conseil se fait dans Claude Desktop ou Claude Code via le serveur MCP.
 - **Enums générés** : un enum TypeScript par DTO (`RiskProfileResponseCodeEnum`,
   `ProfileRequestRiskProfileEnum`…) pour les mêmes valeurs, non assignables entre eux → garder la
   valeur en `string` dans le formulaire et la reconvertir avant l'envoi (`toRequestRiskProfile`).
