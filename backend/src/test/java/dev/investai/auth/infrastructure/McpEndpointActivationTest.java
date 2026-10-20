@@ -5,14 +5,23 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import dev.investai.assistant.infrastructure.AdviceGuidance;
+import dev.investai.assistant.infrastructure.AllocationTool;
+import dev.investai.assistant.infrastructure.BenchmarksTool;
 import dev.investai.assistant.infrastructure.HealthTool;
+import dev.investai.assistant.infrastructure.InstrumentTool;
+import dev.investai.assistant.infrastructure.InvestorProfileTool;
+import dev.investai.assistant.infrastructure.McpServerConfiguration;
 import dev.investai.assistant.infrastructure.McpToolsConfiguration;
+import dev.investai.assistant.infrastructure.PortfolioTool;
+import dev.investai.assistant.infrastructure.PriceHistoryTool;
+import dev.investai.assistant.infrastructure.ScreenInstrumentsTool;
+import dev.investai.assistant.infrastructure.SearchInstrumentsTool;
 import dev.investai.support.FixtureCredentials;
 import io.modelcontextprotocol.server.McpStatelessSyncServer;
 import org.apache.commons.logging.Log;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.mcp.server.common.autoconfigure.McpServerJsonMapperAutoConfiguration;
-import org.springframework.ai.mcp.server.common.autoconfigure.McpServerStatelessAutoConfiguration;
 import org.springframework.ai.mcp.server.webmvc.autoconfigure.McpServerStatelessWebMvcAutoConfiguration;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -26,7 +35,8 @@ import org.springframework.web.servlet.function.RouterFunction;
 
 /**
  * {@code /mcp} is mounted only when the token hash is set (spec 3.0, criterion 7), proven on Spring
- * AI's real auto-configurations with the application's MCP properties.
+ * AI's real auto-configurations and the application's own server configuration (spec 3.1), with its
+ * MCP properties.
  */
 class McpEndpointActivationTest {
 
@@ -40,13 +50,22 @@ class McpEndpointActivationTest {
           .withConfiguration(
               AutoConfigurations.of(
                   McpServerJsonMapperAutoConfiguration.class,
-                  McpServerStatelessAutoConfiguration.class,
                   McpServerStatelessWebMvcAutoConfiguration.class))
           .withPropertyValues(
               "spring.ai.mcp.server.protocol=STATELESS",
               "spring.ai.mcp.server.streamable-http.mcp-endpoint=/mcp")
-          .withUserConfiguration(McpToolsConfiguration.class, TokenProbe.class)
+          .withUserConfiguration(
+              McpServerConfiguration.class, McpToolsConfiguration.class, TokenProbe.class)
+          .withBean(AdviceGuidance.class)
           .withBean(HealthTool.class, () -> mock(HealthTool.class))
+          .withBean(InvestorProfileTool.class, () -> mock(InvestorProfileTool.class))
+          .withBean(PortfolioTool.class, () -> mock(PortfolioTool.class))
+          .withBean(SearchInstrumentsTool.class, () -> mock(SearchInstrumentsTool.class))
+          .withBean(InstrumentTool.class, () -> mock(InstrumentTool.class))
+          .withBean(PriceHistoryTool.class, () -> mock(PriceHistoryTool.class))
+          .withBean(ScreenInstrumentsTool.class, () -> mock(ScreenInstrumentsTool.class))
+          .withBean(BenchmarksTool.class, () -> mock(BenchmarksTool.class))
+          .withBean(AllocationTool.class, () -> mock(AllocationTool.class))
           .withInitializer(this::activate);
 
   @Test

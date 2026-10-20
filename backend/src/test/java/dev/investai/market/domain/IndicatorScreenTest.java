@@ -9,8 +9,10 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Currency;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
@@ -74,6 +76,8 @@ class IndicatorScreenTest {
   void minimumPerformanceUsesTheChosenWindow() {
     var criteria =
         new ScreeningCriteria(
+            EnumSet.allOf(InstrumentType.class),
+            EnumSet.allOf(PeaEligibilityStatus.class),
             null,
             null,
             null,
@@ -83,6 +87,8 @@ class IndicatorScreenTest {
             50);
     var otherWindow =
         new ScreeningCriteria(
+            EnumSet.allOf(InstrumentType.class),
+            EnumSet.allOf(PeaEligibilityStatus.class),
             null,
             null,
             null,
@@ -141,6 +147,128 @@ class IndicatorScreenTest {
         .isThrownBy(() -> criteria(null, null, null, null, ScreeningSort.PERFORMANCE, 51));
   }
 
+  @Test
+  void keepsTheRequestedTypesAndEligibilities() {
+    // An ETF whose eligibility the rule cannot tell (spec 2.3) next to the stocks.
+    InstrumentIndicators etf =
+        new InstrumentIndicators(
+            instrument("Monde", InstrumentType.ETF, PeaEligibilityStatus.UNKNOWN),
+            stored("9", "14", "-11", "3000000"));
+    var everything = List.of(calm, risky, foreign, etf);
+    var eligibleOrUnknown = Set.of(PeaEligibilityStatus.ELIGIBLE, PeaEligibilityStatus.UNKNOWN);
+
+    assertThat(screen(everything, Set.of(InstrumentType.ETF), eligibleOrUnknown).results())
+        .containsExactly(etf);
+    assertThat(screen(everything, EnumSet.allOf(InstrumentType.class), eligibleOrUnknown).results())
+        .as("by volatility: 12, 14, 45")
+        .containsExactly(calm, etf, risky);
+    assertThat(
+            screen(everything, Set.of(InstrumentType.STOCK), Set.of(PeaEligibilityStatus.ELIGIBLE))
+                .results())
+        .containsExactly(calm, risky);
+  }
+
+  @Test
+  void maximumDrawdownKeepsTheInstrumentsThatFellAtMostThatMuch() {
+    // Limit 15 %: falls of 9 (calm), 10 (dollar) and exactly 15 (foreign) kept, 38 (risky) left
+    // out, no drawdown (young) never matches.
+    var criteria = filters(null, new BigDecimal("15"), null, null);
+
+    assertThat(IndicatorScreen.apply(all, criteria).results())
+        .containsExactly(calm, dollar, foreign);
+  }
+
+  @Test
+  void countsTheInstrumentsLeftOutForWantOfEachRequestedIndicator() {
+    // Young has no indicator at all; dollar has no amount in euros. Bounds wide enough to keep
+    // every other instrument: calm, risky and foreign match.
+    var hundred = new BigDecimal("100");
+    var criteria = filters(hundred, hundred, BigDecimal.ZERO, new BigDecimal("-100"));
+
+    Screening screening = IndicatorScreen.apply(all, criteria);
+
+    assertThat(screening.matchCount()).isEqualTo(3);
+    assertThat(screening.unavailable())
+        .containsExactlyInAnyOrderEntriesOf(
+            Map.of(
+                ScreeningFilter.VOLATILITY, 1,
+                ScreeningFilter.MAX_DRAWDOWN, 1,
+                ScreeningFilter.LIQUIDITY, 2,
+                ScreeningFilter.PERFORMANCE, 1));
+  }
+
+  @Test
+  void countsOnlyTheRequestedFiltersAmongTheRequestedTypesAndEligibilities() {
+    var eligibleStocks =
+        new ScreeningCriteria(
+            Set.of(InstrumentType.STOCK),
+            Set.of(PeaEligibilityStatus.ELIGIBLE),
+            new BigDecimal("100"),
+            null,
+            null,
+            IndicatorWindow.ONE_YEAR,
+            null,
+            ScreeningSort.VOLATILITY,
+            50);
+
+    // Young (no volatility) is eligible: counted. Nothing else requested, nothing else counted.
+    assertThat(IndicatorScreen.apply(all, eligibleStocks).unavailable())
+        .containsExactlyEntriesOf(Map.of(ScreeningFilter.VOLATILITY, 1));
+    assertThat(IndicatorScreen.apply(List.of(foreign, young), eligibleStocks).unavailable())
+        .as("young is the only eligible one")
+        .containsExactlyEntriesOf(Map.of(ScreeningFilter.VOLATILITY, 1));
+    assertThat(
+            IndicatorScreen.apply(
+                    all, criteria(null, null, null, null, ScreeningSort.VOLATILITY, 50))
+                .unavailable())
+        .isEmpty();
+  }
+
+  @Test
+  void criteriaNeedATypeAnEligibilityAndAPositiveDrawdownLimit() {
+    assertThatIllegalArgumentException()
+        .isThrownBy(() -> screen(all, Set.of(), Set.of(PeaEligibilityStatus.ELIGIBLE)));
+    assertThatIllegalArgumentException()
+        .isThrownBy(() -> screen(all, Set.of(InstrumentType.ETF), Set.of()));
+    assertThatIllegalArgumentException()
+        .isThrownBy(() -> filters(null, new BigDecimal("-1"), null, null));
+  }
+
+  private static Screening screen(
+      List<InstrumentIndicators> candidates,
+      Set<InstrumentType> types,
+      Set<PeaEligibilityStatus> eligibilities) {
+    return IndicatorScreen.apply(
+        candidates,
+        new ScreeningCriteria(
+            types,
+            eligibilities,
+            null,
+            null,
+            null,
+            IndicatorWindow.ONE_YEAR,
+            null,
+            ScreeningSort.VOLATILITY,
+            50));
+  }
+
+  private static ScreeningCriteria filters(
+      @Nullable BigDecimal maxVolatility,
+      @Nullable BigDecimal maxDrawdownLimit,
+      @Nullable BigDecimal minAmount,
+      @Nullable BigDecimal minPerformance) {
+    return new ScreeningCriteria(
+        EnumSet.allOf(InstrumentType.class),
+        EnumSet.allOf(PeaEligibilityStatus.class),
+        maxVolatility,
+        maxDrawdownLimit,
+        minAmount,
+        IndicatorWindow.ONE_YEAR,
+        minPerformance,
+        ScreeningSort.MAX_DRAWDOWN,
+        50);
+  }
+
   private List<InstrumentIndicators> sorted(ScreeningSort sort) {
     return IndicatorScreen.apply(all, criteria(null, null, null, null, sort, 50)).results();
   }
@@ -153,8 +281,10 @@ class IndicatorScreenTest {
       ScreeningSort sort,
       int limit) {
     return new ScreeningCriteria(
-        eligibility,
+        EnumSet.allOf(InstrumentType.class),
+        eligibility == null ? EnumSet.allOf(PeaEligibilityStatus.class) : Set.of(eligibility),
         maxVolatility,
+        null,
         minAmount,
         IndicatorWindow.ONE_YEAR,
         minPerformance,
@@ -172,6 +302,21 @@ class IndicatorScreenTest {
     return new InstrumentIndicators(
         instrument(name, eligibility, MarketTestData.EUR),
         stored(performance, volatility, drawdown, amount));
+  }
+
+  private static Instrument instrument(
+      String name, InstrumentType type, PeaEligibilityStatus eligibility) {
+    Instrument stock = instrument(name, eligibility, MarketTestData.EUR);
+    return new Instrument(
+        stock.id(),
+        stock.listing(),
+        stock.ticker(),
+        name,
+        type,
+        MarketTestData.EUR,
+        null,
+        false,
+        stock.peaEligibility());
   }
 
   private static Instrument instrument(

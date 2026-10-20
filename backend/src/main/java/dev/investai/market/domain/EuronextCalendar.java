@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.time.MonthDay;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -79,6 +80,27 @@ public final class EuronextCalendar {
         sessions.add(day);
       }
     }
+    return sessions;
+  }
+
+  /**
+   * Lists the last sessions up to a date.
+   *
+   * @param last last date, inclusive (a non-trading day ends the list at the session before)
+   * @param count number of sessions, positive
+   * @return the sessions in chronological order
+   */
+  public List<LocalDate> sessionsEnding(LocalDate last, int count) {
+    if (count < 1) {
+      throw new IllegalArgumentException("At least one session");
+    }
+    List<LocalDate> sessions = new ArrayList<>(count);
+    for (LocalDate day = last; sessions.size() < count; day = day.minusDays(1)) {
+      if (isTradingDay(day)) {
+        sessions.add(day);
+      }
+    }
+    Collections.reverse(sessions);
     return sessions;
   }
 

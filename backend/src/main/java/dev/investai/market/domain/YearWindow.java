@@ -1,8 +1,6 @@
 package dev.investai.market.domain;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -33,14 +31,7 @@ public record YearWindow(List<LocalDate> sessions) {
    * @return the window
    */
   public static YearWindow ending(LocalDate asOf, EuronextCalendar calendar) {
-    List<LocalDate> sessions = new ArrayList<>(SESSIONS);
-    for (LocalDate day = asOf; sessions.size() < SESSIONS; day = day.minusDays(1)) {
-      if (calendar.isTradingDay(day)) {
-        sessions.add(day);
-      }
-    }
-    Collections.reverse(sessions);
-    return new YearWindow(sessions);
+    return new YearWindow(calendar.sessionsEnding(asOf, SESSIONS));
   }
 
   /**

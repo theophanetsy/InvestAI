@@ -7,6 +7,7 @@ import dev.investai.shared.domain.ResourceNotFoundException;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -52,6 +53,17 @@ public class InvestorProfiles {
     return profiles
         .find()
         .orElseThrow(() -> new ResourceNotFoundException(NOT_FOUND, "No investor profile yet"));
+  }
+
+  /**
+   * Reads the profile, when filled in (MCP tools of the advice, spec 3.1: a missing profile is a
+   * state, not an error).
+   *
+   * @return the profile, empty until the owner fills it in
+   */
+  @Transactional(readOnly = true)
+  public Optional<InvestorProfile> find() {
+    return profiles.find();
   }
 
   /**

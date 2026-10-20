@@ -1,12 +1,16 @@
 package dev.investai.assistant.infrastructure;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import dev.investai.shared.api.RequestIdFilter;
 import dev.investai.shared.logging.LogSanitizer;
 import io.modelcontextprotocol.common.McpTransportContext;
+import io.modelcontextprotocol.server.McpStatelessServerFeatures.SyncPromptSpecification;
 import io.modelcontextprotocol.server.McpStatelessServerFeatures.SyncToolSpecification;
 import io.modelcontextprotocol.spec.McpSchema.CallToolRequest;
 import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
 import io.modelcontextprotocol.spec.McpSchema.Content;
+import io.modelcontextprotocol.spec.McpSchema.GetPromptRequest;
+import io.modelcontextprotocol.spec.McpSchema.GetPromptResult;
 import io.modelcontextprotocol.spec.McpSchema.TextContent;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.nio.charset.StandardCharsets;
@@ -20,13 +24,16 @@ import org.slf4j.MDC;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Wraps every MCP tool (spec 3.0, criterion 11):
+ * Wraps every MCP tool and prompt (spec 3.0, criterion 11; spec 3.1, criterion 36):
  *
  * <ul>
- *   <li>one log line per call: tool, status, duration, size of the result, and the {@code
- *       requestId} of the MDC; never the arguments nor the result;
- *   <li>an error never reaches the client with an exception message: it becomes {@code tool.failed}
- *       with the {@code requestId}, to look up the logs;
+ *   <li>one log line per call: tool, status, duration, size of the result, the code of an expected
+ *       refusal, and the {@code requestId} of the MDC; never the arguments nor the result;
+ *   <li>an expected refusal ({@link ToolCallRejected}) becomes {@code {"code", "field",
+ *       "requestId"}}, without the value received;
+ *   <li>any other error never reaches the client with an exception message: it becomes {@code
+ *       tool.failed} with the {@code requestId}, to look up the logs;
+ *   <li>one log line per prompt read: prompt, status, duration.
  * </ul>
  */
 final class ToolCallLogging {
@@ -57,6 +64,20 @@ final class ToolCallLogging {
         tool.tool(), (context, request) -> call(name, handler, context, request));
   }
 
+  /**
+   * Returns the same prompt, logged.
+   *
+   * @param prompt the prompt
+   * @return the wrapped prompt
+   */
+  SyncPromptSpecification wrap(SyncPromptSpecification prompt) {
+    String name = prompt.prompt().name();
+    BiFunction<McpTransportContext, GetPromptRequest, GetPromptResult> handler =
+        prompt.promptHandler();
+    return new SyncPromptSpecification(
+        prompt.prompt(), (context, request) -> get(name, handler, context, request));
+  }
+
   private CallToolResult call(
       String name,
       BiFunction<McpTransportContext, CallToolRequest, CallToolResult> handler,
@@ -64,20 +85,44 @@ final class ToolCallLogging {
       CallToolRequest request) {
     long start = System.nanoTime();
     @Nullable CallToolResult answer = null;
+    @Nullable String code = null;
     try {
       answer = generic(handler.apply(context, request));
       return answer;
     } catch (UndeclaredThrowableException e) {
       // A checked exception of the tool method, rethrown by the annotation callback: its message
       // would reach the client through a JSON-RPC error.
-      // The tool name is on the "MCP tool call" line that follows, with the same requestId.
       Throwable cause = e.getCause();
+      if (cause instanceof ToolCallRejected rejected) {
+        code = rejected.code();
+        answer = refusal(rejected);
+        return answer;
+      }
+      // The tool name is on the "MCP tool call" line that follows, with the same requestId.
       LOG.error("MCP tool failed with a checked exception", cause);
       answer = failure();
       return answer;
     } finally {
       // Also when an McpError (protocol error, deliberate) or an Error propagates: status=error.
-      log(name, answer, start);
+      log(name, answer, code, start);
+    }
+  }
+
+  private static GetPromptResult get(
+      String name,
+      BiFunction<McpTransportContext, GetPromptRequest, GetPromptResult> handler,
+      McpTransportContext context,
+      GetPromptRequest request) {
+    long start = System.nanoTime();
+    String status = ERROR;
+    try {
+      GetPromptResult result = handler.apply(context, request);
+      status = OK;
+      return result;
+    } finally {
+      String prompt = LogSanitizer.oneLine(name);
+      long durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+      LOG.info("MCP prompt get: prompt={} status={} durationMs={}", prompt, status, durationMs);
     }
   }
 
@@ -91,17 +136,30 @@ final class ToolCallLogging {
     return Boolean.TRUE.equals(result.isError()) ? failure() : result;
   }
 
-  private void log(String name, @Nullable CallToolResult result, long start) {
+  private void log(
+      String name, @Nullable CallToolResult result, @Nullable String code, long start) {
     String tool = LogSanitizer.oneLine(name);
     String status = result == null || Boolean.TRUE.equals(result.isError()) ? ERROR : OK;
     long durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
     long resultBytes = result == null ? 0 : size(result);
+    if (code == null) {
+      LOG.info(
+          "MCP tool call: tool={} status={} durationMs={} resultBytes={}",
+          tool,
+          status,
+          durationMs,
+          resultBytes);
+      return;
+    }
+    // A constant of ToolCallRejected, never a text of the client.
+    String refusal = LogSanitizer.oneLine(code);
     LOG.info(
-        "MCP tool call: tool={} status={} durationMs={} resultBytes={}",
+        "MCP tool call: tool={} status={} durationMs={} resultBytes={} code={}",
         tool,
         status,
         durationMs,
-        resultBytes);
+        resultBytes,
+        refusal);
   }
 
   /** Size of what the client receives; the SDK copies structured content as text when alone. */
@@ -114,10 +172,21 @@ final class ToolCallLogging {
   }
 
   private CallToolResult failure() {
-    String requestId = MDC.get(RequestIdFilter.MDC_KEY);
-    String body =
-        json.writeValueAsString(new Failure(TOOL_FAILED, requestId == null ? "" : requestId));
+    return error(new Failure(TOOL_FAILED, null, requestId()));
+  }
+
+  private CallToolResult refusal(ToolCallRejected rejected) {
+    return error(new Failure(rejected.code(), rejected.field(), requestId()));
+  }
+
+  private CallToolResult error(Failure failure) {
+    String body = json.writeValueAsString(failure);
     return CallToolResult.builder().isError(true).addTextContent(body).build();
+  }
+
+  private static String requestId() {
+    String requestId = MDC.get(RequestIdFilter.MDC_KEY);
+    return requestId == null ? "" : requestId;
   }
 
   private static long textBytes(List<Content> content) {
@@ -129,10 +198,12 @@ final class ToolCallLogging {
   }
 
   /**
-   * Body of the generic error, in a fixed field order.
+   * Body of an error, in a fixed field order.
    *
-   * @param code always {@link #TOOL_FAILED}
+   * @param code {@link #TOOL_FAILED} or the code of an expected refusal
+   * @param field the parameter at fault, absent when the error is not about one
    * @param requestId identifier of the request, to look up the logs
    */
-  private record Failure(String code, String requestId) {}
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  private record Failure(String code, @Nullable String field, String requestId) {}
 }

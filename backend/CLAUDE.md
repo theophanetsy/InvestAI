@@ -296,6 +296,53 @@ Un package par module métier sous `dev.investai` : `portfolio`, `market`, `assi
 - **Passerelle Claude Desktop** : `scripts/mcp-stdio-gateway.mjs` (Node seul), testée par
   `McpStdioGatewayIT` (lance `node` : il doit être dans le `PATH`) et `npm run check:scripts`.
 
+### Outils de conseil (Phase 3.1, [spec](../docs/specs/phase-3-01-advice-tools.md))
+
+- **Serveur** : `McpServerConfiguration` construit le `McpStatelessSyncServer` à la place de
+  `McpServerStatelessAutoConfiguration` (exclue dans `application.properties`), avec
+  `validateToolInputs(false)` : la validation du SDK répondait avant l'outil avec son propre
+  message et journalisait les noms de champs inconnus. Instructions du serveur et prompt : textes
+  versionnés de `src/main/resources/assistant/` (`AdviceGuidance`), jamais de donnée insérée.
+- **Liste blanche** : outils dans `McpToolsConfiguration.investaiTools` (groupés par
+  `OwnerTools` / `MarketTools` : une méthode `@Bean` a 6 paramètres au plus), prompt dans
+  `McpServerConfiguration.investaiPrompts` ; ordre et schémas figés par `McpToolsIT`
+  (`src/test/resources/assistant/frozen-input-schemas.json`, sans les descriptions).
+- **Ajouter un outil à paramètres** :
+  1. méthode `@McpTool` qui prend `CallToolRequest` seul et lit ses arguments par
+     `ToolArguments.of(request, inputSchema().names())` (champs inconnus, `null`, types, longueur
+     avant motif) ;
+  2. `static InputSchema inputSchema()` construit **avec les mêmes constantes** que les contrôles,
+     ajouté à `StrictInputs` (le générateur de Spring AI ne connaît ni bornes ni motifs) ;
+  3. cas valides / invalides dans `ToolArgumentsTest` (verdict du serveur = verdict du validateur
+     du SDK sur le schéma déclaré ; les règles hors JSON Schema sont marquées « server only ») ;
+  4. ajouter l'outil au fichier figé, à `MockedTools`, et ses cas à `AdviceToolsInputsIT`.
+- **Erreurs attendues** : lever `ToolCallRejected` (exception **contrôlée** : les callbacks
+  d'annotations relancent une exception contrôlée enveloppée, alors qu'ils transforment une
+  `RuntimeException` en résultat portant son message). `ToolCallLogging` répond
+  `{"code","field","requestId"}` (`tool.invalid-argument`, `instrument.not-found`), jamais la
+  valeur, et ajoute `code=` à la ligne de journal. Le champ d'un argument inconnu est
+  `arguments` (son nom est un texte du client).
+- **Sorties** : record dédié `@JsonInclude(NON_NULL)` ; montants `Money` (chaîne décimale +
+  devise), pourcentages en chaîne suffixée `Percent`, indicateurs `IndicatorValue` (valeur
+  exactement quand `AVAILABLE`), dates `asOf` / `computedAt` toujours quand il y a des
+  indicateurs, `indicatorsStatus: NOT_COMPUTED` sinon ; `dataLimits` (`DataLimitView`, textes
+  constants de `DataLimit`) dans toute sortie qui porte des cours ou des indicateurs.
+- **Données non fiables** : noms, mnémoniques, objectifs et exclusions **uniquement** sous un
+  objet `untrusted`, passés par `UntrustedText.clean` (invisibles retirés, bornés).
+  `OutputSchemaWalk` (dans `AdviceToolsInputsIT`) échoue sur toute chaîne libre ailleurs : un
+  nouveau champ texte doit être un enum, avoir un format, ou être ajouté à sa liste justifiée.
+- **Bornes** : 64 Kio par résultat dans le pire cas (`AdviceToolsBoundsIT`, textes de quatre
+  octets à la longueur de la colonne) ; ajouter un champ à une ligne de portefeuille ou de filtre
+  oblige à repasser ce test.
+- **Lecture seule** : `ASSISTANT_NEVER_CALLS_A_WRITE_USE_CASE` interdit `PortfolioCommands`,
+  `InstrumentTracking`, `PeaEligibilityCorrection`, les jobs du marché et
+  `InvestorProfiles.save` ; les besoins de lecture manquants s'ajoutent dans `market.application`
+  (`IndicatorQueries.snapshot`, `MarketQueries.history`, `BenchmarkQueries`) ou
+  `portfolio.application` (`InvestorProfiles.find`).
+- **Calculs d'argent** dans `assistant.domain` (`AllocationCalculator`) : montant visé arrondi
+  **à l'inférieur** au centime (un arrondi au plus proche pouvait faire dépasser la somme),
+  titres à l'unité inférieure, coût au centime HALF_EVEN ; exemples dérivés à la main dans le test.
+
 ## Tests
 
 - Unitaires : `*Test.java` (Surefire), JUnit 5 + AssertJ + Mockito. Domaine testé sans Spring.
@@ -429,6 +476,11 @@ Format : symptôme → cause → bonne pratique. Compléter à chaque étape (wo
   cf. `InputFormats.MULTILINE`).
 - **SpotBugs `EI_EXPOSE_REP`** revient si le `List.copyOf` d'un record est déplacé dans une
   méthode d'aide : le garder dans le constructeur compact.
+- **Liste facultative dans une sortie d'outil MCP** : `@Nullable List` + `if (x != null) x =
+  List.copyOf(x)` → SpotBugs `EI_EXPOSE_REP` ; ternaire `x == null ? null : …` → PMD
+  `NullAssignment` → liste non nulle (`List.of()` quand absente), `@JsonInclude(NON_EMPTY)` pour
+  l'omettre et `@JsonProperty(required = false)` pour la sortir du `required` de l'`outputSchema`
+  (sinon « required property not found » à la validation de la sortie ; cf. `AllocationResult`).
 - **Nombre décimal accepté pour un entier** (`"quantity": 1.5` devenait 1) : Jackson
   `ACCEPT_FLOAT_AS_INT` actif par défaut → `spring.jackson.deserialization.accept-float-as-int=false`
   (global), test `fractionalQuantityIsRejectedNotTruncated`.
@@ -468,6 +520,29 @@ Format : symptôme → cause → bonne pratique. Compléter à chaque étape (wo
   unique) ; les autres IT envoient peu de requêtes refusées (budget de 120/min).
 - **Tester l'en-tête `Host`** : le client HTTP du JDK refuse de le fixer (en-tête restreint) →
   requête brute sur une `Socket` (`McpEndpointSecurityIT.unexpectedHostIsRejectedByTheFirewall`).
+- **Argument invalide d'un outil MCP qui répond « Tool (x) input validation failed » sans passer
+  par l'outil ni `ToolCallLogging`** : le SDK valide les arguments contre l'`inputSchema` déclaré
+  (`validateToolInputs`, vrai par défaut, non réglable par l'auto-configuration) → serveur
+  construit par `McpServerConfiguration` avec `validateToolInputs(false)`, contrôles dans l'outil.
+- **`format: uuid` accepté par le validateur JSON Schema du SDK quelle que soit la valeur** :
+  `format` n'est qu'une annotation en 2020-12 → déclarer aussi `pattern` et `maxLength`
+  (`InputSchema.instrumentId`).
+- **Error Prone `ImmutableEnumChecker`** sur un enum qui garde un `Set` → méthode à `switch` qui
+  rend un `Set.of(...)` (`ScreeningResult.InstrumentKind`).
+- **Checkstyle `ParameterNumber` sur une méthode `@Bean` de liste blanche** (un paramètre par
+  outil) → beans intermédiaires en records (`McpToolsConfiguration.OwnerTools`), jamais de
+  suppression.
+- **Outil MCP qui répond `tool.failed` sans aucune cause dans les journaux** : les callbacks
+  d'annotations de Spring AI transforment une `RuntimeException` en résultat d'erreur portant son
+  seul message, et `ToolCallLogging.generic` le remplace par `tool.failed` → pour diagnostiquer,
+  journaliser temporairement `result.content()` dans `generic`, sans jamais le committer (le
+  message peut contenir une donnée). Vu en vérification réelle : ISIN synthétiques à clé de
+  contrôle fausse (`Invalid ISIN`) → dans une base de vérification, n'insérer que des ISIN
+  valides. `.local-stack/backend.log` reste vide : relancer le backend de la stack à la main,
+  sorties attachées, pour lire ses journaux.
+- **Résultat MCP au-delà de 64 Kio** : un nom de 100 caractères de quatre octets (emoji) pèse 400
+  octets, et les indicateurs complets d'une ligne ~800 → mesurer le pire cas, pas un cas ASCII
+  (50 lignes de portefeuille pesaient ~89 Kio, d'où 30).
 
 ## Outils qualité (tous bloquants dans `./mvnw verify`)
 

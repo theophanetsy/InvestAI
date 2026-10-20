@@ -139,10 +139,33 @@ pendant la session de conseil.
    - Si Claude Desktop ne trouve pas `node`, mettre le chemin complet
      (`C:/Program Files/nodejs/node.exe`). Diagnostics de la passerelle (préfixe
      `[investai-mcp]`, jamais le jeton) dans les journaux MCP de Claude Desktop.
-5. **Règles d'usage** (ADR-0010) :
-   - analyser (surtout des news, Phase 4) dans une conversation ou un projet Claude où **seul le
-     connecteur InvestAI est activé** : une donnée piégée pourrait pousser le modèle à recopier
-     le portefeuille via un autre connecteur ([modèle de menace](security/ai-threat-model.md)) ;
+5. **Demander un conseil** (Phase 3.1, [spec](specs/phase-3-01-advice-tools.md)) : 9 outils en
+   lecture seule (`getHealth`, `getInvestorProfile`, `getPortfolio`, `searchInstruments`,
+   `getInstrument`, `getPriceHistory`, `screenInstruments`, `getBenchmarks`,
+   `computeAllocation`) et un prompt, `conseil-placement`, qui déroule la méthode complète.
+   - Préalables dans InvestAI : profil rempli (page Mon profil), lignes et espèces du PEA
+     déclarées, clôtures et indicateurs à jour (dashboard), éligibilité PEA des ETF envisagés
+     corrigée si elle est connue.
+   - **Claude Code** : `/mcp` doit montrer `investai` connecté avec 9 outils et 1 prompt ; lancer
+     le prompt par `/mcp__investai__conseil-placement`, puis laisser dérouler. **Claude
+     Desktop** : menu des prompts (bouton « + » ou icône de prise) → `conseil-placement`.
+   - Approuver les outils **un par un** quand le client le demande (ils sont en lecture seule,
+     mais l'approbation montre ce que Claude lit) ; pas de « toujours autoriser » global.
+   - Questions types : « Mes données sont-elles à jour ? », « Où placer ma somme selon mon
+     profil ? », « Pourquoi cette valeur plutôt que l'ETF monde ? », « Vérifie l'historique de la
+     valeur en tête du tri », « Recalcule avec 60 % d'ETF ». Les montants et nombres de titres
+     viennent de `computeAllocation` (frais de courtage non compris, dernière clôture et non prix
+     d'exécution) ; l'éligibilité PEA se vérifie chez le courtier avant l'ordre.
+   - Les bornes de diversification par profil vivent dans le seul fichier
+     `backend/src/main/resources/assistant/prompt-conseil-placement.txt` ; les instructions du
+     serveur dans `server-instructions.txt` (même dossier). Les modifier change ce que lit le
+     modèle : relancer les tests (`AdviceGuidanceTest`) et refaire la vérification réelle (§ 7 de
+     la spec).
+6. **Règles d'usage** (ADR-0010) :
+   - conseiller et analyser (surtout des news, Phase 4) dans une conversation ou un projet Claude
+     où **seul le connecteur InvestAI est activé** : une donnée piégée pourrait pousser le modèle
+     à recopier le portefeuille via un autre connecteur
+     ([modèle de menace](security/ai-threat-model.md)) ;
    - ne jamais choisir « toujours autoriser » pour un outil d'écriture (Phase 5) ;
    - vérifier le réglage de confidentialité du compte Claude (utilisation des conversations pour
      l'entraînement) : le profil et le portefeuille partent chez Anthropic par le client.

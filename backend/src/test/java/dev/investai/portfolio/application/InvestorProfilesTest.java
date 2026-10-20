@@ -13,6 +13,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -45,6 +46,16 @@ class InvestorProfilesTest {
               assertThat(ex.constraint()).isEqualTo("PastOrPresent");
             });
     Mockito.verifyNoInteractions(repository);
+  }
+
+  @Test
+  void findReadsTheProfileWithoutFailingWhenThereIsNone() {
+    var stored = profiles.save(change(LocalDate.parse("2026-10-20")));
+    Mockito.when(repository.find()).thenReturn(Optional.of(stored));
+    assertThat(profiles.find()).contains(stored);
+
+    Mockito.when(repository.find()).thenReturn(Optional.empty());
+    assertThat(profiles.find()).isEmpty();
   }
 
   private static ProfileChange change(LocalDate openedOn) {
