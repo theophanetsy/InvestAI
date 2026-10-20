@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
   selector: 'inv-news',
   template: `
     <h1>Actu</h1>
-    <p>Bientôt disponible (Phase 5).</p>
+    <p>Bientôt disponible (Phase 4).</p>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
