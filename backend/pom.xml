@@ -34,6 +34,8 @@
 
     <!-- Spring Boot 4.1 line; not managed by the Spring Boot BOM -->
     <springdoc.version>3.1.1</springdoc.version>
+    <!-- MCP server (ADR-0010): exact version, Spring Boot 4.1 line; not managed by the Spring Boot BOM -->
+    <spring-ai.version>2.0.1</spring-ai.version>
     <openapi-generator.version>7.26.0</openapi-generator.version>
 
     <!-- Quality tooling versions: bump through Dependabot only -->
@@ -92,6 +94,14 @@
       <groupId>org.springdoc</groupId>
       <artifactId>springdoc-openapi-starter-webmvc-api</artifactId>
       <version>${springdoc.version}</version>
+    </dependency>
+    <!-- MCP server on /mcp (ADR-0010, phase 3.0): stateless Streamable HTTP over Spring MVC.
+         Built on Spring Boot 4.1.1; no spring-webflux on the classpath (optional in spring-ai-mcp).
+         Confined to ..infrastructure.. by ArchitectureTest.ONLY_INFRASTRUCTURE_USES_MCP. -->
+    <dependency>
+      <groupId>org.springframework.ai</groupId>
+      <artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
+      <version>${spring-ai.version}</version>
     </dependency>
     <dependency>
       <groupId>org.jspecify</groupId>

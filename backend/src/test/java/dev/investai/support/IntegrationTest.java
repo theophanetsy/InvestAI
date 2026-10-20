@@ -23,6 +23,8 @@ import org.springframework.context.annotation.Import;
     properties = {
       FixtureCredentials.USERNAME_PROPERTY,
       FixtureCredentials.PASSWORD_HASH_PROPERTY,
+      // /mcp mounted, as when the owner has configured the token (spec 3.0).
+      FixtureCredentials.MCP_HASH_PROPERTY,
       // Scheduled jobs off and no EODHD key, even if the developer has one in the environment:
       // tests never call a provider, they trigger the use cases with fakes.
       "investai.market.jobs.enabled=false",

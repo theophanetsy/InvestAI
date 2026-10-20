@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.lang.ArchRule;
+import dev.investai.architecture.fixture.application.LeakyMcpUseCase;
 import dev.investai.architecture.fixture.application.LeakyUseCase;
+import dev.investai.assistant.fixture.LeakyAssistantAdapter;
 import dev.investai.portfolio.fixture.LeakyPortfolioAdapter;
 import org.junit.jupiter.api.Test;
 
@@ -38,6 +40,29 @@ class ArchitectureRulesTest {
         .isInstanceOf(AssertionError.class)
         .hasMessageContaining("MarketConfiguration")
         .hasMessageContaining("MarketController");
+  }
+
+  @Test
+  void rejectsMcpLibraryOutsideInfrastructure() {
+    var leaky = new ClassFileImporter().importClasses(LeakyMcpUseCase.class);
+
+    assertThatThrownBy(() -> ArchitectureTest.ONLY_INFRASTRUCTURE_USES_MCP.check(leaky))
+        .isInstanceOf(AssertionError.class)
+        .hasMessageContaining("McpSchema");
+  }
+
+  @Test
+  void rejectsAssistantCodeReachingIntoRepositoriesAdaptersOrControllers() {
+    var leaky = new ClassFileImporter().importClasses(LeakyAssistantAdapter.class);
+
+    assertThatThrownBy(
+            () ->
+                ArchitectureTest.ASSISTANT_USES_OTHER_MODULES_THROUGH_THEIR_APPLICATION.check(
+                    leaky))
+        .isInstanceOf(AssertionError.class)
+        .hasMessageContaining("DailyPriceRepository")
+        .hasMessageContaining("MarketConfiguration")
+        .hasMessageContaining("ProfileController");
   }
 
   private static void assertViolated(ArchRule rule, String expectedViolation) {
