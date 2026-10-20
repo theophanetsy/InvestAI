@@ -83,6 +83,17 @@ src/app/
   les lignes sont recréées à chaque rechargement et le focus rendu par un dialogue est perdu).
 - **Dialogue qui enregistre** : il appelle l'API lui-même, `disableClose` pendant l'envoi, efface
   l'erreur précédente, se ferme avec `true` ; la page recharge et annonce.
+- **Graphiques** : SVG dessiné dans un composant (`features/dashboard/performance-chart.ts`),
+  géométrie en fonctions pures testées (`chart-geometry.ts`) ; **aucune bibliothèque de
+  graphiques** sans ADR. Obligatoire : `role="img"` + `aria-labelledby` (titre) +
+  `aria-describedby` (phrase de synthèse visible), tableau des données en alternative
+  (`chart-data-table`, dans un `<details>`), séries distinguées par le motif du trait en plus de la
+  couleur, couleurs `--mat-sys-*` (clair / sombre automatiques). Seule exception à « jamais de
+  `number` » : convertir une valeur pour placer un point (`toNumbers`), jamais pour un chiffre
+  affiché.
+- **Tableau large** : dans une zone `overflow: auto` atteignable au clavier (`tabindex="0"`,
+  `role="region"`, `aria-label`), titre **hors** de la zone (`<p id>` + `aria-labelledby` sur la
+  table) pour qu'il reste lisible sur téléphone.
 - Sélecteurs préfixés `inv-`. Texte UI en français.
 - Limites ESLint : complexité ≤ 10, fichier ≤ 300 lignes, profondeur ≤ 3, ≤ 4 paramètres.
 
@@ -161,6 +172,29 @@ src/app/
     ≤ 4), quantité entière (un `1.5` est un 400). Saisie française → `normalizeDecimal`
     (`shared/format/decimal.ts`) ; affichage → `formatAmount`/`formatPercent`/`formatDate`.
     Jamais `Number(...)`/`parseFloat` sur un montant.
+- **Indicateurs** (Phase 2.4, [spec](../docs/specs/phase-2-04-indicators-dashboard.md)) :
+  - Tout indicateur est un `IndicatorResponse { status, value? }` : `AVAILABLE` (`value` = chaîne
+    décimale), `INSUFFICIENT_HISTORY` (moins de 80 % des séances de la fenêtre) ou
+    `NOT_COMPUTABLE` (indéfini). Afficher avec `formatIndicator(indicator, kind)`
+    (`shared/format/indicator.ts` : « Historique insuffisant », « Non calculable »), jamais 0 à la
+    place. Pourcentages et points à 2 décimales, Herfindahl à 4, corrélation et bêta à 2.
+  - `getPortfolioIndicators()` → `GET /api/v1/portfolio/indicators` (service `PortfolioService`,
+    calcul à la demande) : `asOf?` (date des cours, absente sans aucun cours), `total`,
+    `composition` (`lineCount`, plus grosse ligne, Herfindahl, parts espèces / ETF / actions /
+    autres), `volatility` et `maxDrawdown` du **portefeuille actuel comme s'il avait été détenu
+    depuis un an, espèces exclues**, `lines` (triées par nom : `weightPercent?`, `indicators?` de la
+    valeur, `exclusion?` = `NOT_VALUED` | `INSUFFICIENT_HISTORY` quand la ligne est hors du
+    risque), `curve` (une entrée par séance, base 100, `portfolio?` / `msciWorld?` / `cac40?`
+    absents sur un trou : ne jamais relier ni interpoler ; vide si l'historique est insuffisant),
+    `correlations` (`instrumentIds` + `rows`).
+  - `IndicatorsResponse` (par valeur) : `asOf`, `closesOneYear`, `performanceOneMonth` …
+    `performanceOneYear` (hors dividendes), `volatility`, `maxDrawdown`, `msciWorld` / `cac40`
+    (`outperformance`, `correlation`, `beta`), `averageDailyTradedAmount` (+ `currency`).
+  - `MarketService.getInstrumentIndicators(id)` (404 `indicators.not-computed` avant le premier
+    calcul) et `screenInstruments(...)` (filtre de tout Paris, 50 résultats au plus) existent pour
+    l'agent ; pas encore d'écran.
+  - **Limite à toujours afficher** : clôtures brutes, pas d'ajustement des divisions ni des
+    attributions gratuites (`RAW_CLOSES_LIMIT` dans `dashboard-warnings.ts`).
 - **Enums générés** : un enum TypeScript par DTO (`RiskProfileResponseCodeEnum`,
   `ProfileRequestRiskProfileEnum`…) pour les mêmes valeurs, non assignables entre eux → garder la
   valeur en `string` dans le formulaire et la reconvertir avant l'envoi (`toRequestRiskProfile`).
@@ -228,6 +262,24 @@ Format : symptôme → cause → bonne pratique. Compléter à chaque étape (wo
   pattern »** : un fichier ignoré (ex. `api/generated`) passé explicitement produit un
   avertissement → toujours ajouter `--no-warn-ignored` quand on lint une liste de fichiers
   (hook Stop, Lefthook).
+
+- **Texte collé à l'élément précédent** (« 0,00 €(espèces comprises) ») : Angular supprime le blanc
+  seul entre deux éléments (`preserveWhitespaces: false`), et `&ngsp;` n'y a rien changé → mettre
+  l'espace dans l'élément (`<span>&nbsp;(…)</span>`), test de non-régression sur le texte.
+- **`Array.prototype.findLast` / `toReversed` refusés par `tsc`** : lib ES2023 absente (tsconfig
+  protégé) → `[...values].reverse().find(...)`.
+- **Deux séries de même couleur dans le thème sombre** : avec une seule palette
+  (`mat.$azure-palette`), `--mat-sys-tertiary` vaut `--mat-sys-primary` → `--mat-sys-secondary`
+  ou `--mat-sys-on-surface-variant`, et toujours un motif de trait différent (test e2e en thème
+  clair et sombre, `page.emulateMedia({ colorScheme })`).
+- **Test de routes ou e2e en échec après l'ajout d'un appel au tableau de bord** : la page d'accueil
+  charge `GET /api/v1/portfolio/indicators` → `app.spec.ts` y répond (`EMPTY_INDICATORS`) et
+  `mockApi` (e2e) le simule par défaut ; un test le redéfinit avec `mockDashboardApi` (la dernière
+  route enregistrée gagne).
+- **Espace insécable littéral dans un spec** (constante `NBSP` qui contient U+00A0 au lieu de
+  l'échappement) : `\u00a0` tapé dans Write/Edit est enregistré comme le caractère lui-même
+  → vérifier les fichiers écrits (script qui
+  liste les codes `a0`, `202f`) et réécrire l'échappement avec `String.fromCharCode(0x5c)`.
 
 ## Tests
 

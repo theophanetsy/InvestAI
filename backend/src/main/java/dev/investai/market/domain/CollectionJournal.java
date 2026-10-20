@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Port: sessions already collected ({@code market_collection}), one entry per Euronext file and one
@@ -55,4 +56,14 @@ public interface CollectionJournal {
    * @return the first date that may hold missed sessions, empty when nothing was collected before
    */
   Optional<LocalDate> catchUpStart(LocalDate session);
+
+  /**
+   * Lists the sessions of a period whose two Euronext files were collected: on such a session, an
+   * instrument of the reference data without close had no trade (spec 2.4, liquidity).
+   *
+   * @param from first session, inclusive
+   * @param to last session, inclusive
+   * @return the sessions
+   */
+  Set<LocalDate> euronextSessions(LocalDate from, LocalDate to);
 }

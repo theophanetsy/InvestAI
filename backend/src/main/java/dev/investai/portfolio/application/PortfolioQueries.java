@@ -1,20 +1,28 @@
 package dev.investai.portfolio.application;
 
+import dev.investai.market.application.IndicatorQueries;
 import dev.investai.market.application.MarketQueries;
 import dev.investai.market.application.MarketQueries.InstrumentDetails;
 import dev.investai.market.domain.DailyClose;
+import dev.investai.market.domain.IndicatorSet;
 import dev.investai.market.domain.Instrument;
 import dev.investai.market.domain.InstrumentId;
+import dev.investai.market.domain.InstrumentType;
+import dev.investai.market.domain.YearOfCloses;
 import dev.investai.portfolio.domain.Amounts;
+import dev.investai.portfolio.domain.Composition;
 import dev.investai.portfolio.domain.PortfolioLine;
 import dev.investai.portfolio.domain.PortfolioRepository;
+import dev.investai.portfolio.domain.PortfolioRisk;
 import dev.investai.portfolio.domain.PricedLine;
 import dev.investai.portfolio.domain.Quote;
 import dev.investai.portfolio.domain.Valuation;
+import dev.investai.portfolio.domain.ValuedLine;
 import dev.investai.shared.logging.LogSanitizer;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
@@ -35,16 +43,51 @@ public class PortfolioQueries {
 
   private final PortfolioRepository portfolio;
   private final MarketQueries market;
+  private final IndicatorQueries indicators;
 
   /**
    * Creates the queries.
    *
    * @param portfolio the declared PEA
    * @param market instruments and closes of the market module
+   * @param indicators closes of the year, for the indicators
    */
-  public PortfolioQueries(PortfolioRepository portfolio, MarketQueries market) {
+  public PortfolioQueries(
+      PortfolioRepository portfolio, MarketQueries market, IndicatorQueries indicators) {
     this.portfolio = portfolio;
     this.market = market;
+    this.indicators = indicators;
+  }
+
+  /**
+   * Computes the indicators of the declared PEA on demand (spec 2.4, criteria 7 and 8): a few
+   * lines, read from the stored closes in two queries, always consistent with the declared lines
+   * and never computed by the daily job.
+   *
+   * @return the composition, the risk of the current portfolio as if held for a year, and the
+   *     indicators of each held instrument
+   */
+  public PortfolioIndicators indicators() {
+    PortfolioOverview overview = overview();
+    Map<InstrumentId, InstrumentType> types =
+        overview.instruments().values().stream()
+            .collect(Collectors.toMap(Instrument::id, Instrument::type));
+    Composition composition = Composition.of(overview.valuation(), types);
+    List<ValuedLine> lines = overview.valuation().lines();
+    Optional<YearOfCloses> year = indicators.yearOfCloses(overview.instruments().keySet());
+    if (year.isEmpty()) {
+      return new PortfolioIndicators(
+          overview, null, Map.of(), composition, PortfolioRisk.withoutCloses(lines));
+    }
+    Map<InstrumentId, IndicatorSet> lineIndicators =
+        overview.instruments().keySet().stream()
+            .collect(Collectors.toMap(Function.identity(), year.get()::indicatorsOf));
+    return new PortfolioIndicators(
+        overview,
+        year.get().window().asOf(),
+        lineIndicators,
+        composition,
+        PortfolioRisk.of(lines, year.get()));
   }
 
   /**

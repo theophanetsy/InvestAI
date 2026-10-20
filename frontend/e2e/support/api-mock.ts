@@ -6,7 +6,30 @@ export const API = {
   me: '/api/v1/auth/me',
   login: '/api/v1/auth/login',
   logout: '/api/v1/auth/logout',
+  indicators: '/api/v1/portfolio/indicators',
 } as const;
+
+const UNAVAILABLE = { status: 'NOT_COMPUTABLE' };
+
+/** Indicators of an empty declared portfolio: what the dashboard loads by default. */
+export const EMPTY_INDICATORS = {
+  total: '0.00',
+  currency: 'EUR',
+  composition: {
+    lineCount: 0,
+    largestLinePercent: UNAVAILABLE,
+    herfindahlIndex: UNAVAILABLE,
+    cashPercent: UNAVAILABLE,
+    etfPercent: UNAVAILABLE,
+    stockPercent: UNAVAILABLE,
+    otherPercent: UNAVAILABLE,
+  },
+  volatility: UNAVAILABLE,
+  maxDrawdown: UNAVAILABLE,
+  lines: [],
+  curve: [],
+  correlations: { instrumentIds: [], rows: [] },
+};
 
 export const PASSWORD = 'correct-horse';
 
@@ -46,6 +69,8 @@ export async function mockApi(page: Page, options: MockOptions): Promise<void> {
       ? route.fulfill({ headers: newToken(), json: { username: 'owner' } })
       : route.fulfill({ status: 401, headers: newToken(), json: problem(401, 'auth.required') }),
   );
+  // The dashboard (home page) loads the indicators; a test can route it again to change them.
+  await page.route(API.indicators, (route) => route.fulfill({ json: EMPTY_INDICATORS }));
   await page.route(API.login, async (route) => {
     if (!(await hasValidCsrfToken(route))) {
       return route.fulfill({ status: 403, json: problem(403, 'auth.csrf-invalid') });

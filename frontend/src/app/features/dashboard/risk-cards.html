@@ -1,0 +1,16 @@
+<ul class="cards" aria-label="Synthèse du portefeuille">
+  @for (card of cards(); track card.title) {
+    <li class="card">
+      <h2 class="card__title">{{ card.title }}</h2>
+      <dl class="card__items">
+        @for (item of card.items; track item.id) {
+          <div class="card__item">
+            <dt>{{ item.label }}</dt>
+            <dd [attr.data-testid]="`card-${item.id}`">{{ item.value }}</dd>
+          </div>
+        }
+      </dl>
+      <p class="card__note">{{ card.note }}</p>
+    </li>
+  }
+</ul>

@@ -1,0 +1,12 @@
+<section
+  class="warnings"
+  aria-labelledby="dashboard-warnings-title"
+  data-testid="dashboard-warnings"
+>
+  <h2 class="warnings__title" id="dashboard-warnings-title">Avertissements</h2>
+  <ul class="warnings__list">
+    @for (warning of warnings(); track warning) {
+      <li>{{ warning }}</li>
+    }
+  </ul>
+</section>

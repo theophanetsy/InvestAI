@@ -41,3 +41,19 @@ export async function expectNoScroll(page: Page): Promise<void> {
   expect(size.width).toBeLessThanOrEqual(size.viewportWidth);
   expect(size.height).toBeLessThanOrEqual(size.viewportHeight);
 }
+
+/** WCAG relative luminance of a computed `rgb(r, g, b)` colour. */
+function luminance(colour: string): number {
+  const channels = (colour.match(/[0-9]+(?:[.][0-9]+)?/g) ?? []).slice(0, 3).map(Number);
+  const [red = 0, green = 0, blue = 0] = channels.map((channel) => {
+    const value = channel / 255;
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+}
+
+/** WCAG contrast ratio between two computed colours (1 to 21). */
+export function contrast(first: string, second: string): number {
+  const [light, dark] = [luminance(first), luminance(second)].sort((a, b) => b - a);
+  return ((light ?? 0) + 0.05) / ((dark ?? 0) + 0.05);
+}

@@ -126,7 +126,8 @@ class ArchitectureTest {
 
   /**
    * The portfolio calls the market module through its application services and uses its domain
-   * types; from its API, only the two DTOs shared to keep one type in the generated client.
+   * types; from its API, only the DTOs shared to keep one type in the generated client: the
+   * instrument and its PEA eligibility (phase 2.3), its indicators (phase 2.4).
    */
   @ArchTest
   static final ArchRule PORTFOLIO_USES_MARKET_THROUGH_ITS_APPLICATION =
@@ -139,7 +140,9 @@ class ArchitectureTest {
                   .or(
                       resideInAPackage("dev.investai.market.api..")
                           .and(not(simpleName("InstrumentSummaryResponse")))
-                          .and(not(simpleName("PeaEligibilityResponse")))))
+                          .and(not(simpleName("PeaEligibilityResponse")))
+                          .and(not(simpleName("IndicatorResponse")))
+                          .and(not(simpleName("IndicatorsResponse")))))
           .because("a module calls another one through its application package");
 
   @ArchTest

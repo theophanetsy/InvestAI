@@ -74,6 +74,11 @@ npm run stack:start                # http://localhost:14200 ; npm run stack:stop
     caractère lui-même → la produire par `String.fromCharCode(0x5c)` dans un script, ou écrire le
     fichier entier avec Write, puis vérifier qu'aucun caractère de contrôle ni espace insécable ne
     reste (`node -e` qui liste les codes < 32 et > 127 du fichier).
+  - Build lu comme vert alors qu'il a échoué → une commande en arrière-plan `cmd > log; echo
+    exit=$?` renvoie le code de l'`echo` dans sa notification → toujours lire le log (`BUILD
+    SUCCESS` / `Tests run: …, Failures`), ou écrire le code de retour dans le log et le relire.
+  - Docker Desktop arrêté (Testcontainers : « Could not find a valid Docker environment ») →
+    lancer `%LOCALAPPDATA%\Programs\DockerDesktop\Docker Desktop.exe` et attendre `docker info`.
   - Script ponctuel ayant besoin d'une clé d'API → `node --env-file=<fichier hors du dépôt>`
     écrit par le propriétaire ; masquer la clé dans toute URL ou erreur affichée (EODHD la passe
     en paramètre `api_token=`).

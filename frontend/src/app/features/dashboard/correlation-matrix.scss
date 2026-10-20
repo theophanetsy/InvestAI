@@ -1,0 +1,46 @@
+.matrix__scroll {
+  overflow-x: auto;
+  margin-bottom: 1.5rem;
+}
+
+.matrix {
+  border-collapse: collapse;
+  font: var(--mat-sys-body-medium);
+}
+
+.matrix__caption {
+  margin: 0;
+  padding: 0.5rem 0;
+  font: var(--mat-sys-title-small);
+}
+
+.matrix th,
+.matrix td {
+  padding: 0.375rem 0.75rem;
+  text-align: end;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+}
+
+.matrix th[scope='row'] {
+  text-align: start;
+  font-weight: normal;
+}
+
+.matrix__empty {
+  font: var(--mat-sys-body-medium);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+/* Read by screen readers only: the full name behind the ticker of a column. */
+.matrix__hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.matrix abbr {
+  text-decoration: none;
+}

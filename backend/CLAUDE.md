@@ -173,6 +173,50 @@ Un package par module métier sous `dev.investai` : `portfolio`, `market`, `assi
 - **Lecture groupée** : `MarketQueries.details(Collection<InstrumentId>)` (2 requêtes quel que soit
   le nombre de valeurs) pour le portefeuille et, plus tard, les tools de l'agent.
 
+## Indicateurs (Phase 2.4, [spec](../docs/specs/phase-2-04-indicators-dashboard.md))
+
+- **Calculs dans le domaine** (`market.domain`, JDK seul) : `YearWindow` (253 séances du
+  calendrier finissant à `asOf`), `ClosingPrices` (clôtures placées sur ces séances, trous
+  compris, règle des 80 % `covers`), `DailyReturns` (statistiques `double`), `IndicatorCalculator`
+  (performance, volatilité, pire baisse, comparaison CW8 / CAC 40, liquidité),
+  `IndicatorScreen` (filtre de tout Paris). Le portefeuille réutilise ces classes
+  (`portfolio.domain.PortfolioRisk`, `Composition`) : ne jamais réécrire un calcul ailleurs.
+- **Contrat de valeur** : chaque indicateur est un `Indicator(status, value)` — `AVAILABLE`,
+  `INSUFFICIENT_HISTORY` (moins de 80 % des séances), `NOT_COMPUTABLE` (série constante, total
+  nul, espèces non déclarées). Jamais de valeur approchée ni de zéro de remplacement ; un trou n'est
+  jamais interpolé (un rendement n'existe qu'entre deux séances consécutives ayant une clôture).
+  Montants et ratios de prix en `BigDecimal` (`DECIMAL64`, HALF_EVEN), statistiques en `double`
+  arrondies par `IndicatorCalculator.round` (refuse NaN/infini).
+- **Clôtures brutes** : aucun ajustement des divisions ni des attributions gratuites (choix du
+  propriétaire) ; cette limite est dans les descriptions OpenAPI (`IndicatorsResponse`,
+  `PortfolioIndicatorsResponse`) et devra figurer dans la description des tools de l'agent
+  (Phase 3). Liquidité : volumes **Euronext** uniquement.
+- **Calcul quotidien** : `IndicatorComputation.refresh()` (verrou `tryLock`) appelé par
+  `MarketJobs` après la collecte et après la maintenance EODHD ; ne calcule que si `asOf` (dernière
+  séance avant aujourd'hui, Paris) a changé ou si une clôture a été écrite après le dernier calcul
+  (`DailyPriceRepository.lastWrite`). Horodaté au début. Table `instrument_indicator` (V6) : une
+  ligne par valeur, colonnes `<indicateur>` + `<indicateur>_status`. ~2 s pour 1 300 valeurs ×
+  253 séances (`IndicatorPerformanceIT`). Tests : construire `IndicatorComputation` à la main avec
+  une horloge fixe (`MutableClock`), jamais via le job.
+- **Lecture** : `IndicatorQueries` (`instrument`, `screen`, `yearOfCloses` pour un calcul à la
+  demande). Le filtre lit la table et filtre en mémoire (éligibilité PEA résolue en Java). Les
+  indicateurs du portefeuille sont calculés à la demande (`PortfolioQueries.indicators`), pas
+  stockés. Les tools de l'agent (Phase 3) liront `IndicatorQueries` et `PortfolioQueries`.
+- **Choix à ne pas défaire sans relire la spec** : surperformance sur les séances communes à la
+  valeur et à l'ETF ; liquidité = séances collectées par Euronext (`CollectionJournal.
+  euronextSessions`) sans clôture comptées à 0, séances inconnues exclues ; fraîcheur avec une
+  marge `IndicatorComputation.WRITE_GRACE` (10 min, une clôture est horodatée avant le commit de
+  sa transaction) et `asOf` ramené à une séance du calendrier.
+- **Pour les tools de l'agent (Phase 3)** : projection dédiée (pas les DTO REST) avec les noms
+  d'instruments délimités (données non fiables), `asOf` et `computedAt` toujours transmis, limites
+  rappelées (clôtures brutes, volatilité sous-estimée des valeurs peu échangées, cotation aberrante
+  possible en tête du tri par performance), résumé du portefeuille sans la courbe.
+- **Indices** : `investai.market.indicators.msci-world` / `.cac40` doivent être dans
+  `investai.market.benchmarks` (vérifié au démarrage par `MarketConfiguration.indicatorSettings`).
+- **Tests** : séries synthétiques dont chaque valeur attendue est dérivée à la main dans le
+  commentaire du test (`IndicatorCalculatorTest`, `PortfolioRiskTest`) ; fixtures partagées
+  `IndicatorFixtures` (instruments, années de clôtures, insertion SQL de masse).
+
 ## Module `portfolio` (Phase 2.3, [spec](../docs/specs/phase-2-03-profile-portfolio.md))
 
 - Profil investisseur (`InvestorProfile`, `RiskProfile`) et PEA déclaré (`PortfolioLine`, `Cash`,
@@ -353,6 +397,19 @@ Format : symptôme → cause → bonne pratique. Compléter à chaque étape (wo
   `PortfolioLineController`).
 - **`@RequestParam LocalDate`** : sans `@DateTimeFormat(iso = ISO.DATE)`, le format attendu dépend
   de la locale → toujours l'annoter. Une URL de test avec `/` final (`/instruments/?query=`) donne 404.
+- **Checkstyle `ParameterNumber` (> 6) sur un endpoint à nombreux filtres** → un record de requête
+  lié aux paramètres de requête avec `@ParameterObject @Valid` (springdoc : un paramètre par champ
+  dans le contrat, `@Schema(defaultValue)` pour les défauts ; cf. `ScreeningRequest`). Un enum
+  invalide donne alors 400 `validation.failed`.
+- **NullAway « initializer method does not guarantee @NonNull fields »** dans un test : champ
+  affecté dans une méthode d'aide appelée par certains tests seulement → l'affecter dans le
+  `@BeforeEach`.
+- **Lancer quelques IT sans `verify`** (qui échoue sur la couverture JaCoCo partielle) :
+  `./mvnw test-compile failsafe:integration-test failsafe:verify -Dit.test='XxxIT'`. Le contrat
+  `target/openapi.json` s'obtient de même avec `-Dit.test=OpenApiContractIT`, puis
+  `npm run api:update`.
+- **`ClassFanOutComplexity` d'un IT d'indicateurs** → fabriques `IndicatorFixtures` (instrument,
+  année de clôtures, insertion SQL de masse) et `var`.
 
 ## Outils qualité (tous bloquants dans `./mvnw verify`)
 

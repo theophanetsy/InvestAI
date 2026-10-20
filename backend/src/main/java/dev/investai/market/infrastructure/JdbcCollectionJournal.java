@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -24,6 +25,13 @@ class JdbcCollectionJournal implements CollectionJournal {
       VALUES (:id, :session, :segment, 'EURONEXT', :at, :closes)
       ON CONFLICT ON CONSTRAINT market_collection_session_key DO UPDATE SET
         processed_at = excluded.processed_at, closes_count = excluded.closes_count
+      """;
+
+  private static final String EURONEXT_SESSIONS =
+      """
+      SELECT trading_date FROM market_collection
+      WHERE source = 'EURONEXT' AND trading_date BETWEEN :from AND :to
+      GROUP BY trading_date HAVING count(DISTINCT segment) = 2
       """;
 
   private static final String RECORD_CATCH_UP =
@@ -116,5 +124,15 @@ class JdbcCollectionJournal implements CollectionJournal {
         .query((rs, row) -> Optional.ofNullable(rs.getDate(1)))
         .single()
         .map(Date::toLocalDate);
+  }
+
+  @Override
+  public Set<LocalDate> euronextSessions(LocalDate from, LocalDate to) {
+    return Set.copyOf(
+        jdbc.sql(EURONEXT_SESSIONS)
+            .param("from", from)
+            .param("to", to)
+            .query((rs, row) -> rs.getObject(1, LocalDate.class))
+            .list());
   }
 }

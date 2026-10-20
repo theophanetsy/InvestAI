@@ -90,6 +90,102 @@
         "tags" : [ "auth" ]
       }
     },
+    "/api/v1/market/indicators" : {
+      "get" : {
+        "operationId" : "screenInstruments",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "peaEligibility",
+          "required" : false,
+          "schema" : {
+            "type" : [ "string", "null" ],
+            "enum" : [ "ELIGIBLE", "NOT_ELIGIBLE", "UNKNOWN" ]
+          }
+        }, {
+          "example" : 25,
+          "in" : "query",
+          "name" : "maxVolatility",
+          "required" : false,
+          "schema" : {
+            "type" : [ "string", "null" ],
+            "example" : 25,
+            "pattern" : "^\\d{1,6}(\\.\\d{1,2})?$"
+          }
+        }, {
+          "example" : 100000,
+          "in" : "query",
+          "name" : "minAverageDailyTradedAmount",
+          "required" : false,
+          "schema" : {
+            "type" : [ "string", "null" ],
+            "example" : 100000,
+            "pattern" : "^\\d{1,13}(\\.\\d{1,2})?$"
+          }
+        }, {
+          "in" : "query",
+          "name" : "performanceWindow",
+          "required" : false,
+          "schema" : {
+            "type" : [ "string", "null" ],
+            "default" : "ONE_YEAR",
+            "enum" : [ "ONE_MONTH", "THREE_MONTHS", "SIX_MONTHS", "ONE_YEAR" ]
+          }
+        }, {
+          "example" : 0,
+          "in" : "query",
+          "name" : "minPerformance",
+          "required" : false,
+          "schema" : {
+            "type" : [ "string", "null" ],
+            "example" : 0,
+            "pattern" : "^-?\\d{1,6}(\\.\\d{1,2})?$"
+          }
+        }, {
+          "in" : "query",
+          "name" : "sort",
+          "required" : false,
+          "schema" : {
+            "type" : [ "string", "null" ],
+            "default" : "PERFORMANCE",
+            "enum" : [ "PERFORMANCE", "VOLATILITY", "LIQUIDITY", "MAX_DRAWDOWN" ]
+          }
+        }, {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int32",
+            "default" : 50,
+            "maximum" : 50,
+            "minimum" : 1
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScreeningResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Erreur (RFC 9457) : voir `code`"
+          }
+        },
+        "tags" : [ "market" ]
+      }
+    },
     "/api/v1/market/instruments" : {
       "get" : {
         "operationId" : "searchInstruments",
@@ -149,6 +245,43 @@
               "application/json" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/InstrumentDetailsResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Erreur (RFC 9457) : voir `code`"
+          }
+        },
+        "tags" : [ "market" ]
+      }
+    },
+    "/api/v1/market/instruments/{id}/indicators" : {
+      "get" : {
+        "operationId" : "getInstrumentIndicators",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InstrumentIndicatorsResponse"
                 }
               }
             },
@@ -348,6 +481,34 @@
               "application/json" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/CashResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Erreur (RFC 9457) : voir `code`"
+          }
+        },
+        "tags" : [ "portfolio" ]
+      }
+    },
+    "/api/v1/portfolio/indicators" : {
+      "get" : {
+        "operationId" : "getPortfolioIndicators",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PortfolioIndicatorsResponse"
                 }
               }
             },
@@ -606,6 +767,21 @@
   },
   "components" : {
     "schemas" : {
+      "BenchmarkComparisonResponse" : {
+        "type" : "object",
+        "properties" : {
+          "beta" : {
+            "$ref" : "#/components/schemas/IndicatorResponse"
+          },
+          "correlation" : {
+            "$ref" : "#/components/schemas/IndicatorResponse"
+          },
+          "outperformance" : {
+            "$ref" : "#/components/schemas/IndicatorResponse"
+          }
+        },
+        "required" : [ "beta", "correlation", "outperformance" ]
+      },
       "CashRequest" : {
         "type" : "object",
         "properties" : {
@@ -636,6 +812,56 @@
         },
         "required" : [ "amount", "updatedAt" ]
       },
+      "CompositionResponse" : {
+        "type" : "object",
+        "properties" : {
+          "cashPercent" : {
+            "$ref" : "#/components/schemas/IndicatorResponse"
+          },
+          "etfPercent" : {
+            "$ref" : "#/components/schemas/IndicatorResponse"
+          },
+          "herfindahlIndex" : {
+            "$ref" : "#/components/schemas/IndicatorResponse"
+          },
+          "largestLinePercent" : {
+            "$ref" : "#/components/schemas/IndicatorResponse"
+          },
+          "lineCount" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "otherPercent" : {
+            "$ref" : "#/components/schemas/IndicatorResponse"
+          },
+          "stockPercent" : {
+            "$ref" : "#/components/schemas/IndicatorResponse"
+          }
+        },
+        "required" : [ "cashPercent", "etfPercent", "herfindahlIndex", "largestLinePercent", "lineCount", "otherPercent", "stockPercent" ]
+      },
+      "CorrelationMatrixResponse" : {
+        "type" : "object",
+        "properties" : {
+          "instrumentIds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          "rows" : {
+            "type" : "array",
+            "items" : {
+              "type" : "array",
+              "items" : {
+                "$ref" : "#/components/schemas/IndicatorResponse"
+              }
+            }
+          }
+        },
+        "required" : [ "instrumentIds", "rows" ]
+      },
       "CurrentUserResponse" : {
         "type" : "object",
         "properties" : {
@@ -644,6 +870,28 @@
           }
         },
         "required" : [ "username" ]
+      },
+      "CurvePointResponse" : {
+        "type" : "object",
+        "properties" : {
+          "cac40" : {
+            "type" : "string",
+            "example" : "98.75"
+          },
+          "date" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "msciWorld" : {
+            "type" : "string",
+            "example" : "102.10"
+          },
+          "portfolio" : {
+            "type" : "string",
+            "example" : "104.35"
+          }
+        },
+        "required" : [ "date" ]
       },
       "DailyCloseResponse" : {
         "type" : "object",
@@ -718,6 +966,68 @@
         },
         "required" : [ "code", "field" ]
       },
+      "IndicatorResponse" : {
+        "type" : "object",
+        "description" : "Indicateur calculé par l'application, ou la raison de son absence : jamais de valeur approchée (historique insuffisant = moins de 80 % des séances de la fenêtre).",
+        "properties" : {
+          "status" : {
+            "type" : "string",
+            "enum" : [ "AVAILABLE", "INSUFFICIENT_HISTORY", "NOT_COMPUTABLE" ]
+          },
+          "value" : {
+            "type" : "string",
+            "example" : "12.34"
+          }
+        },
+        "required" : [ "status" ]
+      },
+      "IndicatorsResponse" : {
+        "type" : "object",
+        "description" : "Indicateurs calculés sur les clôtures brutes. Performance hors dividendes. Aucun ajustement des divisions ni des attributions gratuites : l'année d'une telle opération, la performance et la pire baisse sont faussées par une chute artificielle du cours.",
+        "properties" : {
+          "asOf" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "averageDailyTradedAmount" : {
+            "$ref" : "#/components/schemas/IndicatorResponse"
+          },
+          "cac40" : {
+            "$ref" : "#/components/schemas/BenchmarkComparisonResponse"
+          },
+          "closesOneYear" : {
+            "type" : "integer",
+            "format" : "int32",
+            "maximum" : 253,
+            "minimum" : 0
+          },
+          "currency" : {
+            "type" : "string"
+          },
+          "maxDrawdown" : {
+            "$ref" : "#/components/schemas/IndicatorResponse"
+          },
+          "msciWorld" : {
+            "$ref" : "#/components/schemas/BenchmarkComparisonResponse"
+          },
+          "performanceOneMonth" : {
+            "$ref" : "#/components/schemas/IndicatorResponse"
+          },
+          "performanceOneYear" : {
+            "$ref" : "#/components/schemas/IndicatorResponse"
+          },
+          "performanceSixMonths" : {
+            "$ref" : "#/components/schemas/IndicatorResponse"
+          },
+          "performanceThreeMonths" : {
+            "$ref" : "#/components/schemas/IndicatorResponse"
+          },
+          "volatility" : {
+            "$ref" : "#/components/schemas/IndicatorResponse"
+          }
+        },
+        "required" : [ "asOf", "averageDailyTradedAmount", "cac40", "closesOneYear", "currency", "maxDrawdown", "msciWorld", "performanceOneMonth", "performanceOneYear", "performanceSixMonths", "performanceThreeMonths", "volatility" ]
+      },
       "InstrumentDetailsResponse" : {
         "type" : "object",
         "properties" : {
@@ -759,6 +1069,22 @@
           }
         },
         "required" : [ "currency", "historyLoaded", "id", "isin", "mic", "name", "peaEligibility", "ticker", "type" ]
+      },
+      "InstrumentIndicatorsResponse" : {
+        "type" : "object",
+        "properties" : {
+          "computedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "indicators" : {
+            "$ref" : "#/components/schemas/IndicatorsResponse"
+          },
+          "instrument" : {
+            "$ref" : "#/components/schemas/InstrumentSummaryResponse"
+          }
+        },
+        "required" : [ "computedAt", "indicators", "instrument" ]
       },
       "InstrumentSummaryResponse" : {
         "type" : "object",
@@ -809,6 +1135,30 @@
         },
         "required" : [ "close", "date" ]
       },
+      "LineIndicatorsResponse" : {
+        "type" : "object",
+        "properties" : {
+          "exclusion" : {
+            "type" : "string",
+            "enum" : [ "NOT_VALUED", "INSUFFICIENT_HISTORY" ]
+          },
+          "indicators" : {
+            "$ref" : "#/components/schemas/IndicatorsResponse"
+          },
+          "instrument" : {
+            "$ref" : "#/components/schemas/InstrumentSummaryResponse"
+          },
+          "lineId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "weightPercent" : {
+            "type" : "string",
+            "example" : "42.10"
+          }
+        },
+        "required" : [ "instrument", "lineId" ]
+      },
       "LoginRequest" : {
         "type" : "object",
         "properties" : {
@@ -848,6 +1198,48 @@
           }
         },
         "required" : [ "source", "status" ]
+      },
+      "PortfolioIndicatorsResponse" : {
+        "type" : "object",
+        "description" : "Indicateurs du portefeuille déclaré. Volatilité, pire baisse, courbe et corrélations : portefeuille actuel (quantités d'aujourd'hui, espèces exclues) comme s'il avait été détenu depuis un an, sans tenir compte des achats et ventes réels. Lignes sans cours en euros ou avec moins de 80 % des clôtures de l'année exclues et signalées (exclusion). Clôtures brutes : hors dividendes, sans ajustement des divisions ni des attributions gratuites.",
+        "properties" : {
+          "asOf" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "composition" : {
+            "$ref" : "#/components/schemas/CompositionResponse"
+          },
+          "correlations" : {
+            "$ref" : "#/components/schemas/CorrelationMatrixResponse"
+          },
+          "currency" : {
+            "type" : "string"
+          },
+          "curve" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CurvePointResponse"
+            }
+          },
+          "lines" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/LineIndicatorsResponse"
+            }
+          },
+          "maxDrawdown" : {
+            "$ref" : "#/components/schemas/IndicatorResponse"
+          },
+          "total" : {
+            "type" : "string",
+            "example" : "12500.40"
+          },
+          "volatility" : {
+            "$ref" : "#/components/schemas/IndicatorResponse"
+          }
+        },
+        "required" : [ "composition", "correlations", "currency", "curve", "lines", "maxDrawdown", "total", "volatility" ]
       },
       "PortfolioLineRequest" : {
         "type" : "object",
@@ -1090,6 +1482,22 @@
           }
         },
         "required" : [ "code", "description", "label" ]
+      },
+      "ScreeningResponse" : {
+        "type" : "object",
+        "properties" : {
+          "matchCount" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "results" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/InstrumentIndicatorsResponse"
+            }
+          }
+        },
+        "required" : [ "matchCount", "results" ]
       },
       "StatusResponse" : {
         "type" : "object",

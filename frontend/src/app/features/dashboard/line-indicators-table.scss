@@ -1,0 +1,51 @@
+/* The table scrolls inside its box on a phone, never the page. */
+.lines__scroll {
+  overflow-x: auto;
+  margin-bottom: 1.5rem;
+}
+
+.lines {
+  border-collapse: collapse;
+  font: var(--mat-sys-body-medium);
+}
+
+.lines__caption {
+  margin: 0;
+  padding: 0.5rem 0;
+  font: var(--mat-sys-title-small);
+}
+
+.lines th,
+.lines td {
+  padding: 0.5rem 0.75rem;
+  text-align: end;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+}
+
+.lines th[scope='col']:first-child {
+  text-align: start;
+}
+
+.lines th[scope='row'] {
+  text-align: start;
+  font-weight: normal;
+}
+
+.lines__name {
+  display: block;
+  font: var(--mat-sys-body-large);
+}
+
+.lines__codes {
+  display: block;
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+/* The name of the line stays visible while the table scrolls sideways. */
+.lines th:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--mat-sys-surface);
+}
