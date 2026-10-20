@@ -11,6 +11,7 @@ import dev.investai.market.domain.IndicatorRepository;
 import dev.investai.market.domain.IndicatorWindow;
 import dev.investai.market.domain.InstrumentRepository;
 import dev.investai.market.domain.InstrumentType;
+import dev.investai.market.domain.PeaEligibilityStatus;
 import dev.investai.market.domain.ScreeningCriteria;
 import dev.investai.market.domain.ScreeningSort;
 import dev.investai.market.domain.YearWindow;
@@ -21,6 +22,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.EnumSet;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -85,8 +87,10 @@ class IndicatorPerformanceIT {
     var screening =
         queries.screen(
             new ScreeningCriteria(
-                null,
+                EnumSet.allOf(InstrumentType.class),
+                EnumSet.allOf(PeaEligibilityStatus.class),
                 new BigDecimal("1000"),
+                null,
                 null,
                 IndicatorWindow.ONE_YEAR,
                 null,

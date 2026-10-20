@@ -1,0 +1,193 @@
+{
+  "getHealth": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {},
+    "required": []
+  },
+  "getInvestorProfile": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+  },
+  "getPortfolio": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+  },
+  "searchInstruments": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100,
+        "pattern": "^[^\\p{Cc}\\p{Cf}\\p{Co}\\p{Cn}\\p{Zl}\\p{Zp}]*$"
+      }
+    },
+    "required": [
+      "query"
+    ],
+    "additionalProperties": false
+  },
+  "getInstrument": {
+    "type": "object",
+    "properties": {
+      "instrumentId": {
+        "type": "string",
+        "format": "uuid",
+        "maxLength": 36,
+        "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+      }
+    },
+    "required": [
+      "instrumentId"
+    ],
+    "additionalProperties": false
+  },
+  "getPriceHistory": {
+    "type": "object",
+    "properties": {
+      "instrumentId": {
+        "type": "string",
+        "format": "uuid",
+        "maxLength": 36,
+        "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+      },
+      "period": {
+        "type": "string",
+        "enum": [
+          "ONE_MONTH",
+          "THREE_MONTHS",
+          "SIX_MONTHS",
+          "ONE_YEAR"
+        ],
+        "default": "THREE_MONTHS"
+      }
+    },
+    "required": [
+      "instrumentId"
+    ],
+    "additionalProperties": false
+  },
+  "screenInstruments": {
+    "type": "object",
+    "properties": {
+      "instrumentType": {
+        "type": "string",
+        "enum": [
+          "STOCK",
+          "ETF",
+          "STOCK_OR_ETF"
+        ],
+        "default": "STOCK_OR_ETF"
+      },
+      "peaEligibility": {
+        "type": "string",
+        "enum": [
+          "ELIGIBLE",
+          "ELIGIBLE_OR_UNKNOWN",
+          "ANY"
+        ],
+        "default": "ELIGIBLE_OR_UNKNOWN"
+      },
+      "maxVolatilityPercent": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 6,
+        "pattern": "^\\d{1,3}(\\.\\d{1,2})?$"
+      },
+      "maxDrawdownLimitPercent": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 6,
+        "pattern": "^\\d{1,3}(\\.\\d{1,2})?$"
+      },
+      "minAverageDailyTradedAmountEur": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 16,
+        "pattern": "^\\d{1,13}(\\.\\d{1,2})?$"
+      },
+      "performanceWindow": {
+        "type": "string",
+        "enum": [
+          "ONE_MONTH",
+          "THREE_MONTHS",
+          "SIX_MONTHS",
+          "ONE_YEAR"
+        ],
+        "default": "ONE_YEAR"
+      },
+      "minPerformancePercent": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 10,
+        "pattern": "^-?\\d{1,6}(\\.\\d{1,2})?$"
+      },
+      "sort": {
+        "type": "string",
+        "enum": [
+          "PERFORMANCE",
+          "VOLATILITY",
+          "LIQUIDITY",
+          "MAX_DRAWDOWN"
+        ]
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 50,
+        "default": 20
+      }
+    },
+    "required": [
+      "sort"
+    ],
+    "additionalProperties": false
+  },
+  "getBenchmarks": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+  },
+  "computeAllocation": {
+    "type": "object",
+    "properties": {
+      "lines": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 30,
+        "items": {
+          "type": "object",
+          "properties": {
+            "instrumentId": {
+              "type": "string",
+              "format": "uuid",
+              "maxLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+            },
+            "weightPercent": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 6,
+              "pattern": "^\\d{1,3}(\\.\\d{1,2})?$"
+            }
+          },
+          "required": [
+            "instrumentId",
+            "weightPercent"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": [
+      "lines"
+    ],
+    "additionalProperties": false
+  }
+}

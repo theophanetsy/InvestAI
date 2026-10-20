@@ -14,6 +14,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class EuronextCalendarTest {
 
+  private static final LocalDate MAUNDY_THURSDAY = LocalDate.parse("2026-04-02");
+  private static final LocalDate TUESDAY_AFTER_EASTER = LocalDate.parse("2026-04-07");
+
   private final EuronextCalendar calendar = new EuronextCalendar();
 
   /** Euronext closing days 2025-2027 (weekdays only). */
@@ -84,8 +87,8 @@ class EuronextCalendarTest {
                 LocalDate.parse("2026-04-01"), LocalDate.parse("2026-04-08")))
         .containsExactly(
             LocalDate.parse("2026-04-01"),
-            LocalDate.parse("2026-04-02"),
-            LocalDate.parse("2026-04-07"),
+            MAUNDY_THURSDAY,
+            TUESDAY_AFTER_EASTER,
             LocalDate.parse("2026-04-08"));
   }
 
@@ -113,6 +116,19 @@ class EuronextCalendarTest {
         .noneMatch(
             day ->
                 day.getDayOfWeek() == DayOfWeek.SATURDAY || day.getDayOfWeek() == DayOfWeek.SUNDAY);
+  }
+
+  @Test
+  void listsTheLastSessionsSkippingHolidaysAndEndingBeforeANonTradingDay() {
+    // Easter 2026: Good Friday 3 April and Easter Monday 6 April are holidays. Ending on Monday
+    // 6 April starts from Thursday 2 April.
+    assertThat(calendar.sessionsEnding(LocalDate.parse("2026-04-06"), 3))
+        .containsExactly(
+            LocalDate.parse("2026-03-31"), LocalDate.parse("2026-04-01"), MAUNDY_THURSDAY);
+    assertThat(calendar.sessionsEnding(TUESDAY_AFTER_EASTER, 2))
+        .containsExactly(MAUNDY_THURSDAY, TUESDAY_AFTER_EASTER);
+    assertThatIllegalArgumentException()
+        .isThrownBy(() -> calendar.sessionsEnding(TUESDAY_AFTER_EASTER, 0));
   }
 
   private List<LocalDate> sessionsIn(int year) {

@@ -1,5 +1,6 @@
 package dev.investai.portfolio.api;
 
+import dev.investai.shared.domain.TextFormats;
 import java.math.BigDecimal;
 
 /**
@@ -21,14 +22,12 @@ final class InputFormats {
 
   /**
    * Text on one line, without anything invisible that the advice agent would read but the owner
-   * would not see: control (Cc, C1 included), format (Cf: bidi, zero width, tags), private use
-   * (Co), unassigned (Cn), line and paragraph separators (Zl, Zp). A single character class: no
-   * recursion in the regex engine, whatever the length.
+   * would not see (one definition, shared with the MCP tools).
    */
-  static final String SINGLE_LINE = "^[^\\p{Cc}\\p{Cf}\\p{Co}\\p{Cn}\\p{Zl}\\p{Zp}]*$";
+  static final String SINGLE_LINE = TextFormats.SINGLE_LINE;
 
   /** Like {@link #SINGLE_LINE}, plus tabs and line breaks. */
-  static final String MULTILINE = "^[\\t\\n\\r[^\\p{Cc}\\p{Cf}\\p{Co}\\p{Cn}\\p{Zl}\\p{Zp}]]*$";
+  static final String MULTILINE = TextFormats.MULTILINE;
 
   private InputFormats() {}
 

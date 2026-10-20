@@ -3,6 +3,7 @@ package dev.investai.market.application;
 import dev.investai.market.domain.DailyClose;
 import dev.investai.market.domain.DailyPriceRepository;
 import dev.investai.market.domain.EuronextCalendar;
+import dev.investai.market.domain.IndicatorWindow;
 import dev.investai.market.domain.Instrument;
 import dev.investai.market.domain.InstrumentId;
 import dev.investai.market.domain.InstrumentRepository;
@@ -14,6 +15,8 @@ import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
@@ -31,6 +34,7 @@ public class MarketQueries {
   /** Maximum number of search results. */
   public static final int MAX_RESULTS = 20;
 
+  private final EuronextCalendar calendar = new EuronextCalendar();
   private final InstrumentRepository instruments;
   private final DailyPriceRepository prices;
   private final Clock clock;
@@ -100,6 +104,34 @@ public class MarketQueries {
     find(id);
     PriceRange range = PriceRange.resolve(from, to, today);
     return prices.findBetween(id, range.from(), range.to());
+  }
+
+  /**
+   * Lists the raw closes of an instrument over its last sessions (MCP tool {@code getPriceHistory},
+   * spec 3.1, criterion 22): the sessions of the Euronext calendar ending at its latest stored
+   * close, without aggregation. Closes on a day that is not a session are left out, as the
+   * indicators do.
+   *
+   * @param id the instrument
+   * @param window the period: its sessions plus the reference session before them, like the
+   *     performance of the indicators
+   * @return the sessions and the closes, empty when the instrument has no close
+   * @throws ResourceNotFoundException when the instrument is unknown
+   */
+  public PriceHistory history(InstrumentId id, IndicatorWindow window) {
+    Instrument instrument = find(id);
+    Optional<DailyClose> latest = prices.findLatest(id);
+    if (latest.isEmpty()) {
+      return new PriceHistory(instrument, List.of(), List.of());
+    }
+    List<LocalDate> sessions =
+        calendar.sessionsEnding(latest.get().tradingDate(), window.sessions() + 1);
+    Set<LocalDate> known = Set.copyOf(sessions);
+    List<DailyClose> closes =
+        prices.findBetween(id, sessions.getFirst(), sessions.getLast()).stream()
+            .filter(close -> known.contains(close.tradingDate()))
+            .toList();
+    return new PriceHistory(instrument, sessions, closes);
   }
 
   private Instrument find(InstrumentId id) {

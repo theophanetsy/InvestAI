@@ -78,13 +78,7 @@ public class IndicatorQueries {
    *     #NOT_COMPUTED} before the first computation that saw it
    */
   public InstrumentIndicators instrument(InstrumentId id) {
-    Instrument instrument =
-        instruments
-            .findById(id)
-            .orElseThrow(
-                () ->
-                    new ResourceNotFoundException(
-                        InstrumentTracking.NOT_FOUND, "Unknown instrument: " + id));
+    Instrument instrument = find(id);
     StoredIndicators stored =
         indicators
             .find(id)
@@ -93,6 +87,20 @@ public class IndicatorQueries {
                     new ResourceNotFoundException(
                         NOT_COMPUTED, "Indicators not computed yet: " + id));
     return new InstrumentIndicators(instrument, stored);
+  }
+
+  /**
+   * Returns everything stored about an instrument (MCP tool {@code getInstrument}, spec 3.1,
+   * criterion 20): its latest close and, once computed, its indicators. Never tracks it.
+   *
+   * @param id the instrument
+   * @return the instrument, its latest close and its indicators
+   * @throws ResourceNotFoundException {@code instrument.not-found} when unknown
+   */
+  public InstrumentSnapshot snapshot(InstrumentId id) {
+    Instrument instrument = find(id);
+    return new InstrumentSnapshot(
+        instrument, prices.findLatest(id).orElse(null), indicators.find(id).orElse(null));
   }
 
   /**
@@ -129,5 +137,14 @@ public class IndicatorQueries {
     return prices
         .latestSessionBefore(today)
         .map(asOf -> loader.load(YearWindow.ending(asOf, calendar), ids));
+  }
+
+  private Instrument find(InstrumentId id) {
+    return instruments
+        .findById(id)
+        .orElseThrow(
+            () ->
+                new ResourceNotFoundException(
+                    InstrumentTracking.NOT_FOUND, "Unknown instrument: " + id));
   }
 }

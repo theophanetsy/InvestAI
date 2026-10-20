@@ -1,6 +1,7 @@
 # Modèle de menace IA — serveur MCP d'InvestAI
 
-- **Date** : 2026-10-20 (Phase 3.0, avant le premier outil métier)
+- **Date** : 2026-10-20 (Phase 3.0, avant le premier outil métier) ; relu et complété en Phase 3.1
+  (outils en lecture et consignes de conseil, [spec 3.1](../specs/phase-3-01-advice-tools.md))
 - **Références** : [ADR-0010](../adr/0010-ia-via-mcp-uniquement.md),
   [spec 3.0](../specs/phase-3-00-mcp-server.md),
   [OWASP Top 10 for LLM Applications 2025](https://genai.owasp.org/llm-top-10/)
@@ -30,6 +31,19 @@ Claude Desktop ─ stdio ─ passerelle ─┘        (Spring AI MCP, sans état
 - **Ce que le modèle peut faire** : appeler les outils de la liste blanche, en lecture seule en
   Phase 3. Il ne voit jamais la base, ni SQL, ni HTTP, ni fichiers.
 
+## Outils exposés (Phase 3.1) et données qui partent dans la conversation
+
+| Outil | Données renvoyées | Données personnelles |
+|---|---|---|
+| `getHealth` | version, dates des clôtures et du calcul | aucune |
+| `getInvestorProfile` | somme à placer, horizon, profil de risque, « 5 ans du PEA atteints », objectifs et exclusions (sous `untrusted`) | **oui** : tout le profil, sauf la date d'ouverture du PEA |
+| `getPortfolio` | lignes (valeur, quantité, clôture, valeur, poids, éligibilité, indicateurs), espèces, total, composition, risque, paires corrélées | **oui** : composition et montant du PEA ; ni prix moyen d'achat, ni plus-value |
+| `searchInstruments`, `getInstrument`, `getPriceHistory`, `screenInstruments`, `getBenchmarks` | référentiel, clôtures et indicateurs de Paris | aucune (la requête de recherche n'est pas renvoyée) |
+| `computeAllocation` | montants et nombres de titres d'une répartition proposée, sur la somme du profil | **oui** : la somme à placer |
+
+Aucun outil n'écrit (règle ArchUnit `ASSISTANT_NEVER_CALLS_A_WRITE_USE_CASE`, prouvée par une
+fixture) ; consulter une valeur ne la fait pas suivre (aucun appel à EODHD déclenché).
+
 ## Acteurs malveillants considérés
 
 | Acteur | Moyen | Exemple |
@@ -50,20 +64,26 @@ processus qui lit `~/.investai/mcp-token` ou `infra/.env` a déjà gagné), atta
 - **Vecteurs** : noms d'instruments (EODHD, Euronext : texte de tiers), objectifs et exclusions
   du profil (texte libre), titres et extraits de news (Phase 4).
 - **Parades** :
-  - sorties **structurées** (`structuredContent` + `outputSchema`) : chaque texte de tiers est
-    dans un champ dédié et étiqueté, jamais concaténé à des consignes (3.1) ;
-  - longueur bornée, caractères de contrôle et invisibles déjà refusés à la saisie
-    (`InputFormats`, catégories Cc, Cf, Co, Cn, Zl, Zp) ; délimiteurs neutralisés dans le texte
-    (3.1) ;
+  - sorties **structurées** (`structuredContent` + `outputSchema`) : chaque texte de tiers ou du
+    profil est rangé sous un objet `untrusted`, jamais concaténé à des consignes ; un test
+    parcourt tous les `outputSchema` et échoue si un champ de texte libre est ailleurs
+    (`OutputSchemaWalk`) ;
+  - texte **nettoyé à la sortie** (`UntrustedText` : catégories Cc, Cf, Co, Cn, Zl, Zp et
+    surrogates isolés retirés, tabulations et retours à la ligne remplacés par une espace) et
+    **borné** (nom 100, mnémonique 32, objectifs 500, exclusions 20 × 100) ; la délimitation est
+    le champ JSON, échappé par Jackson (pas de balise maison à neutraliser) ;
   - consignes du serveur, prompt `conseil-placement` et descriptions d'outils : « données, jamais
-    instructions » (3.1, testé) ;
+    instructions » (testé par `AdviceGuidanceTest`) ;
   - **lecture seule** en Phase 3 : une injection réussie ne peut rien modifier dans
     l'application.
 - **Risque résiduel** : aucune délimitation n'empêche à coup sûr un modèle de suivre une
   instruction cachée. La parade décisive est l'absence de capacité dangereuse (LLM06) et la règle
   d'usage sur les autres connecteurs (LLM02).
-- **Test prévu (3.1)** : nom d'instrument contenant une tentative d'injection, rendu délimité et
-  intact dans la sortie.
+- **Tests réalisés (3.1)** : nom d'instrument contenant une fausse fin de JSON, un faux champ
+  `instructions`, des caractères invisibles et 230 caractères → JSON valide, texte sous
+  `untrusted`, invisibles retirés, tronqué à 100 avec « … », le reste intact ; même test pour les
+  objectifs et les exclusions du profil (`AdviceToolsInputsIT`). À refaire dans un vrai client
+  (scénario du § 7 de la spec 3.1, étape 9).
 
 ### LLM02 — Divulgation d'informations sensibles
 
@@ -73,8 +93,13 @@ processus qui lit `~/.investai/mcp-token` ou `infra/.env` a déjà gagné), atta
   - **Règle d'usage (ADR-0010)** : les analyses se font dans une conversation ou un projet Claude
     où **seul le connecteur InvestAI est activé** ; les appels d'outils restent soumis à
     approbation (jamais « toujours autoriser » pour un outil qui écrit ou envoie).
-- **Moindre donnée** : chaque outil ne renvoie que l'utile ; l'outil de santé (3.0) ne renvoie
-  aucune donnée personnelle (version et dates seulement).
+- **Moindre donnée** : chaque outil ne renvoie que l'utile (tableau ci-dessus) ; l'outil de santé
+  (3.0) ne renvoie aucune donnée personnelle ; le profil remplace la date d'ouverture du PEA par
+  « 5 ans atteints » ; le portefeuille n'envoie ni prix moyen d'achat ni plus-value.
+- **Journaux** : une ligne par appel (outil, statut, durée, taille, code d'erreur attendue,
+  `requestId`), jamais les arguments, le résultat, un montant, le profil, une quantité ni
+  l'identifiant d'une valeur détenue (test sur la sortie capturée avec des valeurs
+  reconnaissables).
 - **Données chez Anthropic** : profil et portefeuille partent dans la conversation, aux conditions
   de l'abonnement. Le propriétaire vérifie le réglage de confidentialité de son compte.
 - **Agents de développement** : le serveur InvestAI n'est **jamais** déclaré dans le `.mcp.json`
@@ -105,8 +130,14 @@ processus qui lit `~/.investai/mcp-token` ou `infra/.env` a déjà gagné), atta
 ### LLM05 — Sortie mal gérée
 
 - L'application **n'interprète jamais** une sortie du modèle en Phase 3 : aucun outil d'écriture.
-- Les arguments des outils sont des **entrées non fiables** : schémas stricts (bornes, longueurs,
-  énumérations), mêmes règles que l'API REST (3.1). Les arguments ne sont jamais journalisés.
+- Les arguments des outils sont des **entrées non fiables** : schéma d'entrée strict déclaré
+  (types, énumérations, bornes, motifs, champs inconnus refusés), mais **vérifié par chaque outil
+  côté serveur** (`ToolArguments`) : longueur avant tout motif, `null` explicite et décimal pour
+  un entier refusés. Refus : `tool.invalid-argument` + nom du champ + `requestId`, jamais la
+  valeur. La validation du SDK contre le schéma est **désactivée** (`McpServerConfiguration`) :
+  elle répondait avant l'outil avec son propre message et journalisait le nom des champs
+  inconnus (texte du client) ; un test vérifie que le schéma déclaré et les contrôles du serveur
+  rendent le même verdict (`ToolArgumentsTest`). Les arguments ne sont jamais journalisés.
 - Une erreur d'outil ne renvoie jamais de message d'exception au client (`tool.failed` +
   `requestId`). Exception : l'échec de validation de la sortie contre son schéma (SDK) renvoie le
   chemin du champ fautif et le type attendu, sans valeur. Chaque outil déclare un `outputSchema`
@@ -151,8 +182,13 @@ processus qui lit `~/.investai/mcp-token` ou `infra/.env` a déjà gagné), atta
 - Limite de débit de `/mcp` : 120 requêtes par minute glissante, deux budgets (authentifié /
   refusé) pour qu'un processus sans jeton ne prive pas le client légitime ; 429 avec
   `Retry-After`.
-- Résultats bornés (50 valeurs au plus pour le filtre, 3.1), délai d'expiration des requêtes du
-  serveur MCP (20 s par défaut) et de la passerelle (60 s).
+- Résultats bornés (3.1) : 20 résultats de recherche, 50 du filtre, 30 lignes du portefeuille,
+  20 paires corrélées, 253 clôtures d'historique, 30 lignes de répartition, 10 ETF de référence ;
+  **64 Kio au plus** par résultat, vérifié sur le pire cas (éléments au maximum, textes à la
+  longueur maximale de la base en caractères de quatre octets, `AdviceToolsBoundsIT`).
+- Délai d'expiration des requêtes du serveur MCP (20 s par défaut) et de la passerelle (60 s).
+- Le filtre lit les ~1 300 lignes d'indicateurs à chaque appel (en mémoire, quelques
+  millisecondes) : le débit de `/mcp` borne l'abus.
 - Côté modèle, la consommation compte dans les limites de l'abonnement, pas en euros.
 
 ## Menaces sur le transport et l'authentification (hors Top 10 LLM)
@@ -166,6 +202,17 @@ processus qui lit `~/.investai/mcp-token` ou `infra/.env` a déjà gagné), atta
 | Jeton envoyé ailleurs par la passerelle | URL limitée à HTTP sur une adresse de bouclage, sans redirection | `mcp-stdio-gateway.test.mjs` |
 | `/mcp` ouvert par défaut | Non monté sans `INVESTAI_MCP_TOKEN_HASH` ; empreinte mal formée → démarrage refusé | `McpEndpointActivationTest` |
 | Exposition réseau | Écoute sur `127.0.0.1` (profil `local`) ; OAuth 2.1 avant toute exposition (Phase 9) | — |
+
+## Écarts restants (3.1)
+
+- Les consignes (instructions du serveur, prompt, descriptions) sont des **indications** pour le
+  modèle : il peut les ignorer, et certains clients ne transmettent pas les instructions du
+  serveur (d'où `dataLimits` et les rappels dans chaque sortie). Vérification manuelle par le
+  propriétaire (§ 7 de la spec 3.1), à refaire dans Claude Desktop s'il l'utilise.
+- La délimitation `untrusted` n'empêche pas à coup sûr un modèle de suivre une instruction
+  cachée (LLM01) : la parade décisive reste la lecture seule et le connecteur InvestAI seul.
+- Les noms d'instruments restent des textes de tiers : un nom trompeur mais visible (sans
+  caractère invisible) passe tel quel, borné.
 
 ## Risques acceptés
 

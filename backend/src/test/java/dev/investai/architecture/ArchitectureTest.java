@@ -5,6 +5,7 @@ import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAPac
 import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAnyPackage;
 import static com.tngtech.archunit.core.domain.JavaClass.Predicates.simpleName;
 import static com.tngtech.archunit.core.domain.JavaClass.Predicates.simpleNameEndingWith;
+import static com.tngtech.archunit.core.domain.JavaClass.Predicates.type;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noFields;
@@ -18,6 +19,18 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
+import dev.investai.market.application.CallBudget;
+import dev.investai.market.application.DailyCollection;
+import dev.investai.market.application.EodhdMaintenance;
+import dev.investai.market.application.IndicatorComputation;
+import dev.investai.market.application.InstrumentTracking;
+import dev.investai.market.application.PeaEligibilityCorrection;
+import dev.investai.market.application.PriceHistoryLoader;
+import dev.investai.market.application.PriceRecorder;
+import dev.investai.market.application.ReferenceDataLoader;
+import dev.investai.portfolio.application.InvestorProfiles;
+import dev.investai.portfolio.application.PortfolioCommands;
+import dev.investai.portfolio.application.ProfileChange;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.Entity;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -183,6 +196,31 @@ class ArchitectureTest {
                               resideInAPackage("dev.investai..")
                                   .and(simpleNameEndingWith("Repository")))))
           .because("MCP tools call use cases, never repositories (ADR-0010)");
+
+  /**
+   * The advice tools are read only (spec 3.1, criterion 1): the assistant never calls a use case
+   * that writes, nor one that would call a provider (tracking an instrument triggers EODHD).
+   */
+  @ArchTest
+  static final ArchRule ASSISTANT_NEVER_CALLS_A_WRITE_USE_CASE =
+      noClasses()
+          .that()
+          .resideInAPackage("dev.investai.assistant..")
+          .should()
+          .dependOnClassesThat(
+              type(PortfolioCommands.class)
+                  .or(type(InstrumentTracking.class))
+                  .or(type(PeaEligibilityCorrection.class))
+                  .or(type(IndicatorComputation.class))
+                  .or(type(DailyCollection.class))
+                  .or(type(EodhdMaintenance.class))
+                  .or(type(PriceHistoryLoader.class))
+                  .or(type(ReferenceDataLoader.class))
+                  .or(type(PriceRecorder.class))
+                  .or(type(CallBudget.class)))
+          .orShould()
+          .callMethod(InvestorProfiles.class, "save", ProfileChange.class)
+          .because("the MCP tools of phase 3 are read only (ADR-0010, spec 3.1)");
 
   @ArchTest
   static final ArchRule NO_FIELD_INJECTION =

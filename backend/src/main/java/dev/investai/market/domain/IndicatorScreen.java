@@ -4,15 +4,17 @@ import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Currency;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Screens the stored indicators of every Paris instrument (spec 2.4, criteria 6 and 9): filters,
- * sorts and limits, without computing anything. Done in memory over ~1,300 rows: the PEA
- * eligibility is resolved in Java (owner's correction or rule), not stored.
+ * Screens the stored indicators of every Paris instrument (spec 2.4, criteria 6 and 9; spec 3.1,
+ * criterion 24): filters, sorts and limits, without computing anything. Done in memory over ~1,300
+ * rows: the PEA eligibility is resolved in Java (owner's correction or rule), not stored.
  */
 public final class IndicatorScreen {
 
@@ -25,35 +27,73 @@ public final class IndicatorScreen {
    *
    * @param candidates every instrument with stored indicators
    * @param criteria the filter, order and limit
-   * @return the matching instruments
+   * @return the matching instruments, and how many the requested indicator filters left out for
+   *     want of the indicator
    */
   public static Screening apply(
       Collection<InstrumentIndicators> candidates, ScreeningCriteria criteria) {
+    List<InstrumentIndicators> kinds =
+        candidates.stream().filter(candidate -> ofRequestedKind(candidate, criteria)).toList();
     List<InstrumentIndicators> matching =
-        candidates.stream()
+        kinds.stream()
             .filter(candidate -> matches(candidate, criteria))
             .sorted(order(criteria))
             .toList();
     return new Screening(
-        matching.size(), matching.subList(0, Math.min(criteria.limit(), matching.size())));
+        matching.size(),
+        matching.subList(0, Math.min(criteria.limit(), matching.size())),
+        unavailable(kinds, criteria));
+  }
+
+  private static boolean ofRequestedKind(
+      InstrumentIndicators candidate, ScreeningCriteria criteria) {
+    Instrument instrument = candidate.instrument();
+    return criteria.types().contains(instrument.type())
+        && criteria.peaEligibilities().contains(instrument.peaEligibility().status());
   }
 
   private static boolean matches(InstrumentIndicators candidate, ScreeningCriteria criteria) {
-    IndicatorSet indicators = candidate.indicators().indicators();
-    PeaEligibilityStatus eligibility = criteria.peaEligibility();
+    IndicatorSet indicators = indicators(candidate);
     BigDecimal minAmount = criteria.minAverageDailyTradedAmount();
-    boolean eligible =
-        eligibility == null || candidate.instrument().peaEligibility().status() == eligibility;
-    boolean liquid = minAmount == null || liquidInEuros(candidate, minAmount);
-    return eligible
-        && liquid
+    BigDecimal drawdownLimit = criteria.maxDrawdownLimit();
+    boolean liquid = minAmount == null || atLeast(amountInEuros(candidate), minAmount);
+    boolean fellLittle =
+        drawdownLimit == null || atLeast(indicators.maxDrawdown(), drawdownLimit.negate());
+    return liquid
+        && fellLittle
         && atMost(indicators.volatility(), criteria.maxVolatility())
         && atLeast(indicators.performance(criteria.performanceWindow()), criteria.minPerformance());
   }
 
-  private static boolean liquidInEuros(InstrumentIndicators candidate, BigDecimal minAmount) {
-    return EUR.equals(candidate.instrument().currency())
-        && atLeast(candidate.indicators().indicators().averageDailyTradedAmount(), minAmount);
+  /** Counts, for each requested filter, the candidates without that indicator. */
+  private static Map<ScreeningFilter, Integer> unavailable(
+      List<InstrumentIndicators> candidates, ScreeningCriteria criteria) {
+    Map<ScreeningFilter, Function<InstrumentIndicators, Indicator>> requested =
+        new EnumMap<>(ScreeningFilter.class);
+    if (criteria.maxVolatility() != null) {
+      requested.put(ScreeningFilter.VOLATILITY, candidate -> indicators(candidate).volatility());
+    }
+    if (criteria.maxDrawdownLimit() != null) {
+      requested.put(ScreeningFilter.MAX_DRAWDOWN, candidate -> indicators(candidate).maxDrawdown());
+    }
+    if (criteria.minAverageDailyTradedAmount() != null) {
+      requested.put(ScreeningFilter.LIQUIDITY, IndicatorScreen::amountInEuros);
+    }
+    if (criteria.minPerformance() != null) {
+      requested.put(
+          ScreeningFilter.PERFORMANCE,
+          candidate -> indicators(candidate).performance(criteria.performanceWindow()));
+    }
+    Map<ScreeningFilter, Integer> counts = new EnumMap<>(ScreeningFilter.class);
+    requested.forEach(
+        (filter, indicator) ->
+            counts.put(
+                filter,
+                (int)
+                    candidates.stream()
+                        .filter(candidate -> !indicator.apply(candidate).available())
+                        .count()));
+    return counts;
   }
 
   private static boolean atLeast(Indicator indicator, @Nullable BigDecimal bound) {
@@ -92,7 +132,10 @@ public final class IndicatorScreen {
     return candidate.indicators().indicators();
   }
 
-  /** Amounts in another currency are not ranked with amounts in euros: they come last. */
+  /**
+   * Amounts in another currency are neither compared with a bound in euros nor ranked with amounts
+   * in euros: not available, they come last.
+   */
   private static Indicator amountInEuros(InstrumentIndicators candidate) {
     return EUR.equals(candidate.instrument().currency())
         ? indicators(candidate).averageDailyTradedAmount()

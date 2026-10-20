@@ -1,6 +1,7 @@
 package dev.investai.market.api;
 
 import dev.investai.market.domain.IndicatorWindow;
+import dev.investai.market.domain.InstrumentType;
 import dev.investai.market.domain.PeaEligibilityStatus;
 import dev.investai.market.domain.ScreeningCriteria;
 import dev.investai.market.domain.ScreeningSort;
@@ -9,7 +10,9 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
 import java.math.BigDecimal;
+import java.util.EnumSet;
 import java.util.Objects;
+import java.util.Set;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -39,14 +42,17 @@ public record ScreeningRequest(
         @Nullable Integer limit) {
 
   /**
-   * Builds the criteria, with the defaults.
+   * Builds the criteria, with the defaults: every kind of instrument, no drawdown filter (the REST
+   * screening of spec 2.4).
    *
    * @return the criteria
    */
   ScreeningCriteria toCriteria() {
     return new ScreeningCriteria(
-        peaEligibility,
+        EnumSet.allOf(InstrumentType.class),
+        peaEligibility == null ? EnumSet.allOf(PeaEligibilityStatus.class) : Set.of(peaEligibility),
         decimal(maxVolatility),
+        null,
         decimal(minAverageDailyTradedAmount),
         Objects.requireNonNullElse(performanceWindow, IndicatorWindow.ONE_YEAR),
         decimal(minPerformance),

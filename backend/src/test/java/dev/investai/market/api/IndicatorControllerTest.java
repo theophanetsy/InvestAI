@@ -28,7 +28,9 @@ import dev.investai.support.SecuredWebMvcTest;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -142,8 +144,10 @@ class IndicatorControllerTest {
     assertThat(criteria.getValue())
         .isEqualTo(
             new ScreeningCriteria(
-                PeaEligibilityStatus.ELIGIBLE,
+                EnumSet.allOf(InstrumentType.class),
+                Set.of(PeaEligibilityStatus.ELIGIBLE),
                 new BigDecimal("25"),
+                null,
                 new BigDecimal("100000.5"),
                 IndicatorWindow.SIX_MONTHS,
                 new BigDecimal("-5.25"),
@@ -161,7 +165,15 @@ class IndicatorControllerTest {
     assertThat(criteria.getValue())
         .isEqualTo(
             new ScreeningCriteria(
-                null, null, null, IndicatorWindow.ONE_YEAR, null, ScreeningSort.PERFORMANCE, 50));
+                EnumSet.allOf(InstrumentType.class),
+                EnumSet.allOf(PeaEligibilityStatus.class),
+                null,
+                null,
+                null,
+                IndicatorWindow.ONE_YEAR,
+                null,
+                ScreeningSort.PERFORMANCE,
+                50));
   }
 
   @ParameterizedTest
