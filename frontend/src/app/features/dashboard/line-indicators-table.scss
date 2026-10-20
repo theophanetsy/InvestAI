@@ -42,3 +42,10 @@
   font: var(--mat-sys-body-small);
   color: var(--mat-sys-on-surface-variant);
 }
+
+/* The name of the line stays visible while the table scrolls sideways. */
+.lines th:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--mat-sys-surface);
+}

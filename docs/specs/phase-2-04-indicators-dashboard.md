@@ -243,7 +243,10 @@ propriétaire) : corrigé en « Non ajustée ».
   matrice, état vide, téléphone 390 px) **conformes**, chiffres recalculés à la main (total,
   Herfindahl, base 100). Anomalies mineures corrigées : espace manquante avant « (espèces
   comprises) » (2.3), en-tête « Valeur » mal aligné et titre du tableau coupé sur téléphone (2.4).
-  Les dialogues signalés sans nom l'ont bien (l'E2E vérifie leur nom accessible). Restent en points
+  Les dialogues signalés sans nom l'ont bien (l'E2E vérifie leur nom accessible). Seconde
+  vérification du dashboard sur le code final : conforme (liquidité, écarts et base 100 recalculés
+  en base) ; nom de la ligne et en-têtes figés ajoutés à sa suggestion pour les tableaux qui
+  défilent. Restent en points
   ouverts : aide du champ « exclusions » qui chevauche le libellé suivant, champ « Quantité » en
   erreur après un ajout validé par Entrée dans ce champ, montants relus sans séparateur de milliers
   (formulaires 2.3) : issue #21.

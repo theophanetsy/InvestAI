@@ -28,3 +28,10 @@
   text-align: start;
   font-weight: normal;
 }
+
+/* The column names stay visible while the values scroll. */
+.data__table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--mat-sys-surface);
+}
