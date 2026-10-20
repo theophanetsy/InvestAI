@@ -1,6 +1,7 @@
 package dev.investai.portfolio.domain;
 
 import dev.investai.market.domain.ClosingPrices;
+import dev.investai.market.domain.DailyReturns;
 import dev.investai.market.domain.Indicator;
 import dev.investai.market.domain.IndicatorCalculator;
 import dev.investai.market.domain.InstrumentId;
@@ -8,6 +9,7 @@ import dev.investai.market.domain.YearOfCloses;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -85,7 +87,7 @@ public record PortfolioRisk(
       if (!line.priced()) {
         exclusions.put(line.line().id(), LineExclusion.NOT_VALUED);
       } else if (year.of(instrument).sufficient()) {
-        kept.put(instrument, line.line().quantity());
+        kept.merge(instrument, line.line().quantity(), Long::sum);
       } else {
         exclusions.put(line.line().id(), LineExclusion.INSUFFICIENT_HISTORY);
       }
@@ -171,17 +173,21 @@ public record PortfolioRisk(
         : null;
   }
 
+  /**
+   * Kept lines all have a sufficient history: the returns of each line are computed once, and the
+   * matrix is symmetric (each pair computed once).
+   */
   private static CorrelationMatrix correlations(List<InstrumentId> kept, YearOfCloses year) {
-    List<List<Indicator>> rows =
-        kept.stream()
-            .map(
-                row ->
-                    kept.stream()
-                        .map(
-                            column ->
-                                IndicatorCalculator.correlation(year.of(row), year.of(column)))
-                        .toList())
-            .toList();
-    return new CorrelationMatrix(kept, rows);
+    List<DailyReturns> returns = kept.stream().map(id -> year.of(id).dailyReturns()).toList();
+    Indicator[][] cells = new Indicator[kept.size()][kept.size()];
+    for (int row = 0; row < kept.size(); row++) {
+      for (int column = row; column < kept.size(); column++) {
+        Indicator correlation =
+            IndicatorCalculator.correlation(returns.get(row), returns.get(column));
+        cells[row][column] = correlation;
+        cells[column][row] = correlation;
+      }
+    }
+    return new CorrelationMatrix(kept, Arrays.stream(cells).map(List::of).toList());
   }
 }

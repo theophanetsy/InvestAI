@@ -31,6 +31,11 @@ class PortfolioRiskTest {
   private static final LocalDate FRIDAY = LocalDate.parse("2026-10-16");
   private static final YearWindow WINDOW = YearWindow.ending(FRIDAY, new EuronextCalendar());
 
+  private static final String P100 = "100";
+  private static final String P50 = "50";
+  private static final String P20 = "20";
+  private static final String P110 = "110";
+
   private final InstrumentId alternating = InstrumentId.newId();
   private final InstrumentId flat = InstrumentId.newId();
   private final InstrumentId recent = InstrumentId.newId();
@@ -53,7 +58,7 @@ class PortfolioRiskTest {
   }
 
   private YearOfCloses year(ClosingPrices msci, ClosingPrices cac) {
-    return new YearOfCloses(WINDOW, closes, msci, cac);
+    return new YearOfCloses(WINDOW, closes, msci, cac, Set.of());
   }
 
   private static ValuedLine line(InstrumentId instrument, long quantity, @Nullable String close) {
@@ -69,11 +74,11 @@ class PortfolioRiskTest {
     // 1 × (100/110) + 2 × 50 = 200/210 alternately: returns +5 % and -1/21, each at
     // ±(0.05 + 1/21)/2 = ±0.0488095 from the mean: s = 0.0488095 × √(252/251) = 0.0489067;
     // × √252 = 0.776369 → 77.64 %. Largest fall 210 → 200: -10/210 = -4.76 %.
-    series(alternating, i -> i % 2 == 0 ? "100" : "110", Set.of());
-    series(flat, i -> "50", Set.of());
+    series(alternating, i -> i % 2 == 0 ? P100 : P110, Set.of());
+    series(flat, i -> P50, Set.of());
     var msci = series(msciWorld, i -> i % 2 == 0 ? "100" : "105", Set.of());
-    var cac = series(cac40, i -> "100", Set.of());
-    var lines = List.of(line(alternating, 1, "100"), line(flat, 2, "50"));
+    var cac = series(cac40, i -> P100, Set.of());
+    var lines = List.of(line(alternating, 1, P100), line(flat, 2, P50));
 
     PortfolioRisk risk = PortfolioRisk.of(lines, year(msci, cac));
 
@@ -95,11 +100,11 @@ class PortfolioRiskTest {
 
   @Test
   void correlationsBetweenKeptLines() {
-    series(alternating, i -> i % 2 == 0 ? "100" : "110", Set.of());
-    series(recent, i -> i % 2 == 0 ? "20" : "21", Set.of());
-    series(flat, i -> "50", Set.of());
-    var msci = series(msciWorld, i -> "100", Set.of());
-    var lines = List.of(line(alternating, 1, "100"), line(recent, 1, "20"), line(flat, 1, "50"));
+    series(alternating, i -> i % 2 == 0 ? P100 : P110, Set.of());
+    series(recent, i -> i % 2 == 0 ? P20 : "21", Set.of());
+    series(flat, i -> P50, Set.of());
+    var msci = series(msciWorld, i -> P100, Set.of());
+    var lines = List.of(line(alternating, 1, P100), line(recent, 1, P20), line(flat, 1, P50));
 
     CorrelationMatrix matrix = PortfolioRisk.of(lines, year(msci, msci)).correlations();
 
@@ -113,12 +118,12 @@ class PortfolioRiskTest {
 
   @Test
   void linesWithoutPriceOrHistoryAreLeftOutAndReported() {
-    series(alternating, i -> i % 2 == 0 ? "100" : "110", Set.of());
-    series(recent, i -> "20", rangeTo(YearWindow.SESSIONS - 10));
-    var msci = series(msciWorld, i -> "100", Set.of());
-    ValuedLine young = line(recent, 1, "20");
+    series(alternating, i -> i % 2 == 0 ? P100 : P110, Set.of());
+    series(recent, i -> P20, rangeTo(YearWindow.SESSIONS - 10));
+    var msci = series(msciWorld, i -> P100, Set.of());
+    ValuedLine young = line(recent, 1, P20);
     ValuedLine noPrice = line(unpriced, 1, null);
-    var lines = List.of(line(alternating, 1, "100"), young, noPrice);
+    var lines = List.of(line(alternating, 1, P100), young, noPrice);
 
     PortfolioRisk risk = PortfolioRisk.of(lines, year(msci, msci));
 
@@ -133,12 +138,12 @@ class PortfolioRiskTest {
 
   @Test
   void aMissingCloseOfAKeptLineIsAGapInTheCurveNeverInterpolated() {
-    series(alternating, i -> i % 2 == 0 ? "100" : "110", Set.of(100));
-    var msci = series(msciWorld, i -> "100", Set.of());
-    var insufficientCac = series(cac40, i -> "100", rangeTo(100));
+    series(alternating, i -> i % 2 == 0 ? P100 : P110, Set.of(100));
+    var msci = series(msciWorld, i -> P100, Set.of());
+    var insufficientCac = series(cac40, i -> P100, rangeTo(100));
 
     PortfolioRisk risk =
-        PortfolioRisk.of(List.of(line(alternating, 1, "100")), year(msci, insufficientCac));
+        PortfolioRisk.of(List.of(line(alternating, 1, P100)), year(msci, insufficientCac));
 
     CurvePoint gap = risk.curve().get(100);
     assertThat(gap.date()).isEqualTo(WINDOW.sessions().get(100));
@@ -151,10 +156,10 @@ class PortfolioRiskTest {
 
   @Test
   void withoutKeptLinesTheRiskIsExplicitlyUnavailable() {
-    var msci = series(msciWorld, i -> "100", Set.of());
-    series(recent, i -> "20", rangeTo(YearWindow.SESSIONS - 10));
+    var msci = series(msciWorld, i -> P100, Set.of());
+    series(recent, i -> P20, rangeTo(YearWindow.SESSIONS - 10));
 
-    PortfolioRisk tooRecent = PortfolioRisk.of(List.of(line(recent, 1, "20")), year(msci, msci));
+    PortfolioRisk tooRecent = PortfolioRisk.of(List.of(line(recent, 1, P20)), year(msci, msci));
     PortfolioRisk empty = PortfolioRisk.of(List.of(), year(msci, msci));
     PortfolioRisk noCloses = PortfolioRisk.withoutCloses(List.of(line(unpriced, 1, null)));
 
@@ -164,6 +169,29 @@ class PortfolioRiskTest {
     assertThat(empty.maxDrawdown()).isEqualTo(Indicator.NOT_COMPUTABLE);
     assertThat(noCloses.exclusions()).containsValue(LineExclusion.NOT_VALUED);
     assertThat(noCloses.volatility()).isEqualTo(Indicator.NOT_COMPUTABLE);
+  }
+
+  @Test
+  void linesEnoughOnTheirOwnButNotTogetherLeaveThePortfolioWithoutHistory() {
+    // Each line misses 50 of the 253 sessions (203 closes: enough on its own), but not the same
+    // ones: the portfolio has a value on 153 sessions only (< 203), so its risk is insufficient,
+    // and no line is excluded (each has enough history).
+    series(alternating, i -> i % 2 == 0 ? P100 : P110, rangeTo(50));
+    series(flat, i -> P50, rangeFrom(100, 150));
+    var msci = series(msciWorld, i -> P100, Set.of());
+
+    PortfolioRisk risk =
+        PortfolioRisk.of(List.of(line(alternating, 1, P100), line(flat, 1, P50)), year(msci, msci));
+
+    assertThat(risk.volatility()).isEqualTo(Indicator.INSUFFICIENT_HISTORY);
+    assertThat(risk.maxDrawdown()).isEqualTo(Indicator.INSUFFICIENT_HISTORY);
+    assertThat(risk.curve()).isEmpty();
+    assertThat(risk.exclusions()).isEmpty();
+    assertThat(risk.correlations().instruments()).containsExactly(alternating, flat);
+  }
+
+  private static Set<Integer> rangeFrom(int start, int end) {
+    return IntStream.range(start, end).boxed().collect(java.util.stream.Collectors.toSet());
   }
 
   private static Set<Integer> rangeTo(int end) {

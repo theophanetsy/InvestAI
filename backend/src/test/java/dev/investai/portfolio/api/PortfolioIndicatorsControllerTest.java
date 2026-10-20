@@ -36,6 +36,7 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 @SecuredWebMvcTest(PortfolioIndicatorsController.class)
 class PortfolioIndicatorsControllerTest {
 
+  private static final String HUNDRED = "100.00";
   private static final String INDICATORS = "/api/v1/portfolio/indicators";
   private static final Instant NOW = Instant.parse("2026-10-19T08:00:00Z");
   private static final LocalDate FRIDAY = LocalDate.parse("2026-10-16");
@@ -59,11 +60,11 @@ class PortfolioIndicatorsControllerTest {
     var composition =
         new Composition(
             1,
-            of("100.00"),
+            of(HUNDRED),
             of("1.0000"),
             Indicator.NOT_COMPUTABLE,
             of("0.00"),
-            of("100.00"),
+            of(HUNDRED),
             of("0.00"));
     var risk =
         new PortfolioRisk(
@@ -96,7 +97,7 @@ class PortfolioIndicatorsControllerTest {
     json.extractingPath("$.volatility.value").isEqualTo("18.40");
     json.extractingPath("$.maxDrawdown.value").isEqualTo("-12.30");
     json.extractingPath("$.lines[0].instrument.name").isEqualTo("Air Liquide");
-    json.extractingPath("$.lines[0].weightPercent").isEqualTo("100.00");
+    json.extractingPath("$.lines[0].weightPercent").isEqualTo(HUNDRED);
     json.extractingPath("$.lines[0].indicators.performanceOneMonth.value").isEqualTo("2.35");
     json.extractingPath("$.lines[0].exclusion").isEqualTo("INSUFFICIENT_HISTORY");
     json.extractingPath("$.curve[1].portfolio").isEqualTo("101.50");
@@ -133,6 +134,6 @@ class PortfolioIndicatorsControllerTest {
   }
 
   private static BigDecimal hundred() {
-    return new BigDecimal("100.00");
+    return new BigDecimal(HUNDRED);
   }
 }
