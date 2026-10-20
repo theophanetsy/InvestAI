@@ -45,6 +45,9 @@ class IndicatorControllerTest {
 
   private static final String SCREEN = "/api/v1/market/indicators";
   private static final String USER = "someone";
+  private static final String CODE = "$.code";
+  private static final String FIELD = "$.errors[0].field";
+  private static final String VALIDATION_FAILED = "validation.failed";
   private static final Instant COMPUTED_AT = Instant.parse("2026-10-17T07:00:00Z");
 
   @Autowired private MockMvcTester mvc;
@@ -176,7 +179,7 @@ class IndicatorControllerTest {
     var response = mvc.get().uri(SCREEN + "?" + parameter).with(user(USER)).exchange();
 
     assertThat(response).hasStatus(HttpStatus.BAD_REQUEST);
-    assertThat(response).bodyJson().extractingPath("$.code").isEqualTo("validation.failed");
+    assertThat(response).bodyJson().extractingPath(CODE).isEqualTo(VALIDATION_FAILED);
     verify(queries, never()).screen(any());
   }
 
@@ -185,7 +188,9 @@ class IndicatorControllerTest {
     var response =
         mvc.get().uri(SCREEN + "?maxVolatility=" + "9".repeat(100_000)).with(user(USER)).exchange();
 
-    assertThat(response.getResponse().getStatus()).isGreaterThanOrEqualTo(400).isLessThan(500);
+    assertThat(response).hasStatus(HttpStatus.BAD_REQUEST);
+    assertThat(response).bodyJson().extractingPath(CODE).isEqualTo(VALIDATION_FAILED);
+    assertThat(response).bodyJson().extractingPath(FIELD).isEqualTo("maxVolatility");
     verify(queries, never()).screen(any());
   }
 
@@ -194,6 +199,8 @@ class IndicatorControllerTest {
     var response = mvc.get().uri(SCREEN + "?sort=RANDOM").with(user(USER)).exchange();
 
     assertThat(response).hasStatus(HttpStatus.BAD_REQUEST);
+    assertThat(response).bodyJson().extractingPath(CODE).isEqualTo(VALIDATION_FAILED);
+    assertThat(response).bodyJson().extractingPath(FIELD).isEqualTo("sort");
     verify(queries, never()).screen(any());
   }
 }

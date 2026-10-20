@@ -3,10 +3,11 @@ package dev.investai.market.application;
 import static dev.investai.market.IndicatorFixtures.close;
 import static dev.investai.market.IndicatorFixtures.instrument;
 import static dev.investai.market.IndicatorFixtures.saveYear;
-import static dev.investai.market.MarketTestData.isin;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.investai.market.IndicatorFixtures;
 import dev.investai.market.MarketTestData;
+import dev.investai.market.domain.CollectionJournal;
 import dev.investai.market.domain.DailyPriceRepository;
 import dev.investai.market.domain.EuronextCalendar;
 import dev.investai.market.domain.Indicator;
@@ -15,8 +16,6 @@ import dev.investai.market.domain.IndicatorWindow;
 import dev.investai.market.domain.Instrument;
 import dev.investai.market.domain.InstrumentRepository;
 import dev.investai.market.domain.InstrumentType;
-import dev.investai.market.domain.Listing;
-import dev.investai.market.domain.Mic;
 import dev.investai.market.domain.StoredIndicators;
 import dev.investai.market.domain.YearWindow;
 import dev.investai.support.IntegrationTest;
@@ -39,6 +38,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 @IntegrationTest
 class IndicatorComputationIT {
 
+  private static final String P100 = "100";
   private static final Instant MONDAY_MORNING = Instant.parse("2026-10-19T08:00:00Z");
   private static final Instant AN_HOUR_BEFORE = MONDAY_MORNING.minus(Duration.ofHours(1));
   private static final LocalDate FRIDAY = LocalDate.parse("2026-10-16");
@@ -49,6 +49,7 @@ class IndicatorComputationIT {
   @Autowired private InstrumentRepository instruments;
   @Autowired private DailyPriceRepository prices;
   @Autowired private IndicatorRepository indicators;
+  @Autowired private CollectionJournal journal;
   @Autowired private IndicatorSettings settings;
 
   private final MutableClock clock = new MutableClock(MONDAY_MORNING);
@@ -61,18 +62,19 @@ class IndicatorComputationIT {
   @BeforeEach
   void setUp() {
     MarketTestData.clearTables(jdbc);
-    computation = new IndicatorComputation(instruments, prices, indicators, settings, clock);
-    msciWorld = etf(settings.msciWorld(), "MSCI World (test)");
-    cac40 = etf(settings.cac40(), "CAC 40 (test)");
+    computation =
+        new IndicatorComputation(instruments, prices, journal, indicators, settings, clock);
+    msciWorld = etf(true, "MSCI World (test)");
+    cac40 = etf(false, "CAC 40 (test)");
     alternating = stock("FR000012007", "Alternée");
     recent = stock("FR000012027", "Récente");
   }
 
   private void loadYear() {
     // Same series as IndicatorCalculatorTest: 100/110, MSCI World 100/105, CAC 40 105/100.
-    saveYear(prices, alternating.id(), WINDOW, i -> i % 2 == 0 ? "100" : "110", 0, AN_HOUR_BEFORE);
-    saveYear(prices, msciWorld.id(), WINDOW, i -> i % 2 == 0 ? "100" : "105", 0, AN_HOUR_BEFORE);
-    saveYear(prices, cac40.id(), WINDOW, i -> i % 2 == 0 ? "105" : "100", 0, AN_HOUR_BEFORE);
+    saveYear(prices, alternating.id(), WINDOW, i -> i % 2 == 0 ? P100 : "110", 0, AN_HOUR_BEFORE);
+    saveYear(prices, msciWorld.id(), WINDOW, i -> i % 2 == 0 ? P100 : "105", 0, AN_HOUR_BEFORE);
+    saveYear(prices, cac40.id(), WINDOW, i -> i % 2 == 0 ? "105" : P100, 0, AN_HOUR_BEFORE);
     saveYear(prices, recent.id(), WINDOW, i -> "20", YearWindow.SESSIONS - 10, AN_HOUR_BEFORE);
   }
 
@@ -92,7 +94,7 @@ class IndicatorComputationIT {
     assertThat(value(set.msciWorld().correlation())).isEqualTo("1.00");
     assertThat(value(set.msciWorld().beta())).isEqualTo("1.96");
     assertThat(value(set.cac40().correlation())).isEqualTo("-1.00");
-    assertThat(set.averageTradedAmount().available()).isTrue();
+    assertThat(set.averageDailyTradedAmount().available()).isTrue();
     var young = stored(recent).indicators();
     assertThat(young.closesOneYear()).isEqualTo(10);
     assertThat(young.performance(IndicatorWindow.ONE_MONTH))
@@ -143,23 +145,53 @@ class IndicatorComputationIT {
   }
 
   @Test
+  void aWriteStampedJustBeforeTheRunIsNeverMissed() {
+    loadYear();
+    computation.refresh();
+
+    // A close stamped one second before the run but committed after it: invisible to that run.
+    // Within the grace period of the run, the next one computes again instead of waiting for the
+    // next day.
+    prices.save(
+        List.of(close(recent.id(), WINDOW.sessions().get(200), "20")),
+        MONDAY_MORNING.minusSeconds(1));
+    clock.set(MONDAY_MORNING.plus(Duration.ofHours(1)));
+
+    assertThat(computation.refresh()).isEqualTo(IndicatorComputation.Outcome.COMPUTED);
+    assertThat(stored(recent).indicators().closesOneYear()).isEqualTo(11);
+  }
+
+  @Test
+  void aCloseOnANonTradingDayDoesNotMakeEveryRunComputeAgain() {
+    loadYear();
+    // Bad provider data: a close dated on Saturday 17 October, after the last session.
+    prices.save(
+        List.of(close(alternating.id(), LocalDate.parse("2026-10-17"), P100)), AN_HOUR_BEFORE);
+
+    assertThat(computation.refresh()).isEqualTo(IndicatorComputation.Outcome.COMPUTED);
+    assertThat(stored(alternating).indicators().asOf()).isEqualTo(FRIDAY);
+    clock.set(MONDAY_MORNING.plus(Duration.ofHours(1)));
+    assertThat(computation.refresh()).isEqualTo(IndicatorComputation.Outcome.UP_TO_DATE);
+  }
+
+  @Test
   void nothingIsComputedWithoutCloses() {
     assertThat(computation.refresh()).isEqualTo(IndicatorComputation.Outcome.NO_CLOSES);
     assertThat(indicators.findAll()).isEmpty();
     assertThat(indicators.lastRun()).isEmpty();
   }
 
-  private Instrument etf(Listing listing, String name) {
-    return instrument(instruments, listing, InstrumentType.ETF, name, MONDAY_MORNING);
+  private Instrument etf(boolean msci, String name) {
+    return instrument(
+        instruments,
+        msci ? settings.msciWorld() : settings.cac40(),
+        InstrumentType.ETF,
+        name,
+        MONDAY_MORNING);
   }
 
   private Instrument stock(String isinBody, String name) {
-    return instrument(
-        instruments,
-        new Listing(isin(isinBody), Mic.XPAR),
-        InstrumentType.STOCK,
-        name,
-        MONDAY_MORNING);
+    return IndicatorFixtures.stock(instruments, isinBody, name, MONDAY_MORNING);
   }
 
   private StoredIndicators stored(Instrument instrument) {

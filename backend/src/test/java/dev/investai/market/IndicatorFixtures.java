@@ -92,6 +92,25 @@ public final class IndicatorFixtures {
   }
 
   /**
+   * Adds a share listed on Euronext Paris to the reference data.
+   *
+   * @param instruments the reference data
+   * @param isinBody first eleven characters of the ISIN, e.g. {@code FR000012007}
+   * @param name its name
+   * @param at time of the reference refresh
+   * @return the stored instrument
+   */
+  public static Instrument stock(
+      InstrumentRepository instruments, String isinBody, String name, Instant at) {
+    return instrument(
+        instruments,
+        new Listing(MarketTestData.isin(isinBody), Mic.XPAR),
+        InstrumentType.STOCK,
+        name,
+        at);
+  }
+
+  /**
    * Stores closes of an instrument on the sessions of a window, from an index on.
    *
    * @param prices the closes

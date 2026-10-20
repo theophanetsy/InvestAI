@@ -10,8 +10,8 @@ import org.jspecify.annotations.Nullable;
  * @param peaEligibility PEA eligibility required (owner's correction, or the rule), {@code null}
  *     for any
  * @param maxVolatility highest one-year volatility, in percent, {@code null} for any
- * @param minAverageTradedAmount lowest average daily traded amount in euros; instruments traded in
- *     another currency never match. {@code null} for any
+ * @param minAverageDailyTradedAmount lowest average daily traded amount in euros; instruments
+ *     traded in another currency never match. {@code null} for any
  * @param performanceWindow window of the performance filter and sort
  * @param minPerformance lowest performance over {@code performanceWindow}, in percent, {@code null}
  *     for any
@@ -21,7 +21,7 @@ import org.jspecify.annotations.Nullable;
 public record ScreeningCriteria(
     @Nullable PeaEligibilityStatus peaEligibility,
     @Nullable BigDecimal maxVolatility,
-    @Nullable BigDecimal minAverageTradedAmount,
+    @Nullable BigDecimal minAverageDailyTradedAmount,
     IndicatorWindow performanceWindow,
     @Nullable BigDecimal minPerformance,
     ScreeningSort sort,

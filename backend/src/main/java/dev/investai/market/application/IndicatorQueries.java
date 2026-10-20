@@ -1,5 +1,6 @@
 package dev.investai.market.application;
 
+import dev.investai.market.domain.CollectionJournal;
 import dev.investai.market.domain.DailyPriceRepository;
 import dev.investai.market.domain.EuronextCalendar;
 import dev.investai.market.domain.IndicatorRepository;
@@ -49,6 +50,7 @@ public class IndicatorQueries {
    *
    * @param instruments reference data
    * @param prices stored closes
+   * @param journal collected sessions
    * @param indicators stored indicators
    * @param settings benchmarks
    * @param clock current time
@@ -56,13 +58,14 @@ public class IndicatorQueries {
   public IndicatorQueries(
       InstrumentRepository instruments,
       DailyPriceRepository prices,
+      CollectionJournal journal,
       IndicatorRepository indicators,
       IndicatorSettings settings,
       Clock clock) {
     this.instruments = instruments;
     this.prices = prices;
     this.indicators = indicators;
-    this.loader = new YearOfClosesLoader(instruments, prices, settings);
+    this.loader = new YearOfClosesLoader(instruments, prices, journal, settings);
     this.clock = clock;
   }
 

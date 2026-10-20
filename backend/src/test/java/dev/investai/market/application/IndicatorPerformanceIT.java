@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.investai.market.IndicatorFixtures;
 import dev.investai.market.MarketTestData;
+import dev.investai.market.domain.CollectionJournal;
 import dev.investai.market.domain.DailyPriceRepository;
 import dev.investai.market.domain.EuronextCalendar;
 import dev.investai.market.domain.IndicatorRepository;
@@ -47,6 +48,7 @@ class IndicatorPerformanceIT {
   @Autowired private InstrumentRepository instruments;
   @Autowired private DailyPriceRepository prices;
   @Autowired private IndicatorRepository indicators;
+  @Autowired private CollectionJournal journal;
   @Autowired private IndicatorSettings settings;
 
   private final Clock clock = Clock.fixed(MONDAY_MORNING, ZoneOffset.UTC);
@@ -72,12 +74,13 @@ class IndicatorPerformanceIT {
             jdbc, window, MONDAY_MORNING.minus(Duration.ofHours(1)));
     var insert = since(start);
 
-    var computation = new IndicatorComputation(instruments, prices, indicators, settings, clock);
+    var computation =
+        new IndicatorComputation(instruments, prices, journal, indicators, settings, clock);
     start = System.nanoTime();
     var outcome = computation.refresh();
     var compute = since(start);
 
-    var queries = new IndicatorQueries(instruments, prices, indicators, settings, clock);
+    var queries = new IndicatorQueries(instruments, prices, journal, indicators, settings, clock);
     start = System.nanoTime();
     var screening =
         queries.screen(
@@ -91,13 +94,16 @@ class IndicatorPerformanceIT {
                 ScreeningCriteria.MAX_LIMIT));
     var screen = since(start);
 
+    long insertMillis = insert.toMillis();
+    long computeMillis = compute.toMillis();
+    long screenMillis = screen.toMillis();
     LOG.info(
         "Indicators of {} instruments ({} closes): insert={} ms, compute={} ms, screen={} ms",
         INSTRUMENTS,
         closes,
-        insert.toMillis(),
-        compute.toMillis(),
-        screen.toMillis());
+        insertMillis,
+        computeMillis,
+        screenMillis);
     assertThat(outcome).isEqualTo(IndicatorComputation.Outcome.COMPUTED);
     assertThat(indicators.findAll())
         .hasSize(INSTRUMENTS)

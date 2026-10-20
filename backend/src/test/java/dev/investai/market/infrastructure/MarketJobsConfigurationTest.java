@@ -5,6 +5,7 @@ import static org.mockito.Mockito.mock;
 
 import dev.investai.market.application.DailyCollection;
 import dev.investai.market.application.EodhdMaintenance;
+import dev.investai.market.application.IndicatorComputation;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -34,6 +35,7 @@ class MarketJobsConfigurationTest {
           .withInitializer(new ConfigDataApplicationContextInitializer())
           .withBean(DailyCollection.class, () -> mock(DailyCollection.class))
           .withBean(EodhdMaintenance.class, () -> mock(EodhdMaintenance.class))
+          .withBean(IndicatorComputation.class, () -> mock(IndicatorComputation.class))
           .withBean(TaskScheduler.class, SimpleAsyncTaskScheduler::new)
           .withBean(Clock.class, Clock::systemUTC)
           .withUserConfiguration(MarketJobsConfiguration.class);

@@ -24,6 +24,8 @@ import org.springframework.util.unit.DataSize;
 @ExtendWith(OutputCaptureExtension.class)
 class MarketConfigurationTest {
 
+  private static final String CAC40 = "FR0007052782:XPAR";
+
   private final MarketConfiguration configuration = new MarketConfiguration();
   private final HttpClient client = configuration.marketHttpClient(properties(null));
 
@@ -33,11 +35,11 @@ class MarketConfigurationTest {
         new MarketSettings(
             15,
             Duration.ofDays(7),
-            MarketConfiguration.benchmarks(List.of("FR0007052782:XPAR", "LU1681043599:XPAR")));
+            MarketConfiguration.benchmarks(List.of(CAC40, "LU1681043599:XPAR")));
 
     var indicators =
         configuration.indicatorSettings(
-            new IndicatorProperties(" LU1681043599:XPAR ", "FR0007052782:XPAR"), tracked);
+            new IndicatorProperties(" LU1681043599:XPAR ", CAC40), tracked);
 
     assertThat(indicators.msciWorld().isin().value()).isEqualTo("LU1681043599");
     assertThat(indicators.cac40().isin().value()).isEqualTo("FR0007052782");
@@ -45,7 +47,7 @@ class MarketConfigurationTest {
         .isThrownBy(
             () ->
                 configuration.indicatorSettings(
-                    new IndicatorProperties("IE0002XZSHO1:XPAR", "FR0007052782:XPAR"), tracked))
+                    new IndicatorProperties("IE0002XZSHO1:XPAR", CAC40), tracked))
         .withMessageContaining("investai.market.benchmarks");
   }
 
@@ -124,6 +126,6 @@ class MarketConfigurationTest {
             URI.create("https://euronext.test"), DataSize.ofMegabytes(1), Duration.ofMinutes(1)),
         new MarketProperties.Eodhd(
             URI.create("https://eodhd.test/api"), key, 15, Duration.ofDays(7)),
-        List.of("FR0007052782:XPAR"));
+        List.of(CAC40));
   }
 }

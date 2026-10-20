@@ -20,6 +20,7 @@ public final class ClosingPrices {
   private static final int COVERAGE_DENOMINATOR = 5;
 
   private final List<LocalDate> sessions;
+  private final Set<LocalDate> sessionSet;
   private final Map<LocalDate, BigDecimal> values;
   private final Map<LocalDate, BigDecimal> tradedAmounts;
 
@@ -28,6 +29,7 @@ public final class ClosingPrices {
       Map<LocalDate, BigDecimal> values,
       Map<LocalDate, BigDecimal> tradedAmounts) {
     this.sessions = List.copyOf(sessions);
+    this.sessionSet = Set.copyOf(sessions);
     this.values = Map.copyOf(values);
     this.tradedAmounts = Map.copyOf(tradedAmounts);
   }
@@ -132,7 +134,9 @@ public final class ClosingPrices {
    * @return the value, empty when unknown or outside the series
    */
   public Optional<BigDecimal> on(LocalDate session) {
-    return sessions.contains(session) ? Optional.ofNullable(values.get(session)) : Optional.empty();
+    return sessionSet.contains(session)
+        ? Optional.ofNullable(values.get(session))
+        : Optional.empty();
   }
 
   /**
@@ -145,12 +149,15 @@ public final class ClosingPrices {
   }
 
   /**
-   * The traded amounts (Euronext close × volume) known on the sessions of the series.
+   * The traded amount (Euronext close × volume) of a session.
    *
-   * @return the amounts, in chronological order
+   * @param session the session
+   * @return the amount, empty when unknown or outside the series
    */
-  public List<BigDecimal> knownTradedAmounts() {
-    return sessions.stream().filter(tradedAmounts::containsKey).map(tradedAmounts::get).toList();
+  public Optional<BigDecimal> tradedAmountOn(LocalDate session) {
+    return sessionSet.contains(session)
+        ? Optional.ofNullable(tradedAmounts.get(session))
+        : Optional.empty();
   }
 
   /**

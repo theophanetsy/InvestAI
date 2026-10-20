@@ -48,8 +48,8 @@ CREATE TABLE instrument_indicator (
     cac40_beta                       numeric,
     cac40_beta_status                indicator_status NOT NULL,
     -- mean Euronext close × volume over three months, in the currency of the instrument
-    average_traded_amount            numeric          CHECK (average_traded_amount >= 0),
-    average_traded_amount_status     indicator_status NOT NULL,
+    average_daily_traded_amount            numeric          CHECK (average_daily_traded_amount >= 0),
+    average_daily_traded_amount_status     indicator_status NOT NULL,
     CHECK ((performance_one_month_status = 'AVAILABLE') = (performance_one_month IS NOT NULL)),
     CHECK ((performance_three_months_status = 'AVAILABLE') = (performance_three_months IS NOT NULL)),
     CHECK ((performance_six_months_status = 'AVAILABLE') = (performance_six_months IS NOT NULL)),
@@ -62,7 +62,7 @@ CREATE TABLE instrument_indicator (
     CHECK ((cac40_outperformance_status = 'AVAILABLE') = (cac40_outperformance IS NOT NULL)),
     CHECK ((cac40_correlation_status = 'AVAILABLE') = (cac40_correlation IS NOT NULL)),
     CHECK ((cac40_beta_status = 'AVAILABLE') = (cac40_beta IS NOT NULL)),
-    CHECK ((average_traded_amount_status = 'AVAILABLE') = (average_traded_amount IS NOT NULL))
+    CHECK ((average_daily_traded_amount_status = 'AVAILABLE') = (average_daily_traded_amount IS NOT NULL))
 );
 
 -- Whether the indicators are stale: latest session before today, latest write of a close.

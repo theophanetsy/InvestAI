@@ -63,7 +63,7 @@ public record IndicatorsResponse(
         IndicatorResponse.from(set.maxDrawdown()),
         BenchmarkComparisonResponse.from(set.msciWorld()),
         BenchmarkComparisonResponse.from(set.cac40()),
-        IndicatorResponse.from(set.averageTradedAmount()),
+        IndicatorResponse.from(set.averageDailyTradedAmount()),
         currency.getCurrencyCode());
   }
 }

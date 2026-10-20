@@ -9,6 +9,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import dev.investai.market.MarketTestData;
 import dev.investai.market.application.IndicatorComputation;
 import dev.investai.market.application.IndicatorSettings;
+import dev.investai.market.domain.CollectionJournal;
 import dev.investai.market.domain.DailyPriceRepository;
 import dev.investai.market.domain.EuronextCalendar;
 import dev.investai.market.domain.IndicatorRepository;
@@ -24,6 +25,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.UUID;
+import java.util.function.IntFunction;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,9 +51,9 @@ class IndicatorApiIT {
   @Autowired private InstrumentRepository instruments;
   @Autowired private DailyPriceRepository prices;
   @Autowired private IndicatorRepository indicators;
+  @Autowired private CollectionJournal journal;
   @Autowired private IndicatorSettings settings;
 
-  private Instrument calm;
   private Instrument risky;
   private Instrument unseen;
 
@@ -60,15 +62,20 @@ class IndicatorApiIT {
     MarketTestData.clearTables(jdbc);
     var msciWorld = etf(settings.msciWorld(), "MSCI World (test)");
     var cac40 = etf(settings.cac40(), "CAC 40 (test)");
-    calm = stock("FR000012007", "Calme");
+    var calm = stock("FR000012007", "Calme");
     risky = stock("FR000012027", "Risquée");
     Instant before = MONDAY_MORNING.minusSeconds(3600);
-    saveYear(prices, msciWorld.id(), WINDOW, i -> i % 2 == 0 ? "100" : "101", 0, before);
-    saveYear(prices, cac40.id(), WINDOW, i -> i % 2 == 0 ? "100" : "102", 0, before);
-    saveYear(prices, calm.id(), WINDOW, i -> i % 2 == 0 ? "100" : "101", 0, before);
-    saveYear(prices, risky.id(), WINDOW, i -> i % 2 == 0 ? "100" : "110", 0, before);
+    saveYear(prices, msciWorld.id(), WINDOW, alternating("101"), 0, before);
+    saveYear(prices, cac40.id(), WINDOW, alternating("102"), 0, before);
+    saveYear(prices, calm.id(), WINDOW, alternating("101"), 0, before);
+    saveYear(prices, risky.id(), WINDOW, alternating("110"), 0, before);
     new IndicatorComputation(
-            instruments, prices, indicators, settings, Clock.fixed(MONDAY_MORNING, ZoneOffset.UTC))
+            instruments,
+            prices,
+            journal,
+            indicators,
+            settings,
+            Clock.fixed(MONDAY_MORNING, ZoneOffset.UTC))
         .refresh();
     // Added after the computation: no indicators yet.
     unseen = stock("FR000012031", "Nouvelle");
@@ -124,6 +131,11 @@ class IndicatorApiIT {
     assertThat(response).hasStatus(HttpStatus.BAD_REQUEST);
     assertThat(response).bodyJson().extractingPath(CODE).isEqualTo("validation.failed");
     assertThat(response).bodyJson().extractingPath("$.errors[0].field").isEqualTo("limit");
+  }
+
+  /** 100 on even sessions, {@code odd} on odd ones. */
+  private static IntFunction<String> alternating(String odd) {
+    return i -> i % 2 == 0 ? "100" : odd;
   }
 
   private MvcTestResult get(String uri) {

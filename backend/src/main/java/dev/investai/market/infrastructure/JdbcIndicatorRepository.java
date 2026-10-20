@@ -49,7 +49,7 @@ class JdbcIndicatorRepository implements IndicatorRepository {
              msci_world_beta, msci_world_beta_status,
              cac40_outperformance, cac40_outperformance_status,
              cac40_correlation, cac40_correlation_status, cac40_beta, cac40_beta_status,
-             average_traded_amount, average_traded_amount_status
+             average_daily_traded_amount, average_daily_traded_amount_status
       FROM instrument_indicator WHERE instrument_id = :id
       """;
 
@@ -66,7 +66,7 @@ class JdbcIndicatorRepository implements IndicatorRepository {
              msci_world_beta, msci_world_beta_status,
              cac40_outperformance, cac40_outperformance_status,
              cac40_correlation, cac40_correlation_status, cac40_beta, cac40_beta_status,
-             average_traded_amount, average_traded_amount_status
+             average_daily_traded_amount, average_daily_traded_amount_status
       FROM instrument_indicator
       """;
 
@@ -90,7 +90,7 @@ class JdbcIndicatorRepository implements IndicatorRepository {
         msci_world_beta, msci_world_beta_status,
         cac40_outperformance, cac40_outperformance_status,
         cac40_correlation, cac40_correlation_status, cac40_beta, cac40_beta_status,
-        average_traded_amount, average_traded_amount_status)
+        average_daily_traded_amount, average_daily_traded_amount_status)
       VALUES (
         :instrument_id, :as_of, :computed_at, :closes_one_year,
         :performance_one_month, :performance_one_month_status,
@@ -103,7 +103,7 @@ class JdbcIndicatorRepository implements IndicatorRepository {
         :msci_world_beta, :msci_world_beta_status,
         :cac40_outperformance, :cac40_outperformance_status,
         :cac40_correlation, :cac40_correlation_status, :cac40_beta, :cac40_beta_status,
-        :average_traded_amount, :average_traded_amount_status)
+        :average_daily_traded_amount, :average_daily_traded_amount_status)
       ON CONFLICT (instrument_id) DO UPDATE SET
         as_of = excluded.as_of, computed_at = excluded.computed_at,
         closes_one_year = excluded.closes_one_year,
@@ -128,8 +128,8 @@ class JdbcIndicatorRepository implements IndicatorRepository {
         cac40_correlation = excluded.cac40_correlation,
         cac40_correlation_status = excluded.cac40_correlation_status,
         cac40_beta = excluded.cac40_beta, cac40_beta_status = excluded.cac40_beta_status,
-        average_traded_amount = excluded.average_traded_amount,
-        average_traded_amount_status = excluded.average_traded_amount_status
+        average_daily_traded_amount = excluded.average_daily_traded_amount,
+        average_daily_traded_amount_status = excluded.average_daily_traded_amount_status
       """;
 
   private static final Map<IndicatorWindow, String> PERFORMANCE_COLUMNS =
@@ -143,7 +143,7 @@ class JdbcIndicatorRepository implements IndicatorRepository {
   private static final String INSTRUMENT_ID = "instrument_id";
   private static final String VOLATILITY = "volatility";
   private static final String MAX_DRAWDOWN = "max_drawdown";
-  private static final String AVERAGE_TRADED_AMOUNT = "average_traded_amount";
+  private static final String AVERAGE_DAILY_TRADED_AMOUNT = "average_daily_traded_amount";
   private static final String MSCI_WORLD = "msci_world";
   private static final String CAC40 = "cac40";
 
@@ -201,7 +201,7 @@ class JdbcIndicatorRepository implements IndicatorRepository {
     addIndicator(row, MAX_DRAWDOWN, set.maxDrawdown());
     addComparison(row, MSCI_WORLD, set.msciWorld());
     addComparison(row, CAC40, set.cac40());
-    addIndicator(row, AVERAGE_TRADED_AMOUNT, set.averageTradedAmount());
+    addIndicator(row, AVERAGE_DAILY_TRADED_AMOUNT, set.averageDailyTradedAmount());
     return row;
   }
 
@@ -231,7 +231,7 @@ class JdbcIndicatorRepository implements IndicatorRepository {
             indicator(rs, MAX_DRAWDOWN),
             comparison(rs, MSCI_WORLD),
             comparison(rs, CAC40),
-            indicator(rs, AVERAGE_TRADED_AMOUNT));
+            indicator(rs, AVERAGE_DAILY_TRADED_AMOUNT));
     return new StoredIndicators(
         new InstrumentId(rs.getObject(INSTRUMENT_ID, UUID.class)),
         set,

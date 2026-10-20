@@ -3,10 +3,13 @@ package dev.investai.market.domain;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.Set;
 
 /**
  * Indicators of an instrument on its raw closes (spec 2.4, criteria 1 to 5). Amounts and ratios of
@@ -41,10 +44,14 @@ public final class IndicatorCalculator {
    * @param year closes of the instrument on a {@link YearWindow}
    * @param msciWorld closes of the MSCI World ETF on the same sessions
    * @param cac40 closes of the CAC 40 ETF on the same sessions
+   * @param euronextSessions sessions whose two Euronext files were collected
    * @return the indicators, as of the last session of the window
    */
   public static IndicatorSet compute(
-      ClosingPrices year, ClosingPrices msciWorld, ClosingPrices cac40) {
+      ClosingPrices year,
+      ClosingPrices msciWorld,
+      ClosingPrices cac40,
+      Set<LocalDate> euronextSessions) {
     YearWindow window = new YearWindow(year.sessions());
     Map<IndicatorWindow, Indicator> performance = new EnumMap<>(IndicatorWindow.class);
     for (IndicatorWindow period : IndicatorWindow.values()) {
@@ -58,7 +65,7 @@ public final class IndicatorCalculator {
         maxDrawdown(year),
         compare(year, msciWorld),
         compare(year, cac40),
-        averageTradedAmount(year.lastSessions(LIQUIDITY_SESSIONS)));
+        averageDailyTradedAmount(year.lastSessions(LIQUIDITY_SESSIONS), euronextSessions));
   }
 
   /**
@@ -115,7 +122,8 @@ public final class IndicatorCalculator {
   }
 
   /**
-   * Compares an instrument with a benchmark over one year.
+   * Compares an instrument with a benchmark over one year. The outperformance compares both
+   * performances over the same period: from the first to the last session where both have a close.
    *
    * @param year closes of the instrument
    * @param benchmark closes of the benchmark on the same sessions
@@ -125,47 +133,79 @@ public final class IndicatorCalculator {
     if (!year.sufficient() || !benchmark.sufficient()) {
       return BenchmarkComparison.INSUFFICIENT_HISTORY;
     }
-    BigDecimal outperformance =
-        change(year.knownValues()).subtract(change(benchmark.knownValues()));
     DailyReturns returns = year.dailyReturns();
     DailyReturns benchmarkReturns = benchmark.dailyReturns();
     return new BenchmarkComparison(
-        Indicator.of(percent(outperformance)),
+        outperformance(year, benchmark),
         coefficient(returns.correlation(benchmarkReturns)),
         coefficient(returns.beta(benchmarkReturns)));
   }
 
-  /**
-   * Correlation of the daily returns of two series of the same sessions (e.g. two lines of a
-   * portfolio), at scale 2.
-   *
-   * @param first values of the first series
-   * @param second values of the second series
-   * @return the correlation; insufficient when either series is, not computable when either never
-   *     moves
-   */
-  public static Indicator correlation(ClosingPrices first, ClosingPrices second) {
-    if (!first.sufficient() || !second.sufficient()) {
-      return Indicator.INSUFFICIENT_HISTORY;
+  private static Indicator outperformance(ClosingPrices year, ClosingPrices benchmark) {
+    List<LocalDate> common =
+        year.sessions().stream()
+            .filter(session -> year.on(session).isPresent() && benchmark.on(session).isPresent())
+            .toList();
+    if (common.size() < 2) {
+      return Indicator.NOT_COMPUTABLE;
     }
-    return coefficient(first.dailyReturns().correlation(second.dailyReturns()));
+    return Indicator.of(
+        percent(changeBetween(year, common).subtract(changeBetween(benchmark, common))));
+  }
+
+  private static BigDecimal changeBetween(ClosingPrices series, List<LocalDate> sessions) {
+    return change(
+        List.of(
+            series.on(sessions.getFirst()).orElseThrow(),
+            series.on(sessions.getLast()).orElseThrow()));
   }
 
   /**
-   * Mean daily traded amount (Euronext close × volume) over the sessions of a window that have one,
-   * at scale 2; needs a known amount on at least 80 % of the sessions.
+   * Correlation of the daily returns of two series of the same sessions (e.g. two lines of a
+   * portfolio, both with a sufficient history), at scale 2.
+   *
+   * @param first returns of the first series
+   * @param second returns of the second series, on the same sessions
+   * @return the correlation, not computable when either series never moves
+   */
+  public static Indicator correlation(DailyReturns first, DailyReturns second) {
+    return coefficient(first.correlation(second));
+  }
+
+  /**
+   * Mean daily traded amount (Euronext close × volume) at scale 2. A session whose two Euronext
+   * files were collected but where the instrument has no close counts as zero (no trade), so that a
+   * thinly traded instrument is not reported as more liquid than it is; a session with a close of
+   * unknown volume, or not collected from Euronext, is unknown. Needs a known amount on at least 80
+   * % of the sessions.
    *
    * @param window the window
+   * @param euronextSessions sessions whose two Euronext files were collected
    * @return the average amount, in the currency of the instrument
    */
-  public static Indicator averageTradedAmount(ClosingPrices window) {
-    List<BigDecimal> amounts = window.knownTradedAmounts();
+  public static Indicator averageDailyTradedAmount(
+      ClosingPrices window, Set<LocalDate> euronextSessions) {
+    List<BigDecimal> amounts =
+        window.sessions().stream()
+            .map(session -> observedAmount(window, session, euronextSessions))
+            .flatMap(Optional::stream)
+            .toList();
     if (!ClosingPrices.covers(amounts.size(), window.sessions().size())) {
       return Indicator.INSUFFICIENT_HISTORY;
     }
     BigDecimal sum = amounts.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
     return Indicator.of(
         sum.divide(BigDecimal.valueOf(amounts.size()), AMOUNT_SCALE, RoundingMode.HALF_EVEN));
+  }
+
+  private static Optional<BigDecimal> observedAmount(
+      ClosingPrices window, LocalDate session, Set<LocalDate> euronextSessions) {
+    Optional<BigDecimal> amount = window.tradedAmountOn(session);
+    if (amount.isPresent()) {
+      return amount;
+    }
+    boolean withoutTrade = euronextSessions.contains(session) && window.on(session).isEmpty();
+    return withoutTrade ? Optional.of(BigDecimal.ZERO) : Optional.empty();
   }
 
   /**

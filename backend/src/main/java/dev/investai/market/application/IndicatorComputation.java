@@ -1,5 +1,6 @@
 package dev.investai.market.application;
 
+import dev.investai.market.domain.CollectionJournal;
 import dev.investai.market.domain.DailyPriceRepository;
 import dev.investai.market.domain.EuronextCalendar;
 import dev.investai.market.domain.IndicatorRepository;
@@ -11,6 +12,7 @@ import dev.investai.market.domain.InstrumentRepository;
 import dev.investai.market.domain.YearWindow;
 import dev.investai.shared.logging.LogSanitizer;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -45,6 +47,13 @@ public class IndicatorComputation {
     BUSY
   }
 
+  /**
+   * Closes are stamped before their transaction commits: a write stamped shortly before a run may
+   * still be invisible to it. Within this margin of the last run, a write makes the next run
+   * compute again (one extra computation, ~2 s) rather than being missed until the next day.
+   */
+  static final Duration WRITE_GRACE = Duration.ofMinutes(10);
+
   private static final Logger LOG = LoggerFactory.getLogger(IndicatorComputation.class);
 
   private final EuronextCalendar calendar = new EuronextCalendar();
@@ -60,6 +69,7 @@ public class IndicatorComputation {
    *
    * @param instruments reference data
    * @param prices stored closes
+   * @param journal collected sessions
    * @param indicators stored indicators
    * @param settings benchmarks
    * @param clock current time
@@ -67,13 +77,14 @@ public class IndicatorComputation {
   public IndicatorComputation(
       InstrumentRepository instruments,
       DailyPriceRepository prices,
+      CollectionJournal journal,
       IndicatorRepository indicators,
       IndicatorSettings settings,
       Clock clock) {
     this.instruments = instruments;
     this.prices = prices;
     this.indicators = indicators;
-    this.loader = new YearOfClosesLoader(instruments, prices, settings);
+    this.loader = new YearOfClosesLoader(instruments, prices, journal, settings);
     this.clock = clock;
   }
 
@@ -95,15 +106,17 @@ public class IndicatorComputation {
 
   private Outcome refreshWhileLocked() {
     Instant startedAt = clock.instant();
-    Optional<LocalDate> asOf =
+    Optional<LocalDate> latest =
         prices.latestSessionBefore(LocalDate.ofInstant(startedAt, EuronextCalendar.ZONE));
-    if (asOf.isEmpty()) {
+    if (latest.isEmpty()) {
       return Outcome.NO_CLOSES;
     }
-    if (upToDate(asOf.get())) {
+    // A close dated on a non-trading day (bad provider data) must not change the session forever.
+    YearWindow window = YearWindow.ending(latest.get(), calendar);
+    if (upToDate(window.asOf())) {
       return Outcome.UP_TO_DATE;
     }
-    compute(asOf.get(), startedAt);
+    compute(window, startedAt);
     return Outcome.COMPUTED;
   }
 
@@ -112,20 +125,19 @@ public class IndicatorComputation {
     if (last.isEmpty() || !last.get().asOf().equals(asOf)) {
       return false;
     }
-    Instant computedAt = last.get().computedAt();
-    return prices.lastWrite().map(write -> !write.isAfter(computedAt)).orElse(true);
+    Instant settled = last.get().computedAt().minus(WRITE_GRACE);
+    return prices.lastWrite().map(write -> write.isBefore(settled)).orElse(true);
   }
 
   /** Stamped with its start: a close written during the run makes the next run compute again. */
-  private void compute(LocalDate asOf, Instant startedAt) {
+  private void compute(YearWindow window, Instant startedAt) {
     long start = System.nanoTime();
-    YearWindow window = YearWindow.ending(asOf, calendar);
     List<InstrumentId> ids = instruments.findAll().stream().map(Instrument::id).toList();
     Map<InstrumentId, IndicatorSet> computed = loader.indicators(window, ids);
     indicators.saveAll(computed, startedAt);
     long millis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
     int count = computed.size();
-    String session = LogSanitizer.oneLine(asOf);
+    String session = LogSanitizer.oneLine(window.asOf());
     LOG.info("Indicators computed: instruments={}, asOf={}, durationMs={}", count, session, millis);
   }
 }

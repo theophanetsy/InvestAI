@@ -8,6 +8,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.IntFunction;
@@ -26,6 +27,13 @@ class IndicatorCalculatorTest {
   private static final YearWindow WINDOW = YearWindow.ending(AS_OF, new EuronextCalendar());
   private static final InstrumentId ID = InstrumentId.newId();
   private static final int LAST = YearWindow.SESSIONS - 1;
+  private static final String ZERO = "0.00";
+  private static final String P100 = "100";
+  private static final String P105 = "105";
+  private static final String P110 = "110";
+  private static final String P120 = "120";
+  private static final Set<LocalDate> NO_EURONEXT_FILE = Set.of();
+  private static final ClosingPrices NO_CLOSE = ClosingPrices.of(WINDOW.sessions(), List.of());
 
   /**
    * Steps: 50 until the six-month reference, 80 until the three-month one, 100 until the one-month
@@ -39,15 +47,15 @@ class IndicatorCalculatorTest {
               start(IndicatorWindow.SIX_MONTHS),
               "80",
               start(IndicatorWindow.THREE_MONTHS),
-              "100",
+              P100,
               start(IndicatorWindow.ONE_MONTH),
-              "120",
+              P120,
               LAST,
               "150"));
 
   /** 100, then 120 (high), then 90 (low, -25 %), then 130 (new high), then 117 (-10 %). */
   private static final NavigableMap<Integer, String> FALLS =
-      new TreeMap<>(Map.of(0, "100", 50, "120", 100, "90", 150, "130", 200, "117"));
+      new TreeMap<>(Map.of(0, P100, 50, P120, 100, "90", 150, "130", 200, "117"));
 
   /** Index of the reference session of a window: the session before its N sessions. */
   private static int start(IndicatorWindow window) {
@@ -56,6 +64,11 @@ class IndicatorCalculatorTest {
 
   private static String steps(int index) {
     return STEPS.floorEntry(index).getValue();
+  }
+
+  /** {@code even} on even sessions, {@code odd} on odd ones. */
+  private static IntFunction<String> alternating(String even, String odd) {
+    return index -> index % 2 == 0 ? even : odd;
   }
 
   private static ClosingPrices series(IntFunction<String> price, Set<Integer> missing) {
@@ -83,7 +96,12 @@ class IndicatorCalculatorTest {
 
   private static BigDecimal value(Indicator indicator) {
     assertThat(indicator.status()).isEqualTo(IndicatorStatus.AVAILABLE);
-    return java.util.Objects.requireNonNull(indicator.value());
+    return Objects.requireNonNull(indicator.value());
+  }
+
+  private static Indicator oneMonth(ClosingPrices year) {
+    return IndicatorCalculator.performance(
+        year.lastSessions(IndicatorWindow.ONE_MONTH.sessions() + 1));
   }
 
   @Test
@@ -101,9 +119,7 @@ class IndicatorCalculatorTest {
     // 1 year: 150/50 - 1 = 200 %.
     IndicatorSet indicators =
         IndicatorCalculator.compute(
-            series(IndicatorCalculatorTest::steps),
-            ClosingPrices.of(WINDOW.sessions(), List.of()),
-            ClosingPrices.of(WINDOW.sessions(), List.of()));
+            series(IndicatorCalculatorTest::steps), NO_CLOSE, NO_CLOSE, NO_EURONEXT_FILE);
 
     assertThat(indicators.asOf()).isEqualTo(AS_OF);
     assertThat(indicators.closesOneYear()).isEqualTo(253);
@@ -111,7 +127,7 @@ class IndicatorCalculatorTest {
     assertThat(value(indicators.performance(IndicatorWindow.THREE_MONTHS))).isEqualTo("50.00");
     assertThat(value(indicators.performance(IndicatorWindow.SIX_MONTHS))).isEqualTo("87.50");
     assertThat(value(indicators.performance(IndicatorWindow.ONE_YEAR))).isEqualTo("200.00");
-    assertThat(value(indicators.maxDrawdown())).as("never falls").isEqualTo("0.00");
+    assertThat(value(indicators.maxDrawdown())).as("never falls").isEqualTo(ZERO);
     assertThat(indicators.msciWorld()).isEqualTo(BenchmarkComparison.INSUFFICIENT_HISTORY);
     assertThat(indicators.cac40()).isEqualTo(BenchmarkComparison.INSUFFICIENT_HISTORY);
   }
@@ -132,7 +148,7 @@ class IndicatorCalculatorTest {
     // 100, 110, 100, 110…: 126 returns of +10 % and 126 of 100/110 - 1 = -1/11. Every return is
     // at ±(0.1 + 1/11)/2 = ±0.0954545 from the mean: s = 0.0954545 × √(252/251) = 0.0956445;
     // × √252 = 1.518309 → 151.83 %.
-    Indicator volatility = IndicatorCalculator.volatility(series(i -> i % 2 == 0 ? "100" : "110"));
+    Indicator volatility = IndicatorCalculator.volatility(series(alternating(P100, P110)));
 
     assertThat(value(volatility)).isEqualTo("151.83");
   }
@@ -150,16 +166,17 @@ class IndicatorCalculatorTest {
     // returns take two values each, at the same sessions: correlation 1.
     // beta = (0.1 + 1/11) / (0.05 + 1/21) = 0.1909091 / 0.0976190 = 1.955654 → 1.96.
     // Both end at their starting price (index 252 is even): outperformance 0 - 0 = 0.
-    ClosingPrices instrument = series(i -> i % 2 == 0 ? "100" : "110");
-    ClosingPrices msciWorld = series(i -> i % 2 == 0 ? "100" : "105");
+    ClosingPrices instrument = series(alternating(P100, P110));
+    ClosingPrices msciWorld = series(alternating(P100, P105));
     // CAC 40 in opposite phase: 105, 100, 105…
-    ClosingPrices cac40 = series(i -> i % 2 == 0 ? "105" : "100");
+    ClosingPrices cac40 = series(alternating(P105, P100));
 
-    IndicatorSet indicators = IndicatorCalculator.compute(instrument, msciWorld, cac40);
+    IndicatorSet indicators =
+        IndicatorCalculator.compute(instrument, msciWorld, cac40, NO_EURONEXT_FILE);
 
     assertThat(value(indicators.msciWorld().correlation())).isEqualTo("1.00");
     assertThat(value(indicators.msciWorld().beta())).isEqualTo("1.96");
-    assertThat(value(indicators.msciWorld().outperformance())).isEqualTo("0.00");
+    assertThat(value(indicators.msciWorld().outperformance())).isEqualTo(ZERO);
     assertThat(value(indicators.cac40().correlation())).isEqualTo("-1.00");
     assertThat(value(indicators.cac40().beta())).isEqualTo("-1.96");
   }
@@ -167,7 +184,7 @@ class IndicatorCalculatorTest {
   @Test
   void outperformanceIsTheDifferenceOfTheOneYearPerformances() {
     // Instrument: 50 → 150 (+200 %); benchmark: 100 → 110 (+10 %): 190 percentage points.
-    ClosingPrices benchmark = series(i -> i < LAST ? "100" : "110");
+    ClosingPrices benchmark = series(i -> i < LAST ? P100 : P110);
 
     BenchmarkComparison comparison =
         IndicatorCalculator.compare(series(IndicatorCalculatorTest::steps), benchmark);
@@ -176,51 +193,68 @@ class IndicatorCalculatorTest {
   }
 
   @Test
+  void outperformanceComparesBothOverTheSessionsWhereBothHaveACloseOnly() {
+    // The benchmark goes from 100 to 120 during the first 40 sessions, when the instrument has no
+    // close (213 of 253 closes: still enough). Over the common sessions 40 to 252 both stay flat
+    // (instrument 50, benchmark 120): 0 - 0 = 0 points, never 0 % - 20 % = -20.
+    ClosingPrices instrument = series(i -> "50", range(0, 40));
+    ClosingPrices benchmark = series(i -> i < 40 ? P100 : P120);
+
+    BenchmarkComparison comparison = IndicatorCalculator.compare(instrument, benchmark);
+
+    assertThat(value(comparison.outperformance())).isEqualTo(ZERO);
+  }
+
+  @Test
   void aPriceThatNeverMovesHasNoCorrelationButAZeroBetaAndVolatility() {
-    ClosingPrices flat = series(i -> "100");
-    ClosingPrices benchmark = series(i -> i % 2 == 0 ? "100" : "105");
+    ClosingPrices flat = series(i -> P100);
+    ClosingPrices benchmark = series(alternating(P100, P105));
 
     BenchmarkComparison comparison = IndicatorCalculator.compare(flat, benchmark);
 
     assertThat(comparison.correlation()).isEqualTo(Indicator.NOT_COMPUTABLE);
-    assertThat(value(comparison.beta())).isEqualTo("0.00");
-    assertThat(value(IndicatorCalculator.volatility(flat))).isEqualTo("0.00");
+    assertThat(value(comparison.beta())).isEqualTo(ZERO);
+    assertThat(value(IndicatorCalculator.volatility(flat))).isEqualTo(ZERO);
     assertThat(IndicatorCalculator.compare(benchmark, flat).beta())
         .as("constant benchmark")
         .isEqualTo(Indicator.NOT_COMPUTABLE);
   }
 
   @Test
-  void eightyPercentOfTheSessionsOfAWindowAreEnough() {
-    // One month = 22 closes (reference + 21 sessions): 80 % of 22 = 17.6, so 18 are needed:
-    // 4 missing is fine, 5 is not. The first close then comes after the missing ones.
+  void eightyPercentOfTheSessionsOfAWindowAreEnoughFromTheFirstCloseOfTheWindow() {
+    // One month = 22 closes (reference session 231 + sessions 232 to 252): 80 % of 22 = 17.6, so
+    // 18 are needed: 4 missing is fine, 5 is not. Prices: 100 until session 234, 120 until 251,
+    // 150 on the last. Sessions 231 to 234 missing: the window starts at its first close (120,
+    // session 235), never at a close before the window (100): 150/120 - 1 = 25 %.
     int reference = start(IndicatorWindow.ONE_MONTH);
-    ClosingPrices fourMissing =
-        series(IndicatorCalculatorTest::steps, range(reference, reference + 4));
-    ClosingPrices fiveMissing =
-        series(IndicatorCalculatorTest::steps, range(reference, reference + 5));
+    IntFunction<String> prices = i -> i < reference + 4 ? P100 : i < LAST ? P120 : "150";
 
-    assertThat(
-            value(
-                IndicatorCalculator.performance(
-                    fourMissing.lastSessions(IndicatorWindow.ONE_MONTH.sessions() + 1))))
-        .as("150/120 - 1, from the first close of the window")
-        .isEqualTo("25.00");
-    assertThat(
-            IndicatorCalculator.performance(
-                fiveMissing.lastSessions(IndicatorWindow.ONE_MONTH.sessions() + 1)))
+    assertThat(value(oneMonth(series(prices, range(reference, reference + 4))))).isEqualTo("25.00");
+    assertThat(oneMonth(series(prices, range(reference, reference + 5))))
         .isEqualTo(Indicator.INSUFFICIENT_HISTORY);
+  }
+
+  @Test
+  void aMissingLastSessionEndsTheWindowAtTheLastClose() {
+    // Same prices, only the last session (150) missing: from 100 (session 231) to 120 (session
+    // 251), 120/100 - 1 = 20 %.
+    int reference = start(IndicatorWindow.ONE_MONTH);
+    IntFunction<String> prices = i -> i < reference + 4 ? P100 : i < LAST ? P120 : "150";
+
+    assertThat(value(oneMonth(series(prices, Set.of(LAST))))).isEqualTo("20.00");
   }
 
   @Test
   void oneYearIndicatorsNeed203OfThe253Closes() {
     // 80 % of 253 = 202.4 → 203 closes: 50 missing is fine, 51 is not. Missing in the middle.
-    ClosingPrices fiftyMissing = series(i -> i % 2 == 0 ? "100" : "110", range(100, 150));
-    ClosingPrices fiftyOneMissing = series(i -> i % 2 == 0 ? "100" : "110", range(100, 151));
-    ClosingPrices benchmark = series(i -> i % 2 == 0 ? "100" : "105");
+    ClosingPrices fiftyMissing = series(alternating(P100, P110), range(100, 150));
+    ClosingPrices fiftyOneMissing = series(alternating(P100, P110), range(100, 151));
+    ClosingPrices benchmark = series(alternating(P100, P105));
 
-    IndicatorSet enough = IndicatorCalculator.compute(fiftyMissing, benchmark, benchmark);
-    IndicatorSet notEnough = IndicatorCalculator.compute(fiftyOneMissing, benchmark, benchmark);
+    IndicatorSet enough =
+        IndicatorCalculator.compute(fiftyMissing, benchmark, benchmark, NO_EURONEXT_FILE);
+    IndicatorSet notEnough =
+        IndicatorCalculator.compute(fiftyOneMissing, benchmark, benchmark, NO_EURONEXT_FILE);
 
     assertThat(enough.closesOneYear()).isEqualTo(203);
     assertThat(enough.volatility().available()).isTrue();
@@ -244,8 +278,8 @@ class IndicatorCalculatorTest {
         ClosingPrices.of(
             sessions,
             List.of(
-                close(sessions.get(0), "100", 1),
-                close(sessions.get(1), "110", 1),
+                close(sessions.get(0), P100, 1),
+                close(sessions.get(1), P110, 1),
                 close(sessions.get(3), "121", 1),
                 close(sessions.get(4), "133.1", 1)));
 
@@ -258,10 +292,11 @@ class IndicatorCalculatorTest {
   }
 
   @Test
-  void averageTradedAmountUsesEuronextVolumesOfTheLastThreeMonths() {
+  void averageDailyTradedAmountUsesEuronextVolumesOfTheLastThreeMonths() {
     // 63 sessions of close 10 × volume 1,000 = 10,000 → 10000.00. An EODHD volume (other
-    // definition) and a close without volume are not amounts: with 12 sessions left (51 of 63,
-    // ≥ 80 % of 63 = 50.4) the mean is still 10,000; with 13 left it is insufficient.
+    // definition) and a close without volume are not amounts, even on a session whose Euronext
+    // files were collected: with 12 sessions left (51 of 63, ≥ 80 % of 63 = 50.4) the mean is
+    // still 10,000; with 13 left it is insufficient.
     List<LocalDate> sessions = WINDOW.sessions().subList(LAST - 62, LAST + 1);
     IntFunction<DailyClose> euronext = i -> close(sessions.get(i), "10", 1_000L);
     ClosingPrices complete =
@@ -278,15 +313,37 @@ class IndicatorCalculatorTest {
             IntStream.range(0, 63)
                 .mapToObj(i -> i < 13 ? withoutVolume(sessions.get(i)) : euronext.apply(i))
                 .toList());
+    Set<LocalDate> collected = Set.copyOf(sessions);
 
-    assertThat(value(IndicatorCalculator.averageTradedAmount(complete))).isEqualTo("10000.00");
-    assertThat(value(IndicatorCalculator.averageTradedAmount(twelveUnknown))).isEqualTo("10000.00");
-    assertThat(IndicatorCalculator.averageTradedAmount(thirteenUnknown))
+    assertThat(value(IndicatorCalculator.averageDailyTradedAmount(complete, NO_EURONEXT_FILE)))
+        .isEqualTo("10000.00");
+    assertThat(value(IndicatorCalculator.averageDailyTradedAmount(twelveUnknown, collected)))
+        .isEqualTo("10000.00");
+    assertThat(IndicatorCalculator.averageDailyTradedAmount(thirteenUnknown, collected))
         .isEqualTo(Indicator.INSUFFICIENT_HISTORY);
   }
 
   @Test
-  void averageTradedAmountIsTheMeanOfCloseTimesVolume() {
+  void aCollectedSessionWithoutTradeCountsAsZero() {
+    // 50 sessions traded (10 × 1,000 = 10,000) and 13 sessions without any close. When the
+    // Euronext files of those 13 sessions were collected, the instrument did not trade:
+    // 50 × 10,000 / 63 = 7,936.507… → 7936.51 (never 10,000, which would overstate its liquidity).
+    // When they were not collected (application off), they are unknown: 50 < 51, insufficient.
+    List<LocalDate> sessions = WINDOW.sessions().subList(LAST - 62, LAST + 1);
+    ClosingPrices thinlyTraded =
+        ClosingPrices.of(
+            sessions,
+            IntStream.range(13, 63).mapToObj(i -> close(sessions.get(i), "10", 1_000L)).toList());
+
+    assertThat(
+            value(IndicatorCalculator.averageDailyTradedAmount(thinlyTraded, Set.copyOf(sessions))))
+        .isEqualTo("7936.51");
+    assertThat(IndicatorCalculator.averageDailyTradedAmount(thinlyTraded, NO_EURONEXT_FILE))
+        .isEqualTo(Indicator.INSUFFICIENT_HISTORY);
+  }
+
+  @Test
+  void averageDailyTradedAmountIsTheMeanOfCloseTimesVolume() {
     // 2 sessions: 10.5 × 100 = 1,050 and 20 × 300 = 6,000 → (1,050 + 6,000) / 2 = 3,525.
     List<LocalDate> sessions = WINDOW.sessions().subList(0, 2);
     ClosingPrices closes =
@@ -294,17 +351,19 @@ class IndicatorCalculatorTest {
             sessions,
             List.of(close(sessions.get(0), "10.5", 100), close(sessions.get(1), "20", 300)));
 
-    assertThat(value(IndicatorCalculator.averageTradedAmount(closes))).isEqualTo("3525.00");
+    assertThat(value(IndicatorCalculator.averageDailyTradedAmount(closes, NO_EURONEXT_FILE)))
+        .isEqualTo("3525.00");
   }
 
   @Test
   void closesOutsideTheSessionsAreIgnored() {
     List<LocalDate> sessions = WINDOW.sessions().subList(0, 2);
-    ClosingPrices closes =
-        ClosingPrices.of(sessions, List.of(close(LocalDate.parse("2020-01-02"), "10", 1)));
+    LocalDate outside = LocalDate.parse("2020-01-02");
+    ClosingPrices closes = ClosingPrices.of(sessions, List.of(close(outside, "10", 1)));
 
     assertThat(closes.knownCount()).isZero();
-    assertThat(closes.on(LocalDate.parse("2020-01-02"))).isEmpty();
+    assertThat(closes.on(outside)).isEmpty();
+    assertThat(closes.tradedAmountOn(outside)).isEmpty();
   }
 
   private static DailyClose eodhd(LocalDate day) {

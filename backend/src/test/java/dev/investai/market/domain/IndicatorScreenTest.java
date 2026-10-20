@@ -63,7 +63,7 @@ class IndicatorScreenTest {
 
   @Test
   void liquidityIsOnlyComparedInEuros() {
-    var criteria = criteria(null, null, new BigDecimal("1"), null, ScreeningSort.LIQUIDITY, 50);
+    var criteria = criteria(null, null, BigDecimal.ONE, null, ScreeningSort.LIQUIDITY, 50);
 
     assertThat(IndicatorScreen.apply(all, criteria).results())
         .as("most liquid first, no dollar amount compared with euros")
@@ -78,7 +78,7 @@ class IndicatorScreenTest {
             null,
             null,
             IndicatorWindow.ONE_YEAR,
-            new BigDecimal("10"),
+            BigDecimal.TEN,
             ScreeningSort.PERFORMANCE,
             50);
     var otherWindow =
@@ -87,7 +87,7 @@ class IndicatorScreenTest {
             null,
             null,
             IndicatorWindow.ONE_MONTH,
-            new BigDecimal("10"),
+            BigDecimal.TEN,
             ScreeningSort.PERFORMANCE,
             50);
 

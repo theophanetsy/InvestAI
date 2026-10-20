@@ -41,7 +41,7 @@ public final class IndicatorScreen {
   private static boolean matches(InstrumentIndicators candidate, ScreeningCriteria criteria) {
     IndicatorSet indicators = candidate.indicators().indicators();
     PeaEligibilityStatus eligibility = criteria.peaEligibility();
-    BigDecimal minAmount = criteria.minAverageTradedAmount();
+    BigDecimal minAmount = criteria.minAverageDailyTradedAmount();
     boolean eligible =
         eligibility == null || candidate.instrument().peaEligibility().status() == eligibility;
     boolean liquid = minAmount == null || liquidInEuros(candidate, minAmount);
@@ -53,7 +53,7 @@ public final class IndicatorScreen {
 
   private static boolean liquidInEuros(InstrumentIndicators candidate, BigDecimal minAmount) {
     return EUR.equals(candidate.instrument().currency())
-        && atLeast(candidate.indicators().indicators().averageTradedAmount(), minAmount);
+        && atLeast(candidate.indicators().indicators().averageDailyTradedAmount(), minAmount);
   }
 
   private static boolean atLeast(Indicator indicator, @Nullable BigDecimal bound) {
@@ -95,7 +95,7 @@ public final class IndicatorScreen {
   /** Amounts in another currency are not ranked with amounts in euros: they come last. */
   private static Indicator amountInEuros(InstrumentIndicators candidate) {
     return EUR.equals(candidate.instrument().currency())
-        ? indicators(candidate).averageTradedAmount()
+        ? indicators(candidate).averageDailyTradedAmount()
         : Indicator.NOT_COMPUTABLE;
   }
 

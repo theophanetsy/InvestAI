@@ -18,7 +18,7 @@ import java.util.Map;
  *     zero or negative
  * @param msciWorld compared with the MSCI World ETF (CW8)
  * @param cac40 compared with the CAC 40 ETF (CAC)
- * @param averageTradedAmount mean of close × volume over three months (63 sessions), Euronext
+ * @param averageDailyTradedAmount mean of close × volume over three months (63 sessions), Euronext
  *     volumes only, in the currency of the instrument at scale 2
  */
 public record IndicatorSet(
@@ -29,7 +29,7 @@ public record IndicatorSet(
     Indicator maxDrawdown,
     BenchmarkComparison msciWorld,
     BenchmarkComparison cac40,
-    Indicator averageTradedAmount) {
+    Indicator averageDailyTradedAmount) {
 
   /** Checks that every window has a performance. */
   public IndicatorSet {

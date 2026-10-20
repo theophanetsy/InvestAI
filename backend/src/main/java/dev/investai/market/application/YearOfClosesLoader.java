@@ -1,6 +1,7 @@
 package dev.investai.market.application;
 
 import dev.investai.market.domain.ClosingPrices;
+import dev.investai.market.domain.CollectionJournal;
 import dev.investai.market.domain.DailyClose;
 import dev.investai.market.domain.DailyPriceRepository;
 import dev.investai.market.domain.IndicatorSet;
@@ -24,12 +25,17 @@ final class YearOfClosesLoader {
 
   private final InstrumentRepository instruments;
   private final DailyPriceRepository prices;
+  private final CollectionJournal journal;
   private final IndicatorSettings settings;
 
   YearOfClosesLoader(
-      InstrumentRepository instruments, DailyPriceRepository prices, IndicatorSettings settings) {
+      InstrumentRepository instruments,
+      DailyPriceRepository prices,
+      CollectionJournal journal,
+      IndicatorSettings settings) {
     this.instruments = instruments;
     this.prices = prices;
+    this.journal = journal;
     this.settings = settings;
   }
 
@@ -39,7 +45,8 @@ final class YearOfClosesLoader {
         window,
         closes(window, Set.copyOf(ids)),
         benchmark(window, settings.msciWorld()),
-        benchmark(window, settings.cac40()));
+        benchmark(window, settings.cac40()),
+        journal.euronextSessions(window.start(), window.asOf()));
   }
 
   /** Indicators of many instruments, computed batch by batch. */
@@ -47,13 +54,23 @@ final class YearOfClosesLoader {
     YearOfCloses benchmarks = load(window, List.of());
     Map<InstrumentId, IndicatorSet> result = new HashMap<>();
     for (int from = 0; from < ids.size(); from += BATCH) {
-      List<InstrumentId> batch = ids.subList(from, Math.min(from + BATCH, ids.size()));
-      YearOfCloses year =
-          new YearOfCloses(
-              window, closes(window, batch), benchmarks.msciWorld(), benchmarks.cac40());
-      batch.forEach(id -> result.put(id, year.indicatorsOf(id)));
+      result.putAll(
+          indicatorsOfBatch(benchmarks, ids.subList(from, Math.min(from + BATCH, ids.size()))));
     }
     return result;
+  }
+
+  private Map<InstrumentId, IndicatorSet> indicatorsOfBatch(
+      YearOfCloses benchmarks, List<InstrumentId> batch) {
+    YearWindow window = benchmarks.window();
+    YearOfCloses year =
+        new YearOfCloses(
+            window,
+            closes(window, batch),
+            benchmarks.msciWorld(),
+            benchmarks.cac40(),
+            benchmarks.euronextSessions());
+    return batch.stream().collect(Collectors.toMap(id -> id, year::indicatorsOf));
   }
 
   private ClosingPrices benchmark(YearWindow window, Listing listing) {
