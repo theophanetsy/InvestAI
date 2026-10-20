@@ -1,7 +1,8 @@
 # InvestAI
 
-Assistant personnel de gestion de PEA / compte-titres : dashboard de suivi, agent IA de conseil,
-veille boursière automatisée et simulations de portefeuilles fictifs.
+Assistant personnel de gestion de PEA / compte-titres : dashboard de suivi, conseil par Claude
+(Desktop / Code) via le serveur MCP de l'application, page Actu (news collectées) et simulations
+de portefeuilles fictifs.
 
 > Projet d'apprentissage : Spring Boot / Angular et intégration d'IA en production
 > (tools, MCP, observabilité, evals). Ne constitue pas un conseil en investissement.

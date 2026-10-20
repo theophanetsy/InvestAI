@@ -48,4 +48,4 @@ l'[ADR-0007](../adr/0007-authentification-mono-utilisateur.md).
 - Swagger UI ou autre visualiseur intégré (le fichier `api/openapi.json` se lit dans l'IDE).
 - Intercepteur d'erreurs et écran de connexion côté Angular : Phase 1.5.
 - Détection des changements cassants entre versions du contrat (oasdiff) : quand l'API aura des
-  consommateurs externes (Phase 6, MCP).
+  consommateurs externes (MCP, Phase 3).
