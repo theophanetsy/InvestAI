@@ -153,7 +153,7 @@ propriétaire) : corrigé en « Non ajustée ».
   Verrou par cas d'usage (`tryLock`, comme la collecte). Clôtures lues par lots de 200 valeurs.
 - **Mesures** (`IndicatorPerformanceIT`, 1 300 actions + 2 ETF × 253 séances = 337 218 clôtures
   synthétiques, PostgreSQL Testcontainers, poste Windows du propriétaire) : calcul complet
-  **~2,0 s**, filtre de tout Paris **~0,14 s** ; l'insertion des clôtures de test prend ~10 s. Le
+  **1,7 à 2,0 s**, filtre de tout Paris **0,03 à 0,14 s** selon les passages ; l'insertion des clôtures de test prend ~10 s. Le
   test échoue au-delà de 2 min (régression grossière seulement).
 - **Filtre** `GET /api/v1/market/indicators` : lit la table, **filtre et trie en mémoire** (~1 300
   lignes) parce que l'éligibilité PEA est résolue en Java (correction du propriétaire ou règle,
@@ -246,7 +246,7 @@ propriétaire) : corrigé en « Non ajustée ».
   Les dialogues signalés sans nom l'ont bien (l'E2E vérifie leur nom accessible). Restent en points
   ouverts : aide du champ « exclusions » qui chevauche le libellé suivant, champ « Quantité » en
   erreur après un ajout validé par Entrée dans ce champ, montants relus sans séparateur de milliers
-  (formulaires 2.3).
+  (formulaires 2.3) : issue #21.
 
 ### Points ouverts
 
