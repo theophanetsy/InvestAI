@@ -1,6 +1,6 @@
 # 0010 — IA via un serveur MCP uniquement
 
-- **Statut** : Proposé
+- **Statut** : Accepté (validé par le propriétaire le 2026-10-20, merge de la PR #23)
 - **Date** : 2026-10-20
 - **Remplace** : [ADR-0002](0002-framework-ia-langchain4j.md) (LangChain4j), voir « Ce que devient
   l'ADR-0002 »
@@ -37,8 +37,8 @@ Choix du propriétaire, à l'origine de cet ADR : **« MCP uniquement »**.
 - L'analyse des news est **lancée à la main** depuis Claude Desktop. Il n'y a plus d'agent
   planifié.
 
-Restent à trancher : l'implémentation du serveur, le transport, la sécurité et la façon de
-confirmer une écriture.
+Cet ADR tranche l'implémentation du serveur, le transport, la sécurité et la façon de confirmer
+une écriture.
 
 ## Options étudiées
 
@@ -192,7 +192,7 @@ sous-processus et échangent sur l'entrée et la sortie standard.
   vérifié par une règle ArchUnit comme pour JPA. Les outils appellent les cas d'usage existants
   (`IndicatorQueries`, `PortfolioQueries`, `InvestorProfiles`), jamais les dépôts.
 
-### Implémentation — recommandation, **à confirmer par le propriétaire**
+### Implémentation (validée par le propriétaire le 2026-10-20)
 
 **Option B : Spring AI MCP Server, starter WebMVC 2.0.x**, version exacte épinglée, en mode sans
 état (`STATELESS`).
@@ -206,17 +206,17 @@ sous-processus et échangent sur l'entrée et la sortie standard.
   - incompatibilité avec Claude Desktop ou Claude Code ;
   - retard gênant sur une révision du protocole.
 
-### Transport — recommandation, **à confirmer par le propriétaire**
+### Transport (validé par le propriétaire le 2026-10-20)
 
 **Option B : Streamable HTTP sans état sur `/mcp`, dans le backend, en écoute sur `127.0.0.1`.**
 
 - Raison : un seul processus réutilise la sécurité, les cas d'usage et les logs existants, et
   Claude Code s'y branche nativement.
-- Pour **Claude Desktop**, une passerelle stdio vers HTTP sur le poste. Proposition : un petit
-  script Node **sans dépendance** dans `scripts/`, qui lit le jeton dans un fichier hors du dépôt
-  et relaie chaque message JSON-RPC par un POST. Alternative : le paquet npm tiers `mcp-remote`,
-  lancé par `npx` à chaque démarrage du client, ce qui ajoute un risque de chaîne
-  d'approvisionnement. Choix à faire en 3.0.
+- Pour **Claude Desktop**, une passerelle stdio vers HTTP sur le poste : un petit script Node
+  **sans dépendance** dans `scripts/`, qui lit le jeton dans une variable d'environnement ou un
+  fichier hors du dépôt et relaie chaque message JSON-RPC par un POST. Écarté : le paquet npm
+  tiers `mcp-remote`, lancé par `npx` à chaque démarrage du client, qui ajoute un risque de chaîne
+  d'approvisionnement.
 
 ### Sécurité
 
@@ -340,11 +340,11 @@ L'ADR-0002 est **remplacé** : tout ce qui supposait un agent intégré dispara�
   - Si Claude Desktop permet un jour de joindre un serveur HTTP local, la passerelle devient
     inutile.
 
-## Points à valider par le propriétaire
+## Points validés par le propriétaire (2026-10-20)
 
 1. Implémentation : Spring AI MCP Server (starter WebMVC 2.0.x), avec le SDK seul en repli.
 2. Transport : Streamable HTTP sans état sur `/mcp`, dans le backend, en écoute sur `127.0.0.1`.
-3. Passerelle de Claude Desktop : script Node maison sans dépendance, ou paquet `mcp-remote`.
+3. Passerelle de Claude Desktop : script Node maison sans dépendance (pas `mcp-remote`).
 4. Authentification par jeton porteur dédié (empreinte en variable d'environnement), sans OAuth en
    local.
 5. Règle d'usage :

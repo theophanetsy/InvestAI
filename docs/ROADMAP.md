@@ -16,7 +16,7 @@ Limite assumée : aucun modèle ne prédit de façon fiable quelles actions vont
 
 Décisions prises :
 - **Stack** : Java 25 + Spring Boot 4, Angular 22 (standalone, signals, zoneless), PostgreSQL 18, monorepo ([ADR-0001](adr/0001-stack-technique.md)).
-- **IA** : **serveur MCP uniquement** ([ADR-0010](adr/0010-ia-via-mcp-uniquement.md), proposé ; remplace l'[ADR-0002](adr/0002-framework-ia-langchain4j.md) LangChain4j).
+- **IA** : **serveur MCP uniquement** ([ADR-0010](adr/0010-ia-via-mcp-uniquement.md), accepté le 2026-10-20 ; remplace l'[ADR-0002](adr/0002-framework-ia-langchain4j.md) LangChain4j).
   - L'application n'appelle jamais l'API Anthropic : pas de clé d'API IA, pas de chat intégré, pas d'agent planifié. **Budget IA : 0 €** au-delà de l'abonnement Claude du propriétaire.
   - Le modèle est celui de l'abonnement, choisi dans le client.
 - **Hébergement** : local d'abord, cloud en dernière phase.
@@ -52,7 +52,7 @@ Principe directeur : **chaque phase se termine par une app qui tourne, CI verte,
 | Phase 2.2 — Clôtures de toutes les valeurs de Paris ([spec](specs/phase-2-02-all-paris-closes.md)) | ✅ Terminée (PR #19) |
 | Phase 2.3 — Profil investisseur, portefeuille déclaré, éligibilité PEA ([spec](specs/phase-2-03-profile-portfolio.md)) | ✅ Terminée (PR #20) ; vérifiée dans la vraie application pendant la 2.4 (anomalies mineures : #21) |
 | Phase 2.4 — Indicateurs calculés et dashboard ([spec](specs/phase-2-04-indicators-dashboard.md)) | ✅ Terminée (PR #22) ; points ouverts tranchés le 2026-10-20 (séance de référence, plausibilité reportée) |
-| **Phase 3 — Conseil via MCP** ([ADR-0010](adr/0010-ia-via-mcp-uniquement.md)) | ⏳ À démarrer : ADR-0010 à valider par le propriétaire |
+| **Phase 3 — Conseil via MCP** ([ADR-0010](adr/0010-ia-via-mcp-uniquement.md)) | ⏳ En cours : ADR-0010 accepté le 2026-10-20, 3.0 en cours |
 
 ---
 
