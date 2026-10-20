@@ -46,7 +46,7 @@ const lineIndicators: IndicatorsResponse = {
   currency: 'EUR',
 };
 
-function line(
+function lineOf(
   id: string,
   name: string,
   extra: Partial<LineIndicatorsResponse>,
@@ -87,9 +87,9 @@ const full: PortfolioIndicatorsResponse = {
   volatility: ok('16.20'),
   maxDrawdown: ok('-9.80'),
   lines: [
-    line('a', 'Air Liquide', { weightPercent: '57.72', indicators: lineIndicators }),
-    line('c', 'Amundi MSCI World', { weightPercent: '33.33', indicators: lineIndicators }),
-    line('t', 'TotalEnergies', {
+    lineOf('a', 'Air Liquide', { weightPercent: '57.72', indicators: lineIndicators }),
+    lineOf('c', 'Amundi MSCI World', { weightPercent: '33.33', indicators: lineIndicators }),
+    lineOf('t', 'TotalEnergies', {
       indicators: { ...lineIndicators, closesOneYear: 12 },
       exclusion: LineIndicatorsResponseExclusionEnum.InsufficientHistory,
     }),
@@ -144,6 +144,14 @@ describe('Dashboard', () => {
     return element.querySelector(`#${id}`)?.textContent;
   }
 
+  function line(
+    id: string,
+    name: string,
+    extra: Partial<LineIndicatorsResponse>,
+  ): LineIndicatorsResponse {
+    return lineOf(id, name, extra);
+  }
+
   function text(selector: string): string {
     return (element.querySelector(selector)?.textContent ?? '').replace(/[ \n]+/g, ' ').trim();
   }
@@ -184,9 +192,8 @@ describe('Dashboard', () => {
 
     const chart = element.querySelector('[data-testid="performance-chart"]');
     expect(chart?.getAttribute('role')).toBe('img');
-    expect(referenced(chart, 'aria-labelledby')).toContain(
-      'comme s’il avait été détenu depuis un an',
-    );
+    expect(chart?.getAttribute('aria-label')).toBe('Courbe base 100 sur un an');
+    expect(text('figcaption')).toContain('comme s’il avait été détenu depuis un an');
     expect(referenced(chart, 'aria-describedby')).toBe(
       'Base 100 le 21/10/2025. Dernières valeurs au 16/10/2026 : Portefeuille actuel 104,35 ; ETF MSCI World (CW8) 102,10 ; ETF CAC 40 (CAC) 98,75.',
     );
@@ -199,6 +206,53 @@ describe('Dashboard', () => {
       [...row.children].map((cell) => cell.textContent.trim()),
     );
     expect(cells[1]).toEqual(['22/10/2025', '—', '101,20', '99,10']);
+  });
+
+  it('keeps a benchmark without values in the legend, never draws it', async () => {
+    await render({
+      ...full,
+      curve: full.curve.map(({ date, portfolio, msciWorld }) => ({ date, portfolio, msciWorld })),
+    });
+
+    expect(element.querySelectorAll('[data-testid="performance-chart"] path')).toHaveLength(2);
+    expect(text('.chart__legend')).toContain('ETF CAC 40 (CAC) : non disponible');
+  });
+
+  it('shows a line without any close with the words of the portfolio page', async () => {
+    await render({
+      ...full,
+      lines: [
+        line('u', 'Sans Cours', { exclusion: LineIndicatorsResponseExclusionEnum.NotValued }),
+        full.lines[0] ?? line('a', 'Air Liquide', {}),
+      ],
+    });
+
+    const row = text('[data-testid="line-indicators"] tbody tr');
+    expect(row).toContain('Cours indisponible');
+    expect(row).not.toContain('Historique insuffisant');
+    expect(row).toMatch(/Non : cours indisponible$/);
+    expect(text('[data-testid="dashboard-warnings"]')).toContain('Sans Cours (cours indisponible)');
+  });
+
+  it('lets the keyboard reach every scrolling table', async () => {
+    await render(full);
+
+    const regions = [...element.querySelectorAll('[role="region"]')];
+    expect(regions.map((region) => region.getAttribute('aria-label'))).toEqual([
+      'Données du graphique',
+      'Indicateurs des lignes',
+      'Corrélations entre les lignes',
+    ]);
+    expect(regions.every((region) => region.getAttribute('tabindex') === '0')).toBe(true);
+  });
+
+  it('shows a progress bar while loading', () => {
+    fixture = TestBed.createComponent(Dashboard);
+    element = fixture.nativeElement as HTMLElement;
+    fixture.detectChanges();
+
+    expect(element.querySelector('mat-progress-bar')).not.toBeNull();
+    http.expectOne(INDICATORS).flush(full);
   });
 
   it('shows the correlations between the kept lines', async () => {

@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { mockApi } from './support/api-mock';
 import { mockDashboardApi } from './support/dashboard-mock';
+import { contrast, tabTo } from './support/layout';
 
 test.describe('dashboard', () => {
   test('shows the indicators of the declared portfolio and their limits', async ({ page }) => {
@@ -32,7 +33,10 @@ test.describe('dashboard', () => {
     await mockDashboardApi(page);
     await page.goto('/dashboard');
 
-    const chart = page.getByRole('img', { name: /comme s’il avait été détenu depuis un an/ });
+    await expect(page.locator('figcaption')).toContainText(
+      'comme s’il avait été détenu depuis un an',
+    );
+    const chart = page.getByRole('img', { name: 'Courbe base 100 sur un an' });
     await expect(chart).toBeVisible();
     await expect(chart).toHaveAccessibleDescription(/Base 100 le 21\/10\/2025/);
     await expect(chart.locator('path')).toHaveCount(3);
@@ -46,6 +50,10 @@ test.describe('dashboard', () => {
     await expect(data).toBeVisible();
     // Session 120 has no close of the portfolio: a gap, never an interpolated value.
     await expect(data.getByRole('row', { name: /^18\/02\/2026/ })).toContainText('—');
+    // Its scrolling box is reached with the keyboard too.
+    const region = page.getByRole('region', { name: 'Données du graphique' });
+    await tabTo(page, region);
+    await expect(region).toBeFocused();
   });
 
   for (const colorScheme of ['light', 'dark'] as const) {
@@ -62,8 +70,9 @@ test.describe('dashboard', () => {
 
       expect(colours.lines).toHaveLength(3);
       expect(new Set(colours.lines).size).toBe(3);
+      // WCAG 1.4.11: graphical objects need a contrast of at least 3:1 with their background.
       for (const stroke of colours.lines) {
-        expect(stroke).not.toBe(colours.background);
+        expect(contrast(stroke, colours.background)).toBeGreaterThanOrEqual(3);
       }
     });
   }

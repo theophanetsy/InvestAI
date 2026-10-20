@@ -10,9 +10,9 @@
 }
 
 .lines__caption {
+  margin: 0;
   padding: 0.5rem 0;
   font: var(--mat-sys-title-small);
-  text-align: start;
 }
 
 .lines th,
@@ -21,6 +21,10 @@
   text-align: end;
   white-space: nowrap;
   border-bottom: 1px solid var(--mat-sys-outline-variant);
+}
+
+.lines th[scope='col']:first-child {
+  text-align: start;
 }
 
 .lines th[scope='row'] {

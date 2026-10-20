@@ -2,7 +2,17 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 import type { CurvePointResponse } from '../../api/generated';
 import { formatDate, formatDecimal } from '../../shared/format/decimal';
 import type { SeriesValues } from './chart-geometry';
-import { FRAME, pathOf, scaleOf, tickLabel, ticksOf, toNumbers, xOf, yOf } from './chart-geometry';
+import {
+  FRAME,
+  anchorOf,
+  pathOf,
+  scaleOf,
+  tickLabel,
+  ticksOf,
+  toNumbers,
+  xOf,
+  yOf,
+} from './chart-geometry';
 import { ChartDataTable } from './chart-data-table';
 
 type SeriesKey = 'portfolio' | 'msciWorld' | 'cac40';
@@ -19,8 +29,9 @@ interface DrawnSeries {
   readonly label: string;
   /** CSS classes: colour and line pattern. */
   readonly style: string;
-  /** Last known value, as sent by the backend and formatted. */
+  /** Last known value, as sent by the backend and formatted, or "non disponible". */
   readonly last: string;
+  /** Empty when the series has no value at all (benchmark without enough history). */
   readonly path: string;
 }
 
@@ -43,7 +54,6 @@ export class PerformanceChart {
   readonly curve = input.required<readonly CurvePointResponse[]>();
 
   protected readonly frame = FRAME;
-  protected readonly titleId = `performance-chart-title-${String(nextId)}`;
   protected readonly descriptionId = `performance-chart-description-${String(nextId++)}`;
 
   private readonly values = computed(() =>
@@ -51,17 +61,21 @@ export class PerformanceChart {
   );
   private readonly scale = computed(() => scaleOf(this.values().map(toNumbers)));
 
+  /** Every series, in the legend and the description even when it has no value. */
   protected readonly series = computed<DrawnSeries[]>(() =>
-    SERIES.map((definition, index) => ({ values: this.values()[index] ?? [], ...definition }))
-      .filter(({ values }) => values.some((value) => value !== undefined))
-      .map(({ key, label, style, values }) => ({
+    SERIES.map(({ key, label, style }, index) => {
+      const values = this.values()[index] ?? [];
+      return {
         key,
         label,
         style,
         last: lastText(values),
         path: pathOf(toNumbers(values), this.scale()),
-      })),
+      };
+    }),
   );
+
+  protected readonly drawn = computed(() => this.series().filter((line) => line.path !== ''));
 
   protected readonly ticks = computed(() =>
     ticksOf(this.scale()).map((tick) => ({
@@ -74,10 +88,10 @@ export class PerformanceChart {
   protected readonly dates = computed(() => {
     const points = this.curve();
     const indexes = [...new Set([0, Math.floor((points.length - 1) / 2), points.length - 1])];
-    return indexes.map((index, position) => ({
+    return indexes.map((index) => ({
       x: xOf(index, points.length),
       label: formatDate(points[index]?.date ?? ''),
-      anchor: ['start', 'middle', 'end'][indexes.length === 1 ? 0 : position] ?? 'middle',
+      anchor: anchorOf(index, points.length),
     }));
   });
 

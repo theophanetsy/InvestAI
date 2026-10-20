@@ -4,12 +4,14 @@ import { TestBed } from '@angular/core/testing';
 import { Title } from '@angular/platform-browser';
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
+import type { PortfolioIndicatorsResponse } from './api/generated';
+import { IndicatorResponseStatusEnum } from './api/generated';
 import { routes } from './app.routes';
 import { provideApiClient } from './core/api/api-client';
 import { withApiInterceptors } from './core/http/api-interceptors';
 
-const UNAVAILABLE = { status: 'NOT_COMPUTABLE' };
-const EMPTY_INDICATORS = {
+const UNAVAILABLE = { status: IndicatorResponseStatusEnum.NotComputable };
+const EMPTY_INDICATORS: PortfolioIndicatorsResponse = {
   total: '0.00',
   currency: 'EUR',
   composition: {

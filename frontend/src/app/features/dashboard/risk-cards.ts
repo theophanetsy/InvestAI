@@ -45,7 +45,7 @@ export class RiskCards {
       },
       {
         title: 'Concentration',
-        note: 'Indice de Herfindahl : 1 pour une seule ligne, 1/n pour n lignes égales',
+        note: 'Herfindahl des lignes investies, hors espèces : 1 pour une seule ligne, 1/n pour n lignes égales',
         items: [
           { id: 'line-count', label: 'Lignes', value: String(composition.lineCount) },
           {

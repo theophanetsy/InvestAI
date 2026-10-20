@@ -1,11 +1,16 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import type { IndicatorResponse, LineIndicatorsResponse } from '../../api/generated';
+import type {
+  IndicatorResponse,
+  IndicatorsResponse,
+  LineIndicatorsResponse,
+} from '../../api/generated';
 import { LineIndicatorsResponseExclusionEnum } from '../../api/generated';
 import { formatPercent } from '../../shared/format/decimal';
 import type { IndicatorKind } from '../../shared/format/indicator';
 import { formatIndicator } from '../../shared/format/indicator';
 
-const NONE = '—';
+/** Same words as the portfolio page for a line without any close. */
+const UNAVAILABLE = 'Cours indisponible';
 
 /** One row as displayed, every text computed here under strict typing. */
 interface Row {
@@ -17,30 +22,42 @@ interface Row {
   readonly kept: string;
 }
 
-/** Columns after the weight: label and how to read the indicator of the line. */
-const COLUMNS: readonly {
-  label: string;
-  kind: IndicatorKind;
-  pick: (line: LineIndicatorsResponse) => IndicatorResponse | undefined;
-}[] = [
-  { label: '1 mois', kind: 'signedPercent', pick: (line) => line.indicators?.performanceOneMonth },
+interface Column {
+  readonly label: string;
+  readonly kind: IndicatorKind;
+  readonly pick: (indicators: IndicatorsResponse) => IndicatorResponse;
+}
+
+/** Columns after the weight: label and how to read the indicator of the instrument. */
+const COLUMNS: readonly Column[] = [
+  { label: '1 mois', kind: 'signedPercent', pick: (set) => set.performanceOneMonth },
+  { label: '3 mois', kind: 'signedPercent', pick: (set) => set.performanceThreeMonths },
+  { label: '6 mois', kind: 'signedPercent', pick: (set) => set.performanceSixMonths },
+  { label: '1 an', kind: 'signedPercent', pick: (set) => set.performanceOneYear },
+  { label: 'Volatilité 1 an', kind: 'percent', pick: (set) => set.volatility },
+  { label: 'Pire baisse 1 an', kind: 'signedPercent', pick: (set) => set.maxDrawdown },
   {
-    label: '3 mois',
-    kind: 'signedPercent',
-    pick: (line) => line.indicators?.performanceThreeMonths,
+    label: 'Écart au MSCI World (1 an)',
+    kind: 'points',
+    pick: (set) => set.msciWorld.outperformance,
   },
-  { label: '6 mois', kind: 'signedPercent', pick: (line) => line.indicators?.performanceSixMonths },
-  { label: '1 an', kind: 'signedPercent', pick: (line) => line.indicators?.performanceOneYear },
-  { label: 'Volatilité 1 an', kind: 'percent', pick: (line) => line.indicators?.volatility },
   {
-    label: 'Pire baisse 1 an',
-    kind: 'signedPercent',
-    pick: (line) => line.indicators?.maxDrawdown,
-  },
-  {
-    label: 'Bêta MSCI World',
+    label: 'Corrélation MSCI World',
     kind: 'coefficient',
-    pick: (line) => line.indicators?.msciWorld.beta,
+    pick: (set) => set.msciWorld.correlation,
+  },
+  { label: 'Bêta MSCI World', kind: 'coefficient', pick: (set) => set.msciWorld.beta },
+  {
+    label: 'Écart au CAC 40 (1 an)',
+    kind: 'points',
+    pick: (set) => set.cac40.outperformance,
+  },
+  { label: 'Corrélation CAC 40', kind: 'coefficient', pick: (set) => set.cac40.correlation },
+  { label: 'Bêta CAC 40', kind: 'coefficient', pick: (set) => set.cac40.beta },
+  {
+    label: 'Échanges quotidiens moyens (3 mois)',
+    kind: 'amount',
+    pick: (set) => set.averageDailyTradedAmount,
   },
 ];
 
@@ -61,13 +78,16 @@ export class LineIndicatorsTable {
       id: line.lineId,
       name: line.instrument.name,
       codes: `${line.instrument.ticker} · ${line.instrument.isin}`,
-      weight: line.weightPercent ? formatPercent(line.weightPercent) : NONE,
-      cells: COLUMNS.map(({ kind, pick }) => {
-        const indicator = pick(line);
-        return indicator ? formatIndicator(indicator, kind) : 'Aucun cours';
-      }),
+      weight: line.weightPercent ? formatPercent(line.weightPercent) : UNAVAILABLE,
+      cells: cellsOf(line.indicators),
       kept: keptText(line),
     })),
+  );
+}
+
+function cellsOf(indicators: IndicatorsResponse | undefined): string[] {
+  return COLUMNS.map(({ kind, pick }) =>
+    indicators ? formatIndicator(pick(indicators), kind, indicators.currency) : UNAVAILABLE,
   );
 }
 

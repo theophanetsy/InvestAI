@@ -1,8 +1,19 @@
-import { FRAME, pathOf, scaleOf, tickLabel, ticksOf, toNumbers, xOf, yOf } from './chart-geometry';
+import {
+  FRAME,
+  anchorOf,
+  pathOf,
+  scaleOf,
+  tickLabel,
+  ticksOf,
+  toNumbers,
+  xOf,
+  yOf,
+} from './chart-geometry';
 
 describe('chart geometry', () => {
   it('reads the decimal strings only to place points, gaps kept', () => {
     expect(toNumbers(['100.00', undefined, '104.35'])).toEqual([100, undefined, 104.35]);
+    expect(toNumbers(['abc', 'Infinity'])).toEqual([undefined, undefined]);
   });
 
   it('scales every series around the base 100 with a margin', () => {
@@ -31,6 +42,18 @@ describe('chart geometry', () => {
 
     const path = pathOf([100, 110, undefined, 90], scale);
 
-    expect(path).toBe('M 44.0 132.0 L 238.7 12.0 M 628.0 252.0');
+    expect(path).toBe('M 52.0 132.0 L 244.0 12.0 M 628.0 252.0 h 0');
+  });
+
+  it('draws an isolated point and a single session as dots', () => {
+    const scale = { min: 90, max: 110 };
+
+    expect(pathOf([undefined, 100, undefined], scale)).toBe('M 340.0 132.0 h 0');
+    expect(pathOf([100], scale)).toBe('M 52.0 132.0 h 0');
+  });
+
+  it('keeps the first and last dates inside the drawing', () => {
+    expect([0, 1].map((index) => anchorOf(index, 2))).toEqual(['start', 'end']);
+    expect([0, 126, 252].map((index) => anchorOf(index, 253))).toEqual(['start', 'middle', 'end']);
   });
 });

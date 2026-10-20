@@ -9,9 +9,9 @@
 }
 
 .matrix__caption {
+  margin: 0;
   padding: 0.5rem 0;
   font: var(--mat-sys-title-small);
-  text-align: start;
 }
 
 .matrix th,
@@ -29,4 +29,18 @@
 .matrix__empty {
   font: var(--mat-sys-body-medium);
   color: var(--mat-sys-on-surface-variant);
+}
+
+/* Read by screen readers only: the full name behind the ticker of a column. */
+.matrix__hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.matrix abbr {
+  text-decoration: none;
 }

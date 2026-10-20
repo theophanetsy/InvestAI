@@ -1,11 +1,12 @@
 /**
  * Geometry of the base-100 curve, drawn in SVG without a chart library. The values of the backend
  * are decimal strings; they become numbers here only to place pixels, never for a figure shown to
- * the user (labels and data table keep the strings).
+ * the user (legend, description and data table keep the strings). The graduations are generated
+ * round numbers, not data.
  */
 
 /** Drawing area, in SVG user units (the SVG scales to its container). */
-export const FRAME = { width: 640, height: 280, left: 44, right: 12, top: 12, bottom: 28 } as const;
+export const FRAME = { width: 640, height: 280, left: 52, right: 12, top: 12, bottom: 28 } as const;
 
 /** A value per session, `undefined` on a gap (no close: never interpolated). */
 export type SeriesValues = readonly (string | undefined)[];
@@ -15,9 +16,12 @@ export interface Scale {
   readonly max: number;
 }
 
-/** Numbers of a series, for the geometry only. */
+/** Numbers of a series, for the geometry only; an unreadable value is a gap. */
 export function toNumbers(values: SeriesValues): (number | undefined)[] {
-  return values.map((value) => (value === undefined ? undefined : Number(value)));
+  return values.map((value) => {
+    const number = value === undefined ? Number.NaN : Number(value);
+    return Number.isFinite(number) ? number : undefined;
+  });
 }
 
 /** Vertical range of every series, with some margin, always including the base 100. */
@@ -55,20 +59,31 @@ export function yOf(value: number, scale: Scale): number {
   return FRAME.top + ((scale.max - value) * height) / (scale.max - scale.min);
 }
 
-/** SVG path of a series: a new segment starts after each gap. */
+/**
+ * SVG path of a series: a new segment starts after each gap. An isolated point (between two gaps,
+ * or a single session) gets a zero-length segment, drawn as a dot by the round line caps: a lone
+ * `M` would not be drawn at all.
+ */
 export function pathOf(values: readonly (number | undefined)[], scale: Scale): string {
-  let path = '';
-  let drawing = false;
+  const parts: string[] = [];
   values.forEach((value, index) => {
     if (value === undefined) {
-      drawing = false;
       return;
     }
     const point = `${xOf(index, values.length).toFixed(1)} ${yOf(value, scale).toFixed(1)}`;
-    path += `${drawing ? ' L' : `${path === '' ? '' : ' '}M`} ${point}`;
-    drawing = true;
+    const starts = values[index - 1] === undefined;
+    const isolated = starts && values[index + 1] === undefined;
+    parts.push(`${starts ? 'M' : 'L'} ${point}${isolated ? ' h 0' : ''}`);
   });
-  return path;
+  return parts.join(' ');
+}
+
+/** Text anchor of a date label: the first and last stay inside the drawing. */
+export function anchorOf(index: number, count: number): 'start' | 'middle' | 'end' {
+  if (index === 0) {
+    return 'start';
+  }
+  return index === count - 1 ? 'end' : 'middle';
 }
 
 /** Graduation label in French: `102,5`. */

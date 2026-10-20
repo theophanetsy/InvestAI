@@ -148,6 +148,10 @@ describe('Portfolio', () => {
       '1 ligne(s) sans cours connu',
     );
     expect(element.textContent).toContain(`Part des espèces : 13,42${NBSP}%`);
+    // Regression (real-app verification of phase 2.3): the note was glued to the total.
+    const total = element.querySelector('.summary__total')?.textContent ?? '';
+    expect(total).toContain('(espèces comprises)');
+    expect(total).not.toContain('€(');
     expect(element.querySelector('caption')?.textContent.trim()).toBe('Lignes du PEA');
   });
 

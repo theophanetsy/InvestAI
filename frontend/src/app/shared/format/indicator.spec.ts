@@ -16,10 +16,14 @@ describe('formatIndicator', () => {
     expect(formatIndicator(available('2.35'), 'signedPercent')).toBe(`+2,35${NBSP}%`);
     expect(formatIndicator(available('-12.30'), 'signedPercent')).toBe(`-12,30${NBSP}%`);
     expect(formatIndicator(available('0.5359'), 'coefficient')).toBe('0,5359');
+    expect(formatIndicator(available('3.10'), 'points')).toBe(`+3,10${NBSP}pts`);
+    expect(formatIndicator(available('-0.50'), 'points')).toBe(`-0,50${NBSP}pts`);
+    expect(formatIndicator(available('0.00'), 'points')).toBe(`0,00${NBSP}pts`);
     expect(formatIndicator(available('-1.00'), 'coefficient')).toBe('-1,00');
-    expect(formatIndicator(available('1234567.89'), 'amount')).toBe(
+    expect(formatIndicator(available('1234567.89'), 'amount', 'EUR')).toBe(
       `1${NNBSP}234${NNBSP}567,89${NBSP}€`,
     );
+    expect(formatIndicator(available('12.50'), 'amount')).toBe('12,50');
     expect(formatIndicator(available('1000.00'), 'amount', 'USD')).toBe(
       `1${NNBSP}000,00${NBSP}USD`,
     );

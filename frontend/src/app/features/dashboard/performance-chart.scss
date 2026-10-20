@@ -43,14 +43,23 @@
   stroke: var(--mat-sys-outline);
 }
 
+/* SVG text follows the viewBox (640 units): on a phone it would shrink to ~6 px. */
 .chart__label {
   font: var(--mat-sys-label-small);
   fill: var(--mat-sys-on-surface-variant);
 }
 
+@media (width <= 600px) {
+  .chart__label {
+    font-size: 20px;
+  }
+}
+
+/* Round caps: an isolated point (zero-length segment) is drawn as a dot. */
 .chart__line {
   fill: none;
   stroke-width: 2;
+  stroke-linecap: round;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
 }

@@ -1,14 +1,17 @@
 @if (rows().length > 1) {
-  <div class="matrix__scroll">
-    <table class="matrix" data-testid="correlations">
-      <caption class="matrix__caption">
-        Corrélations des rendements quotidiens sur un an entre les lignes (de -1 à 1)
-      </caption>
+  <p class="matrix__caption" id="correlations-title">
+    Corrélations des rendements quotidiens sur un an entre les lignes (de -1 à 1)
+  </p>
+  <div class="matrix__scroll" tabindex="0" role="region" aria-label="Corrélations entre les lignes">
+    <table class="matrix" aria-labelledby="correlations-title" data-testid="correlations">
       <thead>
         <tr>
-          <td></td>
+          <th scope="col"><span class="matrix__hidden">Valeur</span></th>
           @for (column of names(); track column.id) {
-            <th scope="col" [attr.title]="column.name">{{ column.ticker }}</th>
+            <th scope="col">
+              <abbr aria-hidden="true" [attr.title]="column.name">{{ column.ticker }}</abbr>
+              <span class="matrix__hidden">{{ column.name }}</span>
+            </th>
           }
         </tr>
       </thead>

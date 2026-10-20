@@ -1,5 +1,5 @@
 <figure class="chart">
-  <figcaption class="chart__caption" [id]="titleId">
+  <figcaption class="chart__caption">
     Portefeuille actuel comme s’il avait été détenu depuis un an, comparé aux ETF MSCI World et CAC
     40 (base 100)
   </figcaption>
@@ -17,8 +17,8 @@
     class="chart__plot"
     role="img"
     data-testid="performance-chart"
+    aria-label="Courbe base 100 sur un an"
     [attr.viewBox]="`0 0 ${frame.width} ${frame.height}`"
-    [attr.aria-labelledby]="titleId"
     [attr.aria-describedby]="descriptionId"
   >
     @for (tick of ticks(); track tick.label) {
@@ -33,7 +33,7 @@
         {{ tick.label }}
       </text>
     }
-    @for (line of series(); track line.key) {
+    @for (line of drawn(); track line.key) {
       <path [class]="line.style" [attr.d]="line.path" />
     }
     @for (date of dates(); track date.x) {
