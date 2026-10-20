@@ -53,7 +53,7 @@ Principe directeur : **chaque phase se termine par une app qui tourne, CI verte,
 | **Phase 3 — Conseil via MCP** ([ADR-0010](adr/0010-ia-via-mcp-uniquement.md)) | ⏳ En cours : ADR-0010 accepté le 2026-10-20 |
 | Phase 3.0 — Squelette du serveur MCP ([spec](specs/phase-3-00-mcp-server.md)) | ✅ Terminée (PR #24) : `/mcp` sécurisé, outil `getHealth`, passerelle Claude Desktop, [modèle de menace](security/ai-threat-model.md) |
 | Phase 3.0b — Observabilité des appels d'outils | ⏳ À faire (sortie de la 3.0) |
-| Phase 3.1 — Outils en lecture et consignes de conseil ([spec](specs/phase-3-01-advice-tools.md)) | 📝 Spec en validation par le propriétaire (aucun code avant) |
+| Phase 3.1 — Outils en lecture et consignes de conseil ([spec](specs/phase-3-01-advice-tools.md)) | 📝 Spec validée par le propriétaire (2026-10-20), implémentation à venir |
 
 ---
 

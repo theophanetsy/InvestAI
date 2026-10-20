@@ -1,7 +1,7 @@
 # Phase 3.1 — Outils en lecture et consignes de conseil
 
-- **Statut** : **spec en validation**. Aucun code avant la validation du propriétaire (voir
-  « Points à valider par le propriétaire » en fin de document).
+- **Statut** : **validée par le propriétaire le 2026-10-20** (voir « Décisions du propriétaire »
+  en fin de document).
 - **Références** : [ADR-0010](../adr/0010-ia-via-mcp-uniquement.md),
   [spec 3.0](phase-3-00-mcp-server.md), [modèle de menace IA](../security/ai-threat-model.md),
   [spec 2.3](phase-2-03-profile-portfolio.md), [spec 2.4](phase-2-04-indicators-dashboard.md).
@@ -630,7 +630,10 @@ Ce qui existe déjà et que les outils réutilisent (lecture seule, aucun appel 
 - Ressources et complétions MCP, OAuth (Phase 9), compte-titres ordinaire.
 - Évaluation automatique des réponses par l'API (ADR-0010).
 
-## Points à valider par le propriétaire
+## Décisions du propriétaire
+
+Validées le 2026-10-20 : les points 2 à 7 ci-dessous sont retenus selon la recommandation. Le
+point 1 (français) est retenu par défaut, sans objection du propriétaire.
 
 1. **Langue des descriptions, consignes et `dataLimits`** : français, comme `getHealth` et les
    descriptions des profils de risque ; identifiants en anglais. *Recommandation : français.* La
