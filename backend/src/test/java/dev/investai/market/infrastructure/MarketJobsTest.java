@@ -3,12 +3,14 @@ package dev.investai.market.infrastructure;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import dev.investai.market.application.DailyCollection;
 import dev.investai.market.application.EodhdMaintenance;
+import dev.investai.market.application.IndicatorComputation;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -27,17 +29,22 @@ class MarketJobsTest {
 
   private final DailyCollection collection = mock(DailyCollection.class);
   private final EodhdMaintenance maintenance = mock(EodhdMaintenance.class);
+  private final IndicatorComputation indicators = mock(IndicatorComputation.class);
   private final TaskScheduler scheduler = mock(TaskScheduler.class);
   private final MarketJobs jobs =
-      new MarketJobsConfiguration().marketJobs(collection, maintenance, scheduler, CLOCK, "PT1M");
+      new MarketJobsConfiguration()
+          .marketJobs(collection, maintenance, indicators, scheduler, CLOCK, "PT1M");
 
   @Test
-  void successfulCollectionIsFollowedByTheEodhdCatchUp() {
+  void successfulCollectionIsFollowedByTheEodhdCatchUpThenTheIndicators() {
     given(collection.collect()).willReturn(DailyCollection.Outcome.COLLECTED);
 
     jobs.collectDailyCloses();
 
-    verify(maintenance).run();
+    var order = inOrder(collection, maintenance, indicators);
+    order.verify(collection).collect();
+    order.verify(maintenance).run();
+    order.verify(indicators).refresh();
   }
 
   @ParameterizedTest
@@ -45,12 +52,14 @@ class MarketJobsTest {
       value = DailyCollection.Outcome.class,
       names = "COLLECTED",
       mode = EnumSource.Mode.EXCLUDE)
-  void noCatchUpWithoutNewCollection(DailyCollection.Outcome outcome) {
+  void noCatchUpWithoutNewCollectionButIndicatorsStillRefreshed(DailyCollection.Outcome outcome) {
     given(collection.collect()).willReturn(outcome);
 
     jobs.collectDailyCloses();
 
     verify(maintenance, never()).run();
+    // Idempotent: computes only when closes changed since the last run.
+    verify(indicators).refresh();
   }
 
   @Test
@@ -72,9 +81,11 @@ class MarketJobsTest {
   }
 
   @Test
-  void maintenanceJobRunsTheMaintenance() {
+  void maintenanceJobRunsTheMaintenanceThenTheIndicators() {
     jobs.maintainEodhdData();
 
-    verify(maintenance).run();
+    var order = inOrder(maintenance, indicators);
+    order.verify(maintenance).run();
+    order.verify(indicators).refresh();
   }
 }

@@ -168,6 +168,22 @@ class JdbcDailyPriceRepository implements DailyPriceRepository {
         .single();
   }
 
+  @Override
+  public Optional<LocalDate> latestSessionBefore(LocalDate day) {
+    return jdbc.sql("SELECT max(trading_date) FROM daily_price WHERE trading_date < :day")
+        .param("day", day)
+        .query((rs, row) -> Optional.ofNullable(rs.getObject(1, LocalDate.class)))
+        .single();
+  }
+
+  @Override
+  public Optional<Instant> lastWrite() {
+    return jdbc.sql("SELECT max(collected_at) FROM daily_price")
+        .query((rs, row) -> Optional.ofNullable(rs.getObject(1, OffsetDateTime.class)))
+        .single()
+        .map(OffsetDateTime::toInstant);
+  }
+
   private static DailyClose map(ResultSet rs) throws SQLException {
     return new DailyClose(
         new InstrumentId(rs.getObject("instrument_id", UUID.class)),

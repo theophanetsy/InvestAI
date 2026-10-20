@@ -64,4 +64,19 @@ public interface DailyPriceRepository {
    * @return the number of closes
    */
   int count(LocalDate session, PriceSource source);
+
+  /**
+   * Returns the latest session with a close strictly before a date.
+   *
+   * @param day the date, excluded
+   * @return the session, empty when no close is stored before it
+   */
+  Optional<LocalDate> latestSessionBefore(LocalDate day);
+
+  /**
+   * Returns the time of the latest write of a close (collection, history or catch-up).
+   *
+   * @return the time, empty when no close is stored
+   */
+  Optional<Instant> lastWrite();
 }

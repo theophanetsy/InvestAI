@@ -2,6 +2,7 @@ package dev.investai.market.infrastructure;
 
 import dev.investai.market.application.DailyCollection;
 import dev.investai.market.application.EodhdMaintenance;
+import dev.investai.market.application.IndicatorComputation;
 import java.time.Clock;
 import java.time.Duration;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,6 +23,7 @@ public class MarketJobsConfiguration {
    *
    * @param collection Euronext collection
    * @param maintenance EODHD maintenance
+   * @param indicators daily computation of the indicators
    * @param scheduler the application task scheduler
    * @param clock current time
    * @param startupDelay delay before the collection run after startup, ISO-8601
@@ -31,10 +33,12 @@ public class MarketJobsConfiguration {
   MarketJobs marketJobs(
       DailyCollection collection,
       EodhdMaintenance maintenance,
+      IndicatorComputation indicators,
       TaskScheduler scheduler,
       Clock clock,
       @Value("${investai.market.jobs.collection-startup-delay}") String startupDelay) {
     // ISO-8601 (PT1M), parsed here: no dependency on the Boot conversion service.
-    return new MarketJobs(collection, maintenance, scheduler, clock, Duration.parse(startupDelay));
+    return new MarketJobs(
+        collection, maintenance, indicators, scheduler, clock, Duration.parse(startupDelay));
   }
 }

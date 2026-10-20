@@ -1,5 +1,6 @@
 package dev.investai.market.infrastructure;
 
+import dev.investai.market.application.IndicatorSettings;
 import dev.investai.market.application.MarketSettings;
 import dev.investai.market.domain.Isin;
 import dev.investai.market.domain.Listing;
@@ -22,7 +23,7 @@ import org.springframework.web.client.RestClient;
  * (spec 2.1, criterion 15).
  */
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties(MarketProperties.class)
+@EnableConfigurationProperties({MarketProperties.class, IndicatorProperties.class})
 public class MarketConfiguration {
 
   /** Logged once at startup when the key is missing. */
@@ -45,6 +46,25 @@ public class MarketConfiguration {
         properties.eodhd().dailyCallBudget(),
         properties.eodhd().referenceMaxAge(),
         benchmarks(properties.benchmarks()));
+  }
+
+  /**
+   * Benchmarks of the indicators; they must be tracked benchmarks, which get one year of history
+   * (spec 2.4, criterion 4).
+   *
+   * @param properties indicator properties
+   * @param settings market settings
+   * @return the settings
+   */
+  @Bean
+  IndicatorSettings indicatorSettings(IndicatorProperties properties, MarketSettings settings) {
+    Listing msciWorld = benchmark(properties.msciWorld().strip());
+    Listing cac40 = benchmark(properties.cac40().strip());
+    if (!settings.benchmarks().containsAll(List.of(msciWorld, cac40))) {
+      throw new IllegalStateException(
+          "investai.market.indicators: benchmarks must be listed in investai.market.benchmarks");
+    }
+    return new IndicatorSettings(msciWorld, cac40);
   }
 
   /**

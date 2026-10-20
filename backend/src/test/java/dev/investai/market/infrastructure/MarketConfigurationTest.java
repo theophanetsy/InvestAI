@@ -3,6 +3,7 @@ package dev.investai.market.infrastructure;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
+import dev.investai.market.application.MarketSettings;
 import dev.investai.market.domain.Isin;
 import dev.investai.market.domain.Listing;
 import dev.investai.market.domain.Mic;
@@ -25,6 +26,28 @@ class MarketConfigurationTest {
 
   private final MarketConfiguration configuration = new MarketConfiguration();
   private final HttpClient client = configuration.marketHttpClient(properties(null));
+
+  @Test
+  void indicatorBenchmarksMustBeTrackedBenchmarks() {
+    var tracked =
+        new MarketSettings(
+            15,
+            Duration.ofDays(7),
+            MarketConfiguration.benchmarks(List.of("FR0007052782:XPAR", "LU1681043599:XPAR")));
+
+    var indicators =
+        configuration.indicatorSettings(
+            new IndicatorProperties(" LU1681043599:XPAR ", "FR0007052782:XPAR"), tracked);
+
+    assertThat(indicators.msciWorld().isin().value()).isEqualTo("LU1681043599");
+    assertThat(indicators.cac40().isin().value()).isEqualTo("FR0007052782");
+    assertThatIllegalStateException()
+        .isThrownBy(
+            () ->
+                configuration.indicatorSettings(
+                    new IndicatorProperties("IE0002XZSHO1:XPAR", "FR0007052782:XPAR"), tracked))
+        .withMessageContaining("investai.market.benchmarks");
+  }
 
   @Test
   void missingKeyDisablesEodhdWithASingleWarning(CapturedOutput output) {

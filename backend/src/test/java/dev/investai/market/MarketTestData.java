@@ -60,6 +60,7 @@ public final class MarketTestData {
     // Literal statements only (Semgrep investai-no-string-concatenated-sql). Declared portfolio
     // lines reference instruments (portfolio module): removed first.
     jdbc.sql("DELETE FROM portfolio_line").update();
+    jdbc.sql("DELETE FROM instrument_indicator").update();
     jdbc.sql("DELETE FROM price_catch_up").update();
     jdbc.sql("DELETE FROM daily_price").update();
     jdbc.sql("DELETE FROM market_collection").update();
