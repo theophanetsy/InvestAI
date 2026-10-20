@@ -1,7 +1,11 @@
 package dev.investai.market;
 
+import dev.investai.market.domain.BenchmarkComparison;
 import dev.investai.market.domain.DailyClose;
 import dev.investai.market.domain.DailyPriceRepository;
+import dev.investai.market.domain.Indicator;
+import dev.investai.market.domain.IndicatorSet;
+import dev.investai.market.domain.IndicatorWindow;
 import dev.investai.market.domain.Instrument;
 import dev.investai.market.domain.InstrumentId;
 import dev.investai.market.domain.InstrumentRepository;
@@ -15,7 +19,9 @@ import dev.investai.shared.persistence.Timestamps;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.IntFunction;
 import java.util.stream.IntStream;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -118,6 +124,34 @@ public final class IndicatorFixtures {
                     InstrumentType.STOCK,
                     MarketTestData.EUR))
         .toList();
+  }
+
+  /**
+   * A set mixing every status: performance over one year insufficient, correlation with the CAC 40
+   * not computable.
+   *
+   * @param asOf last session
+   * @return the indicators
+   */
+  public static IndicatorSet sampleSet(LocalDate asOf) {
+    Map<IndicatorWindow, Indicator> performance = new EnumMap<>(IndicatorWindow.class);
+    performance.put(IndicatorWindow.ONE_MONTH, of("2.35"));
+    performance.put(IndicatorWindow.THREE_MONTHS, of("5.10"));
+    performance.put(IndicatorWindow.SIX_MONTHS, of("-1.20"));
+    performance.put(IndicatorWindow.ONE_YEAR, Indicator.INSUFFICIENT_HISTORY);
+    return new IndicatorSet(
+        asOf,
+        180,
+        performance,
+        of("18.40"),
+        of("-12.30"),
+        new BenchmarkComparison(of("3.10"), of("0.85"), of("1.05")),
+        new BenchmarkComparison(of("-0.50"), Indicator.NOT_COMPUTABLE, of("0.00")),
+        of("1234567.89"));
+  }
+
+  private static Indicator of(String value) {
+    return Indicator.of(new BigDecimal(value));
   }
 
   /**
