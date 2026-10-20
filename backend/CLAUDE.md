@@ -532,6 +532,14 @@ Format : symptôme → cause → bonne pratique. Compléter à chaque étape (wo
 - **Checkstyle `ParameterNumber` sur une méthode `@Bean` de liste blanche** (un paramètre par
   outil) → beans intermédiaires en records (`McpToolsConfiguration.OwnerTools`), jamais de
   suppression.
+- **Outil MCP qui répond `tool.failed` sans aucune cause dans les journaux** : les callbacks
+  d'annotations de Spring AI transforment une `RuntimeException` en résultat d'erreur portant son
+  seul message, et `ToolCallLogging.generic` le remplace par `tool.failed` → pour diagnostiquer,
+  journaliser temporairement `result.content()` dans `generic`, sans jamais le committer (le
+  message peut contenir une donnée). Vu en vérification réelle : ISIN synthétiques à clé de
+  contrôle fausse (`Invalid ISIN`) → dans une base de vérification, n'insérer que des ISIN
+  valides. `.local-stack/backend.log` reste vide : relancer le backend de la stack à la main,
+  sorties attachées, pour lire ses journaux.
 - **Résultat MCP au-delà de 64 Kio** : un nom de 100 caractères de quatre octets (emoji) pèse 400
   octets, et les indicateurs complets d'une ligne ~800 → mesurer le pire cas, pas un cas ASCII
   (50 lignes de portefeuille pesaient ~89 Kio, d'où 30).
