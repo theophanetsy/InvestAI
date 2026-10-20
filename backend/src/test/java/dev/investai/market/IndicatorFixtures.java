@@ -10,6 +10,7 @@ import dev.investai.market.domain.Instrument;
 import dev.investai.market.domain.InstrumentId;
 import dev.investai.market.domain.InstrumentRepository;
 import dev.investai.market.domain.InstrumentType;
+import dev.investai.market.domain.Isin;
 import dev.investai.market.domain.ListedInstrument;
 import dev.investai.market.domain.Listing;
 import dev.investai.market.domain.Mic;
@@ -22,6 +23,7 @@ import java.time.LocalDate;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.IntFunction;
 import java.util.stream.IntStream;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -68,6 +70,25 @@ public final class IndicatorFixtures {
     instruments.upsertReference(
         List.of(new ListedInstrument(listing, ticker, name, type, MarketTestData.EUR)), at);
     return instruments.findByListing(listing).orElseThrow();
+  }
+
+  /**
+   * Air Liquide on Euronext Paris, tracked, eligibility unknown: an instrument of web tests, which
+   * never reach the database.
+   *
+   * @return the instrument
+   */
+  public static Instrument airLiquide() {
+    return new Instrument(
+        new InstrumentId(UUID.fromString("7d0f0a52-3c3e-4f4e-9d4e-0b9c3f1a2b3c")),
+        new Listing(new Isin("FR0000120073"), Mic.XPAR),
+        "AI",
+        "Air Liquide",
+        InstrumentType.STOCK,
+        MarketTestData.EUR,
+        Instant.parse("2026-10-19T08:00:00Z"),
+        true,
+        MarketTestData.UNKNOWN_BY_RULE);
   }
 
   /**
