@@ -1,0 +1,81 @@
+@if (rows().length === 0) {
+  <p class="table__empty" data-testid="portfolio-empty">
+    Aucune ligne déclarée. Ajoutez les valeurs de votre PEA ci-dessous.
+  </p>
+} @else {
+  <div class="table__scroll">
+    <table mat-table [dataSource]="rows()" [trackBy]="trackById">
+      <caption class="table__caption">
+        Lignes du PEA
+      </caption>
+      <ng-container matColumnDef="instrument">
+        <th *matHeaderCellDef mat-header-cell scope="col">Valeur</th>
+        <td *matCellDef="let row" mat-cell>
+          <span class="table__name">{{ row.name }}</span>
+          <span class="table__codes">{{ row.codes }}</span>
+          <inv-pea-eligibility-badge [eligibility]="row.eligibility" />
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="quantity">
+        <th *matHeaderCellDef mat-header-cell scope="col">Quantité</th>
+        <td *matCellDef="let row" mat-cell>{{ row.quantity }}</td>
+      </ng-container>
+      <ng-container matColumnDef="lastClose">
+        <th *matHeaderCellDef mat-header-cell scope="col">Cours</th>
+        <td *matCellDef="let row" mat-cell>
+          @if (row.close) {
+            {{ row.close }}
+            <span class="table__codes">{{ row.closeDate }}</span>
+          } @else {
+            <span class="table__warning">Cours indisponible</span>
+          }
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="value">
+        <th *matHeaderCellDef mat-header-cell scope="col">Valeur de la ligne</th>
+        <td *matCellDef="let row" mat-cell>{{ row.value }}</td>
+      </ng-container>
+      <ng-container matColumnDef="weight">
+        <th *matHeaderCellDef mat-header-cell scope="col">Poids</th>
+        <td *matCellDef="let row" mat-cell>{{ row.weight }}</td>
+      </ng-container>
+      <ng-container matColumnDef="gain">
+        <th *matHeaderCellDef mat-header-cell scope="col">Plus-value latente</th>
+        <td *matCellDef="let row" mat-cell>{{ row.gain }}</td>
+      </ng-container>
+      <ng-container matColumnDef="actions">
+        <th *matHeaderCellDef mat-header-cell scope="col">Actions</th>
+        <td *matCellDef="let row" mat-cell>
+          <span class="table__actions">
+            <button
+              mat-button
+              type="button"
+              [attr.aria-label]="`Modifier ${row.name}`"
+              (click)="editLine.emit(row.line)"
+            >
+              Modifier
+            </button>
+            <button
+              mat-button
+              type="button"
+              [attr.aria-label]="`Corriger l’éligibilité PEA de ${row.name}`"
+              (click)="correctEligibility.emit(row.line)"
+            >
+              Éligibilité
+            </button>
+            <button
+              mat-button
+              type="button"
+              [attr.aria-label]="`Supprimer ${row.name}`"
+              (click)="removeLine.emit(row.line)"
+            >
+              Supprimer
+            </button>
+          </span>
+        </td>
+      </ng-container>
+      <tr *matHeaderRowDef="columns" mat-header-row></tr>
+      <tr *matRowDef="let row; columns: columns" mat-row></tr>
+    </table>
+  </div>
+}

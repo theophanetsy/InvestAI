@@ -23,6 +23,10 @@ import { InstrumentDetailsResponse } from '../model/instrument-details-response'
 // @ts-ignore
 import { InstrumentSummaryResponse } from '../model/instrument-summary-response';
 // @ts-ignore
+import { PeaEligibilityRequest } from '../model/pea-eligibility-request';
+// @ts-ignore
+import { PeaEligibilityResponse } from '../model/pea-eligibility-response';
+// @ts-ignore
 import { Problem } from '../model/problem';
 
 // @ts-ignore
@@ -39,6 +43,76 @@ export class MarketService extends BaseService {
 
     constructor(protected httpClient: HttpClient, @Optional() @Inject(BASE_PATH) basePath: string|string[], @Optional() configuration?: Configuration) {
         super(basePath, configuration);
+    }
+
+    /**
+     * @endpoint put /api/v1/market/instruments/{id}/pea-eligibility
+     * @param id 
+     * @param peaEligibilityRequest 
+     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+     * @param reportProgress flag to report request and response progress.
+     * @param options additional options
+     */
+    public correctPeaEligibility(id: string, peaEligibilityRequest: PeaEligibilityRequest, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<PeaEligibilityResponse>;
+    public correctPeaEligibility(id: string, peaEligibilityRequest: PeaEligibilityRequest, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<PeaEligibilityResponse>>;
+    public correctPeaEligibility(id: string, peaEligibilityRequest: PeaEligibilityRequest, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<PeaEligibilityResponse>>;
+    public correctPeaEligibility(id: string, peaEligibilityRequest: PeaEligibilityRequest, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        if (id === null || id === undefined) {
+            throw new Error('Required parameter id was null or undefined when calling correctPeaEligibility.');
+        }
+        if (peaEligibilityRequest === null || peaEligibilityRequest === undefined) {
+            throw new Error('Required parameter peaEligibilityRequest was null or undefined when calling correctPeaEligibility.');
+        }
+
+        let localVarHeaders = this.defaultHeaders;
+
+        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/json',
+            'application/problem+json'
+        ]);
+        if (localVarHttpHeaderAcceptSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+        }
+
+        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+        const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+
+        // to determine the Content-Type header
+        const consumes: string[] = [
+            'application/json'
+        ];
+        const httpContentTypeSelected: string | undefined = this.configuration.selectHeaderContentType(consumes);
+        if (httpContentTypeSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Content-Type', httpContentTypeSelected);
+        }
+
+        let responseType_: 'text' | 'json' | 'blob' = 'json';
+        if (localVarHttpHeaderAcceptSelected) {
+            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+                responseType_ = 'text';
+            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+                responseType_ = 'json';
+            } else {
+                responseType_ = 'blob';
+            }
+        }
+
+        let localVarPath = `/api/v1/market/instruments/${this.configuration.encodeParam({name: "id", value: id, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/pea-eligibility`;
+        const { basePath, withCredentials } = this.configuration;
+        return this.httpClient.request<PeaEligibilityResponse>('put', `${basePath}${localVarPath}`,
+            {
+                context: localVarHttpContext,
+                body: peaEligibilityRequest,
+                responseType: <any>responseType_,
+                ...(withCredentials ? { withCredentials } : {}),
+                headers: localVarHeaders,
+                observe: observe,
+                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+                reportProgress: reportProgress
+            }
+        );
     }
 
     /**

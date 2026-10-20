@@ -1,0 +1,13 @@
+<mat-form-field appearance="outline" class="exclusions">
+  <mat-label>Secteurs ou valeurs à exclure</mat-label>
+  <mat-chip-grid #grid aria-label="Exclusions">
+    @for (exclusion of exclusions(); track exclusion) {
+      <mat-chip-row (removed)="remove(exclusion)">
+        {{ exclusion }}
+        <button matChipRemove type="button" [attr.aria-label]="`Retirer ${exclusion}`">×</button>
+      </mat-chip-row>
+    }
+    <input maxlength="100" [matChipInputFor]="grid" (matChipInputTokenEnd)="add($event)" />
+  </mat-chip-grid>
+  <mat-hint aria-live="polite">{{ hint() }}</mat-hint>
+</mat-form-field>

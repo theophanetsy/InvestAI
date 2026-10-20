@@ -49,6 +49,14 @@ public interface DailyPriceRepository {
   Optional<DailyClose> findLatest(InstrumentId instrument);
 
   /**
+   * Returns the most recent close of each instrument.
+   *
+   * @param instruments the instruments
+   * @return the closes by instrument; instruments without close are absent
+   */
+  Map<InstrumentId, DailyClose> findLatest(Collection<InstrumentId> instruments);
+
+  /**
    * Counts the closes of a session coming from a source.
    *
    * @param session the session

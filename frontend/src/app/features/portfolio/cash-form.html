@@ -1,0 +1,12 @@
+<form class="cash-form" novalidate [formGroup]="form" (ngSubmit)="submit()">
+  <mat-form-field appearance="outline">
+    <mat-label>Espèces disponibles (€)</mat-label>
+    <input matInput formControlName="amount" inputmode="decimal" autocomplete="off" required />
+    <mat-hint>Solde espèces affiché par le courtier</mat-hint>
+    <mat-error>Montant invalide : zéro ou plus, deux décimales au plus.</mat-error>
+  </mat-form-field>
+  <button mat-stroked-button type="submit" [disabled]="saving()">Enregistrer les espèces</button>
+  @if (error(); as message) {
+    <p class="cash-form__error" role="alert">{{ message }}</p>
+  }
+</form>

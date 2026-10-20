@@ -7,6 +7,7 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 
+import dev.investai.market.MarketTestData;
 import dev.investai.market.application.InstrumentTracking;
 import dev.investai.market.application.MarketQueries;
 import dev.investai.market.domain.DailyClose;
@@ -55,7 +56,8 @@ class MarketControllerTest {
           InstrumentType.STOCK,
           EUR,
           Instant.parse("2026-10-19T08:00:00Z"),
-          true);
+          true,
+          MarketTestData.UNKNOWN_BY_RULE);
 
   @Test
   void everyEndpointRequiresASession() {
@@ -83,6 +85,21 @@ class MarketControllerTest {
     assertThat(response).bodyJson().extractingPath("$[0].type").isEqualTo("STOCK");
     assertThat(response).bodyJson().extractingPath("$[0].currency").isEqualTo("EUR");
     assertThat(response).bodyJson().extractingPath("$[0].tracked").isEqualTo(true);
+    assertThat(response)
+        .bodyJson()
+        .extractingPath("$[0].peaEligibility.status")
+        .isEqualTo("UNKNOWN");
+    assertThat(response).bodyJson().extractingPath("$[0].peaEligibility.source").isEqualTo("RULE");
+  }
+
+  @Test
+  void detailsCarryThePeaEligibility() {
+    given(queries.details(airLiquide.id()))
+        .willReturn(new MarketQueries.InstrumentDetails(airLiquide, null));
+
+    var response = mvc.get().uri(INSTRUMENTS + "/" + airLiquide.id()).with(user(USER)).exchange();
+
+    assertThat(response).bodyJson().extractingPath("$.peaEligibility.status").isEqualTo("UNKNOWN");
   }
 
   @Test
@@ -137,7 +154,8 @@ class MarketControllerTest {
             InstrumentType.STOCK,
             EUR,
             null,
-            false);
+            false,
+            MarketTestData.UNKNOWN_BY_RULE);
     given(queries.details(untracked.id()))
         .willReturn(new MarketQueries.InstrumentDetails(untracked, null));
 

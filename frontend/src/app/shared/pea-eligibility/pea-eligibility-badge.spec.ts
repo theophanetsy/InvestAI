@@ -1,0 +1,46 @@
+import { TestBed } from '@angular/core/testing';
+import {
+  PeaEligibilityResponseSourceEnum as Source,
+  PeaEligibilityResponseStatusEnum as Status,
+} from '../../api/generated';
+import { PeaEligibilityBadge, eligibilityText } from './pea-eligibility-badge';
+
+describe('PeaEligibilityBadge', () => {
+  it('says that an eligibility from the rule is only probable', () => {
+    expect(eligibilityText({ status: Status.Eligible, source: Source.Rule })).toEqual({
+      label: 'PEA probable',
+      hint: 'à vérifier chez le courtier',
+    });
+    expect(eligibilityText({ status: Status.NotEligible, source: Source.Rule }).hint).toBe(
+      'pays hors UE/EEE, à vérifier chez le courtier',
+    );
+    expect(eligibilityText({ status: Status.Unknown, source: Source.Rule }).label).toBe(
+      'Éligibilité PEA inconnue',
+    );
+  });
+
+  it('says when the owner decided', () => {
+    expect(eligibilityText({ status: Status.Eligible, source: Source.Owner }).label).toBe(
+      'Éligible PEA',
+    );
+    expect(eligibilityText({ status: Status.NotEligible, source: Source.Owner }).hint).toBe(
+      'confirmé par vous',
+    );
+    expect(eligibilityText({ status: Status.Unknown, source: Source.Owner }).hint).toBe(
+      'indiqué par vous',
+    );
+  });
+
+  it('renders the label and its source as visible text, not as a colour only', async () => {
+    const fixture = TestBed.createComponent(PeaEligibilityBadge);
+    fixture.componentRef.setInput('eligibility', { status: Status.Eligible, source: Source.Rule });
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(element.textContent.replace(/\s+/g, ' ').trim()).toBe(
+      'PEA probable (à vérifier chez le courtier)',
+    );
+    expect(element.querySelector('.badge')?.getAttribute('data-status')).toBe('ELIGIBLE');
+    expect(element.querySelector('[title]')).toBeNull();
+  });
+});

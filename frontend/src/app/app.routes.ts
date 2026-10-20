@@ -22,6 +22,16 @@ export const routes: Routes = [
         loadComponent: () => import('./features/dashboard/dashboard').then((m) => m.Dashboard),
       },
       {
+        path: 'portefeuille',
+        title: 'Mon portefeuille · InvestAI',
+        loadComponent: () => import('./features/portfolio/portfolio').then((m) => m.Portfolio),
+      },
+      {
+        path: 'profil',
+        title: 'Mon profil · InvestAI',
+        loadComponent: () => import('./features/profile/profile').then((m) => m.Profile),
+      },
+      {
         path: 'assistant',
         title: 'Assistant · InvestAI',
         loadComponent: () => import('./features/chat/chat').then((m) => m.Chat),

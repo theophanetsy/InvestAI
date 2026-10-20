@@ -44,6 +44,8 @@ export class Shell {
 
   protected readonly links: readonly NavigationLink[] = [
     { path: '/dashboard', label: 'Tableau de bord' },
+    { path: '/portefeuille', label: 'Mon portefeuille' },
+    { path: '/profil', label: 'Mon profil' },
     { path: '/assistant', label: 'Assistant' },
     { path: '/actu', label: 'Actu' },
     { path: '/simulation', label: 'Simulation' },

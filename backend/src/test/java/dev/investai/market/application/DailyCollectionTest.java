@@ -10,6 +10,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import dev.investai.market.MarketTestData;
 import dev.investai.market.domain.CollectionJournal;
 import dev.investai.market.domain.Instrument;
 import dev.investai.market.domain.InstrumentId;
@@ -65,7 +66,8 @@ class DailyCollectionTest {
                     InstrumentType.STOCK,
                     EUR,
                     null,
-                    false)));
+                    false,
+                    MarketTestData.UNKNOWN_BY_RULE)));
     files.publish(
         TradeFileSegment.EQUITIES,
         trade(known, "2026-10-16T15:35:00Z", "173.16"),

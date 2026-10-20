@@ -68,6 +68,31 @@ describe('App routes', () => {
     expect(TestBed.inject(Title).getTitle()).toBe('Tableau de bord · InvestAI');
   });
 
+  it('opens the profile page, which loads the profile', async () => {
+    const profile = await open('/profil', true);
+    http.expectOne('/api/v1/profile/risk-profiles').flush([]);
+    http
+      .expectOne('/api/v1/profile')
+      .flush(
+        { status: 404, title: 'Not Found', code: 'profile.not-found', requestId: 'r1' },
+        { status: 404, statusText: 'Not Found' },
+      );
+    await vi.waitFor(() => {
+      expect(profile.textContent).toContain('Aucun profil enregistré');
+    });
+    expect(heading(profile)).toBe('Mon profil');
+    expect(TestBed.inject(Title).getTitle()).toBe('Mon profil · InvestAI');
+  });
+
+  it('opens the portfolio page, which loads the valuation', async () => {
+    const portfolio = await open('/portefeuille', true);
+    http
+      .expectOne('/api/v1/portfolio')
+      .flush({ lines: [], total: '0.00', currency: 'EUR', complete: true, unpricedLines: 0 });
+    expect(heading(portfolio)).toBe('Mon portefeuille');
+    expect(TestBed.inject(Title).getTitle()).toBe('Mon portefeuille · InvestAI');
+  });
+
   it('sends a logged-in user away from the login screen', async () => {
     await open('/login', true);
 

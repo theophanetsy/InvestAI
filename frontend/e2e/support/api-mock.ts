@@ -73,7 +73,8 @@ export async function mockApi(page: Page, options: MockOptions): Promise<void> {
   });
 }
 
-async function hasValidCsrfToken(route: Route): Promise<boolean> {
+/** Spring Security double submit: the `X-XSRF-TOKEN` header must echo the `XSRF-TOKEN` cookie. */
+export async function hasValidCsrfToken(route: Route): Promise<boolean> {
   const headers = await route.request().allHeaders();
   const cookie = /(?:^|;\s*)XSRF-TOKEN=([^;]+)/.exec(headers['cookie'] ?? '')?.[1];
   return cookie !== undefined && headers['x-xsrf-token'] === cookie;

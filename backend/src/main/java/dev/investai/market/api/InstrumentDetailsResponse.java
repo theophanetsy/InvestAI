@@ -21,6 +21,7 @@ import org.jspecify.annotations.Nullable;
  * @param trackedSince when it started being followed; absent when not tracked
  * @param historyLoaded whether one year of closes has been loaded
  * @param lastClose most recent close; absent when none is stored yet
+ * @param peaEligibility PEA eligibility
  */
 public record InstrumentDetailsResponse(
     UUID id,
@@ -32,7 +33,8 @@ public record InstrumentDetailsResponse(
     String currency,
     @Nullable Instant trackedSince,
     boolean historyLoaded,
-    @Nullable DailyCloseResponse lastClose) {
+    @Nullable DailyCloseResponse lastClose,
+    PeaEligibilityResponse peaEligibility) {
 
   static InstrumentDetailsResponse from(InstrumentDetails details) {
     Instrument instrument = details.instrument();
@@ -47,6 +49,7 @@ public record InstrumentDetailsResponse(
         instrument.currency().getCurrencyCode(),
         instrument.trackedSince(),
         instrument.historyLoaded(),
-        lastClose == null ? null : DailyCloseResponse.from(lastClose));
+        lastClose == null ? null : DailyCloseResponse.from(lastClose),
+        PeaEligibilityResponse.from(instrument.peaEligibility()));
   }
 }

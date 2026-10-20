@@ -7,6 +7,7 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
+import { PeaEligibilityResponse } from './pea-eligibility-response';
 
 
 export interface InstrumentSummaryResponse { 
@@ -15,6 +16,7 @@ export interface InstrumentSummaryResponse {
     isin: string;
     mic: string;
     name: string;
+    peaEligibility: PeaEligibilityResponse;
     ticker: string;
     tracked: boolean;
     type: InstrumentSummaryResponseTypeEnum;

@@ -1,0 +1,35 @@
+.table__empty {
+  font: var(--mat-sys-body-medium);
+}
+
+/* The table scrolls inside its box on a phone, never the page. */
+.table__scroll {
+  overflow-x: auto;
+  margin-bottom: 2rem;
+}
+
+.table__caption {
+  padding: 0.5rem 0;
+  font: var(--mat-sys-title-small);
+  text-align: start;
+}
+
+.table__name {
+  display: block;
+  font: var(--mat-sys-body-large);
+}
+
+.table__codes {
+  display: block;
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.table__warning {
+  color: var(--mat-sys-error);
+}
+
+.table__actions {
+  display: flex;
+  flex-wrap: wrap;
+}

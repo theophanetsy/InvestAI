@@ -15,6 +15,7 @@ import org.jspecify.annotations.Nullable;
  * @param currency trading currency
  * @param trackedSince when the user started following it, {@code null} when not followed
  * @param historyLoaded whether one year of closes has been loaded
+ * @param peaEligibility PEA eligibility: the owner's correction, or the rule
  */
 public record Instrument(
     InstrumentId id,
@@ -24,7 +25,8 @@ public record Instrument(
     InstrumentType type,
     Currency currency,
     @Nullable Instant trackedSince,
-    boolean historyLoaded) {
+    boolean historyLoaded,
+    PeaEligibility peaEligibility) {
 
   /**
    * Tells whether the instrument is followed: only followed instruments get one year of EODHD

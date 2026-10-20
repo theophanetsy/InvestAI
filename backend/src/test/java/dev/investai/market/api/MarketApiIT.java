@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
@@ -166,6 +167,35 @@ class MarketApiIT {
               assertThat(found.tracked()).isTrue();
               assertThat(found.historyLoaded()).isFalse();
             });
+  }
+
+  @Test
+  void ownerCorrectionOfThePeaEligibilityIsShownBySearchAndDetails() {
+    var before = mvc.get().uri(INSTRUMENTS + societe.id()).with(user(USER)).exchange();
+    assertThat(before).bodyJson().extractingPath("$.peaEligibility.status").isEqualTo("ELIGIBLE");
+    assertThat(before).bodyJson().extractingPath("$.peaEligibility.source").isEqualTo("RULE");
+    Cookie csrf =
+        Objects.requireNonNull(
+            mvc.get().uri("/api/v1/auth/me").exchange().getResponse().getCookie("XSRF-TOKEN"));
+
+    var corrected =
+        mvc.put()
+            .uri(INSTRUMENTS + societe.id() + "/pea-eligibility")
+            .with(user(USER))
+            .cookie(csrf)
+            .header("X-XSRF-TOKEN", csrf.getValue())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"status\":\"NOT_ELIGIBLE\"}")
+            .exchange();
+
+    assertThat(corrected).hasStatusOk();
+    assertThat(corrected).bodyJson().extractingPath("$.source").isEqualTo("OWNER");
+    var found = mvc.get().uri("/api/v1/market/instruments?query=GLE").with(user(USER)).exchange();
+    assertThat(found)
+        .bodyJson()
+        .extractingPath("$[0].peaEligibility.status")
+        .isEqualTo("NOT_ELIGIBLE");
+    assertThat(found).bodyJson().extractingPath("$[0].peaEligibility.source").isEqualTo("OWNER");
   }
 
   @Test

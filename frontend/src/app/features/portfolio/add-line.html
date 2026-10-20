@@ -1,0 +1,60 @@
+<section class="add-line" aria-labelledby="add-line-title">
+  <h2 id="add-line-title">Ajouter une ligne</h2>
+  <form class="add-line__form" novalidate [formGroup]="form" (ngSubmit)="submit()">
+    <mat-form-field appearance="outline" class="add-line__search">
+      <mat-label>Valeur (nom, ISIN ou ticker)</mat-label>
+      <input
+        matInput
+        type="search"
+        maxlength="100"
+        autocomplete="off"
+        [formControl]="query"
+        [matAutocomplete]="instruments"
+      />
+      <mat-autocomplete
+        #instruments="matAutocomplete"
+        [displayWith]="displayName"
+        (optionSelected)="choose($event)"
+      >
+        @for (instrument of search().results; track instrument.id) {
+          <mat-option [value]="instrument">
+            <span class="add-line__option">
+              <span>{{ instrument.name }}</span>
+              <span class="add-line__codes">{{ instrument.ticker }} · {{ instrument.isin }}</span>
+              <inv-pea-eligibility-badge [eligibility]="instrument.peaEligibility" />
+            </span>
+          </mat-option>
+        }
+      </mat-autocomplete>
+      <mat-hint aria-live="polite" [class.add-line__problem]="search().failed">{{
+        searchHint()
+      }}</mat-hint>
+    </mat-form-field>
+
+    @if (selected(); as instrument) {
+      <p class="add-line__selected" data-testid="selected-instrument">
+        {{ instrument.name }} ({{ instrument.ticker }}, {{ instrument.isin }})
+        <inv-pea-eligibility-badge [eligibility]="instrument.peaEligibility" />
+      </p>
+    }
+
+    <div class="add-line__figures">
+      <mat-form-field appearance="outline">
+        <mat-label>Quantité</mat-label>
+        <input matInput type="number" formControlName="quantity" min="1" step="1" required />
+        <mat-error>Indiquez un nombre entier de titres, au moins 1.</mat-error>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Prix moyen d’achat (€)</mat-label>
+        <input matInput formControlName="averagePrice" inputmode="decimal" autocomplete="off" />
+        <mat-hint>Facultatif, tel qu’affiché par le courtier</mat-hint>
+        <mat-error>Prix invalide : positif, quatre décimales au plus.</mat-error>
+      </mat-form-field>
+    </div>
+
+    @if (error(); as message) {
+      <p class="add-line__problem" role="alert">{{ message }}</p>
+    }
+    <button mat-flat-button type="submit" [disabled]="saving()">Ajouter la ligne</button>
+  </form>
+</section>

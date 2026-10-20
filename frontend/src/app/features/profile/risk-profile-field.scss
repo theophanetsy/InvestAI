@@ -1,0 +1,24 @@
+.risk {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.risk__legend {
+  margin-bottom: 0.5rem;
+  font: var(--mat-sys-title-small);
+}
+
+.risk__choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
+.risk__description {
+  font: var(--mat-sys-body-medium);
+}
+
+.risk__error {
+  color: var(--mat-sys-error);
+}

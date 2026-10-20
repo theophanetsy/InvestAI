@@ -12,7 +12,9 @@ src/app/
     http/          intercepteurs d'erreurs, toProblem(), jetons HttpContext
     layout/        Shell (barre + navigation), BackendStatus, NotFound
   shared/          composants/pipes UI réutilisables, sans logique métier
-  features/<nom>/  login, dashboard, chat, news, simulation — chargés en lazy via le router
+    format/        decimal.ts : montants en chaînes décimales, format français (jamais de float)
+    pea-eligibility/, confirm-dialog/
+  features/<nom>/  login, dashboard, profile, portfolio, chat, news, simulation — lazy (router)
   api/generated/   client OpenAPI généré (ne jamais éditer à la main)
 ```
 
@@ -65,8 +67,22 @@ src/app/
   clavier : contour Material renforcé pour toute l'app (`mat.strong-focus-indicators` dans
   `src/styles.scss`) ; jamais `outline: none` sans indicateur de remplacement.
 - **Contenu non fiable** (réponses LLM, news) : jamais `[innerHTML]` ni `bypassSecurityTrust*`.
-- Montants : formatter avec `CurrencyPipe`/`Intl`, ne pas recalculer côté front ce que le backend
-  calcule.
+- Montants : chaînes décimales de l'API formatées par `shared/format/decimal.ts`
+  (`formatAmount`, `formatPercent`…, jamais via un `number`), devise lue dans les données ; ne pas
+  recalculer côté front ce que le backend calcule.
+- **Erreur affichée sur place** (alerte à côté du formulaire, message d'une liste) : appeler le
+  service généré avec `{ context: inlineErrors() }` (`core/http/http-context.ts`), sinon une
+  erreur 5xx ou réseau est signalée deux fois (notification + alerte).
+- **Annonces** : un message de confirmation est un `role="status"` (ou `aria-live`) **toujours
+  présent** dans le DOM, dont seul le texte change ; une action réussie sans changement visible
+  évident (ajout sous le tableau) s'annonce par une notification (`MatSnackBar`).
+- **Formulaire réinitialisé après succès** : `FormGroupDirective.resetForm()` (`viewChild`), pas
+  `FormGroup.reset()` qui laisse `submitted` et donc les erreurs Material affichées.
+- **Tableau Material** : `*matCellDef="let row"` n'est pas typé → construire les lignes affichées
+  en TypeScript (modèle de vue, cf. `portfolio-table.ts`) et `[trackBy]` sur l'identifiant (sinon
+  les lignes sont recréées à chaque rechargement et le focus rendu par un dialogue est perdu).
+- **Dialogue qui enregistre** : il appelle l'API lui-même, `disableClose` pendant l'envoi, efface
+  l'erreur précédente, se ferme avec `true` ; la page recharge et annonce.
 - Sélecteurs préfixés `inv-`. Texte UI en français.
 - Limites ESLint : complexité ≤ 10, fichier ≤ 300 lignes, profondeur ≤ 3, ≤ 4 paramètres.
 
@@ -106,19 +122,48 @@ src/app/
     L'historique arrive plus tard (job), `historyLoaded` passe alors à `true`.
   - Instrument inconnu → 404 `instrument.not-found`.
   - **Prix** : `close` est une **chaîne décimale** à 4 décimales (`"173.1600"`) avec `currency`
-    (ISO 4217) : l'afficher avec `CurrencyPipe`/`Intl`, ne jamais la convertir en `number` pour
-    calculer. `source` : `EURONEXT` (officiel) ou `EODHD` (historique, rattrapage). Clôtures
-    brutes, non ajustées des dividendes ni des divisions.
+    (ISO 4217) : l'afficher avec `formatAmount` (`shared/format/decimal.ts`), ne jamais la
+    convertir en `number`. `source` : `EURONEXT` (officiel) ou `EODHD` (historique,
+    rattrapage). Clôtures brutes, non ajustées des dividendes ni des divisions.
   - **Activité de la séance** (Phase 2.2, `DailyCloseResponse`, aussi dans `lastClose`) :
     `volume` (titres échangés, entier) et `tradeCount` (nombre de transactions), **optionnels** :
     absents quand inconnus (clôtures antérieures à la 2.2, volume EODHD manquant, `tradeCount`
     jamais fourni par EODHD) ; ne jamais afficher 0 à la place. Définitions différentes selon
     `source` (Euronext : carnet central sur le lieu de cotation ; EODHD : non documentée) : ne pas
     comparer ni additionner des volumes de sources différentes.
+  - **Éligibilité PEA** (Phase 2.3) : `peaEligibility: { status, source }` dans
+    `InstrumentSummaryResponse` et `InstrumentDetailsResponse`. `status` : `ELIGIBLE`,
+    `NOT_ELIGIBLE`, `UNKNOWN` ; `source` : `RULE` (règle UE/EEE, à afficher « probable : vérifier
+    chez le courtier ») ou `OWNER` (correction du propriétaire). Badge :
+    `shared/pea-eligibility` (texte, jamais la couleur seule).
+    `correctPeaEligibility(id, { status })` → `PUT …/{id}/pea-eligibility` : 200
+    `PeaEligibilityResponse` (source `OWNER`), jamais écrasé ensuite par la règle.
   - Toutes les valeurs du référentiel de Paris ont des clôtures `EURONEXT` depuis leur collecte
     (suivies ou non) ; seules les valeurs suivies ont 1 an d'historique et le rattrapage des jours
     manqués : une valeur non suivie peut avoir des **trous** (jours où l'application était
     éteinte). Ne jamais interpoler.
+- **Profil et portefeuille** (Phase 2.3, service généré `PortfolioService`, tag `portfolio`) :
+  - `getProfile()` → `GET /api/v1/profile` : `ProfileResponse` ; **404 `profile.not-found`** tant
+    qu'il n'est pas rempli (état « vide », pas une erreur). `saveProfile(ProfileRequest)` → `PUT`,
+    idempotent, renvoie le profil. `listRiskProfiles()` → `[{ code, label, description }]` :
+    libellés et descriptions à afficher tels quels (même texte que pour l'agent).
+  - `objectives` : texte libre **non fiable** (≤ 500), à afficher par interpolation uniquement.
+  - `getPortfolio()` → `PortfolioResponse` : `lines` triées par nom, `total` (espèces comprises),
+    `cash?`, `complete` / `unpricedLines`. Une ligne sans clôture n'a ni `lastClose`, ni `value`,
+    ni `weightPercent`, ni plus-value : afficher « Cours indisponible », jamais 0.
+    `unrealizedGain*` absents sans prix moyen. `instrument` est un `InstrumentSummaryResponse`.
+  - `addPortfolioLine({ instrumentId, quantity, averagePrice? })` → 201 ; 422
+    `portfolio.line.duplicate-instrument` ou `portfolio.line.currency-not-supported`, 404
+    `instrument.not-found`. `updatePortfolioLine(id, { quantity, averagePrice? })` (prix absent =
+    effacé), `deletePortfolioLine(id)` → 204 ; 404 `portfolio.line.not-found`.
+    `setPortfolioCash({ amount })` → 200.
+  - **Montants envoyés en chaînes décimales** (`"20000.50"`, point décimal, ≤ 2 décimales ; prix
+    ≤ 4), quantité entière (un `1.5` est un 400). Saisie française → `normalizeDecimal`
+    (`shared/format/decimal.ts`) ; affichage → `formatAmount`/`formatPercent`/`formatDate`.
+    Jamais `Number(...)`/`parseFloat` sur un montant.
+- **Enums générés** : un enum TypeScript par DTO (`RiskProfileResponseCodeEnum`,
+  `ProfileRequestRiskProfileEnum`…) pour les mêmes valeurs, non assignables entre eux → garder la
+  valeur en `string` dans le formulaire et la reconvertir avant l'envoi (`toRequestRiskProfile`).
 
 ## Pièges connus
 
@@ -159,6 +204,26 @@ Format : symptôme → cause → bonne pratique. Compléter à chaque étape (wo
   test e2e `expectNoScroll` (`e2e/support/layout.ts`).
 - **Modifier `api/generated`** : interdit, le build backend le compare au contrat →
   `npm run api:update` depuis la racine.
+- **`template/cyclomatic-complexity` (> 5)** : compte chaque `@if`/`@else if`/`@else`/`@for` du
+  template entier → découper en sous-composants (`portfolio-table`, `portfolio-summary`,
+  `risk-profile-field`…), calculer les textes dans la classe (`gainText`, `searchHint`) et ne
+  pas entourer un `<mat-error>` d'un `@if` : Material ne l'affiche qu'en erreur.
+- **`template/attributes-order`** : directive structurelle d'abord
+  (`<td *matCellDef="let line" mat-cell>`) ; **`prefer-template-literal`** : littéral de gabarit
+  (backquotes) dans `[attr.aria-label]` plutôt qu'une concaténation `'Supprimer ' + name`.
+- **`(ngSubmit)` jamais appelé** : un `<form>` sans `[formGroup]` (contrôle seul en
+  `[formControl]`) n'a pas de directive de formulaire → toujours un `FormGroup` (`cash-form`).
+- **Test d'un texte formaté** : `/\s+/` capture aussi les espaces insécables des montants
+  (U+00A0 avant `€` et `%`, U+202F entre milliers) → normaliser avec `/[ \n]+/`.
+- **`Intl.NumberFormat.format("1234.56")`** refusé par TypeScript (surcharge chaîne : lib ES2023,
+  absente) → formater le texte soi-même (`formatDecimal`), sans passer par un `number`.
+- **`[maxlength]` sur un `<input>` sans contrôle de formulaire** : NG8002 → attribut statique
+  `maxlength="100"`.
+- **E2E : `getByLabel` sur un champ à autocomplétion** trouve aussi le `listbox` ouvert (même
+  libellé) → `getByRole('combobox', { name })`.
+- **Test d'un composant enfant** : `debugElement.query(By.directive(X)).componentInstance` est
+  `any` (ESLint `no-unsafe-*`) → `.injector.get(X)`.
+- **`aria-invalid`** : Material retire l'attribut quand le champ est valide (`null`, pas `"false"`).
 - **`eslint --max-warnings=0 <fichiers>` échoue sur « File ignored because of a matching ignore
   pattern »** : un fichier ignoré (ex. `api/generated`) passé explicitement produit un
   avertissement → toujours ajouter `--no-warn-ignored` quand on lint une liste de fichiers

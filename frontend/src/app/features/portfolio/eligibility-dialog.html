@@ -1,0 +1,27 @@
+<h2 mat-dialog-title>Éligibilité PEA de {{ instrument.name }}</h2>
+<mat-dialog-content>
+  <p>
+    Actuellement :
+    <inv-pea-eligibility-badge [eligibility]="instrument.peaEligibility" />
+  </p>
+  <p id="eligibility-question">Qu’indique votre courtier pour {{ instrument.isin }} ?</p>
+  <mat-radio-group
+    class="eligibility-dialog__choices"
+    aria-labelledby="eligibility-question"
+    [formControl]="status"
+  >
+    @for (choice of choices; track choice.value) {
+      <mat-radio-button [value]="choice.value">{{ choice.label }}</mat-radio-button>
+    }
+  </mat-radio-group>
+  <p>Votre réponse remplace la règle automatique et ne sera jamais écrasée.</p>
+  @if (error(); as message) {
+    <p class="eligibility-dialog__error" role="alert">{{ message }}</p>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button type="button" [mat-dialog-close]="false">Annuler</button>
+  <button mat-flat-button type="button" [disabled]="saving()" (click)="submit()">
+    Enregistrer
+  </button>
+</mat-dialog-actions>

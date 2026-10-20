@@ -3,6 +3,7 @@ package dev.investai.market.domain;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
+import dev.investai.market.MarketTestData;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -133,7 +134,16 @@ class ValueObjectsTest {
     var id = InstrumentId.newId();
 
     assertThat(
-            new Instrument(id, listing, "AI", "Air Liquide", InstrumentType.STOCK, eur, null, false)
+            new Instrument(
+                    id,
+                    listing,
+                    "AI",
+                    "Air Liquide",
+                    InstrumentType.STOCK,
+                    eur,
+                    null,
+                    false,
+                    MarketTestData.UNKNOWN_BY_RULE)
                 .tracked())
         .isFalse();
     assertThat(
@@ -145,7 +155,8 @@ class ValueObjectsTest {
                     InstrumentType.STOCK,
                     eur,
                     Instant.EPOCH,
-                    false)
+                    false,
+                    MarketTestData.UNKNOWN_BY_RULE)
                 .tracked())
         .isTrue();
   }

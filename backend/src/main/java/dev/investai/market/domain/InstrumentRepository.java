@@ -1,6 +1,7 @@
 package dev.investai.market.domain;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -14,6 +15,14 @@ public interface InstrumentRepository {
    * @return the instrument, if known
    */
   Optional<Instrument> findById(InstrumentId id);
+
+  /**
+   * Finds instruments by identifier.
+   *
+   * @param ids the identifiers
+   * @return the known instruments, in no particular order
+   */
+  List<Instrument> findAllById(Collection<InstrumentId> ids);
 
   /**
    * Finds an instrument by listing.
@@ -65,6 +74,17 @@ public interface InstrumentRepository {
    * @return {@code true} when the instrument was not tracked before
    */
   boolean markTracked(InstrumentId id, Instant since);
+
+  /**
+   * Stores the owner's correction of the PEA eligibility, which then prevails over the rule.
+   * Reference data refreshes never touch it.
+   *
+   * @param id the instrument
+   * @param status the owner's answer
+   * @param at time of the correction
+   * @return {@code false} when the instrument is unknown
+   */
+  boolean correctPeaEligibility(InstrumentId id, PeaEligibilityStatus status, Instant at);
 
   /**
    * Records that one year of closes has been loaded.

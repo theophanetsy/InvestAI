@@ -11,7 +11,11 @@ import dev.investai.market.domain.PriceRange;
 import dev.investai.shared.domain.ResourceNotFoundException;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,6 +68,20 @@ public class MarketQueries {
   public InstrumentDetails details(InstrumentId id) {
     Instrument instrument = find(id);
     return new InstrumentDetails(instrument, prices.findLatest(id).orElse(null));
+  }
+
+  /**
+   * Returns several instruments with their latest close, in two queries whatever their number (the
+   * declared portfolio, the tools of the agent).
+   *
+   * @param ids the instruments
+   * @return the details of the known instruments, by identifier; unknown ones are absent
+   */
+  public Map<InstrumentId, InstrumentDetails> details(Collection<InstrumentId> ids) {
+    Map<InstrumentId, DailyClose> lastCloses = prices.findLatest(ids);
+    return instruments.findAllById(ids).stream()
+        .map(instrument -> new InstrumentDetails(instrument, lastCloses.get(instrument.id())))
+        .collect(Collectors.toMap(details -> details.instrument().id(), Function.identity()));
   }
 
   /**

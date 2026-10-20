@@ -1,5 +1,8 @@
 package dev.investai.architecture;
 
+import static com.tngtech.archunit.base.DescribedPredicate.not;
+import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAPackage;
+import static com.tngtech.archunit.core.domain.JavaClass.Predicates.simpleName;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noFields;
@@ -120,6 +123,24 @@ class ArchitectureTest {
   @ArchTest
   static final ArchRule NO_CYCLES_BETWEEN_MODULES =
       slices().matching("dev.investai.(*)..").should().beFreeOfCycles();
+
+  /**
+   * The portfolio calls the market module through its application services and uses its domain
+   * types; from its API, only the two DTOs shared to keep one type in the generated client.
+   */
+  @ArchTest
+  static final ArchRule PORTFOLIO_USES_MARKET_THROUGH_ITS_APPLICATION =
+      noClasses()
+          .that()
+          .resideInAPackage("dev.investai.portfolio..")
+          .should()
+          .dependOnClassesThat(
+              resideInAPackage("dev.investai.market.infrastructure..")
+                  .or(
+                      resideInAPackage("dev.investai.market.api..")
+                          .and(not(simpleName("InstrumentSummaryResponse")))
+                          .and(not(simpleName("PeaEligibilityResponse")))))
+          .because("a module calls another one through its application package");
 
   @ArchTest
   static final ArchRule NO_FIELD_INJECTION =

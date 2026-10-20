@@ -2,6 +2,7 @@ package dev.investai.market.infrastructure;
 
 import dev.investai.market.domain.CatchUpQueue;
 import dev.investai.market.domain.InstrumentId;
+import dev.investai.shared.persistence.Timestamps;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collection;
