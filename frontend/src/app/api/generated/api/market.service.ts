@@ -21,6 +21,8 @@ import { DailyCloseResponse } from '../model/daily-close-response';
 // @ts-ignore
 import { InstrumentDetailsResponse } from '../model/instrument-details-response';
 // @ts-ignore
+import { InstrumentIndicatorsResponse } from '../model/instrument-indicators-response';
+// @ts-ignore
 import { InstrumentSummaryResponse } from '../model/instrument-summary-response';
 // @ts-ignore
 import { PeaEligibilityRequest } from '../model/pea-eligibility-request';
@@ -28,6 +30,8 @@ import { PeaEligibilityRequest } from '../model/pea-eligibility-request';
 import { PeaEligibilityResponse } from '../model/pea-eligibility-response';
 // @ts-ignore
 import { Problem } from '../model/problem';
+// @ts-ignore
+import { ScreeningResponse } from '../model/screening-response';
 
 // @ts-ignore
 import { BASE_PATH, COLLECTION_FORMATS }                     from '../variables';
@@ -172,6 +176,62 @@ export class MarketService extends BaseService {
     }
 
     /**
+     * @endpoint get /api/v1/market/instruments/{id}/indicators
+     * @param id 
+     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+     * @param reportProgress flag to report request and response progress.
+     * @param options additional options
+     */
+    public getInstrumentIndicators(id: string, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<InstrumentIndicatorsResponse>;
+    public getInstrumentIndicators(id: string, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<InstrumentIndicatorsResponse>>;
+    public getInstrumentIndicators(id: string, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<InstrumentIndicatorsResponse>>;
+    public getInstrumentIndicators(id: string, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        if (id === null || id === undefined) {
+            throw new Error('Required parameter id was null or undefined when calling getInstrumentIndicators.');
+        }
+
+        let localVarHeaders = this.defaultHeaders;
+
+        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/json',
+            'application/problem+json'
+        ]);
+        if (localVarHttpHeaderAcceptSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+        }
+
+        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+        const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+
+        let responseType_: 'text' | 'json' | 'blob' = 'json';
+        if (localVarHttpHeaderAcceptSelected) {
+            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+                responseType_ = 'text';
+            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+                responseType_ = 'json';
+            } else {
+                responseType_ = 'blob';
+            }
+        }
+
+        let localVarPath = `/api/v1/market/instruments/${this.configuration.encodeParam({name: "id", value: id, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/indicators`;
+        const { basePath, withCredentials } = this.configuration;
+        return this.httpClient.request<InstrumentIndicatorsResponse>('get', `${basePath}${localVarPath}`,
+            {
+                context: localVarHttpContext,
+                responseType: <any>responseType_,
+                ...(withCredentials ? { withCredentials } : {}),
+                headers: localVarHeaders,
+                observe: observe,
+                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+                reportProgress: reportProgress
+            }
+        );
+    }
+
+    /**
      * @endpoint get /api/v1/market/instruments/{id}/prices
      * @param id 
      * @param from 
@@ -237,6 +297,131 @@ export class MarketService extends BaseService {
         let localVarPath = `/api/v1/market/instruments/${this.configuration.encodeParam({name: "id", value: id, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: "uuid"})}/prices`;
         const { basePath, withCredentials } = this.configuration;
         return this.httpClient.request<Array<DailyCloseResponse>>('get', `${basePath}${localVarPath}`,
+            {
+                context: localVarHttpContext,
+                params: localVarQueryParameters.toHttpParams(),
+                responseType: <any>responseType_,
+                ...(withCredentials ? { withCredentials } : {}),
+                headers: localVarHeaders,
+                observe: observe,
+                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+                reportProgress: reportProgress
+            }
+        );
+    }
+
+    /**
+     * @endpoint get /api/v1/market/indicators
+     * @param peaEligibility 
+     * @param maxVolatility 
+     * @param minAverageDailyTradedAmount 
+     * @param performanceWindow 
+     * @param minPerformance 
+     * @param sort 
+     * @param limit 
+     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+     * @param reportProgress flag to report request and response progress.
+     * @param options additional options
+     */
+    public screenInstruments(peaEligibility?: 'ELIGIBLE' | 'NOT_ELIGIBLE' | 'UNKNOWN', maxVolatility?: string, minAverageDailyTradedAmount?: string, performanceWindow?: 'ONE_MONTH' | 'THREE_MONTHS' | 'SIX_MONTHS' | 'ONE_YEAR', minPerformance?: string, sort?: 'PERFORMANCE' | 'VOLATILITY' | 'LIQUIDITY' | 'MAX_DRAWDOWN', limit?: number, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<ScreeningResponse>;
+    public screenInstruments(peaEligibility?: 'ELIGIBLE' | 'NOT_ELIGIBLE' | 'UNKNOWN', maxVolatility?: string, minAverageDailyTradedAmount?: string, performanceWindow?: 'ONE_MONTH' | 'THREE_MONTHS' | 'SIX_MONTHS' | 'ONE_YEAR', minPerformance?: string, sort?: 'PERFORMANCE' | 'VOLATILITY' | 'LIQUIDITY' | 'MAX_DRAWDOWN', limit?: number, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<ScreeningResponse>>;
+    public screenInstruments(peaEligibility?: 'ELIGIBLE' | 'NOT_ELIGIBLE' | 'UNKNOWN', maxVolatility?: string, minAverageDailyTradedAmount?: string, performanceWindow?: 'ONE_MONTH' | 'THREE_MONTHS' | 'SIX_MONTHS' | 'ONE_YEAR', minPerformance?: string, sort?: 'PERFORMANCE' | 'VOLATILITY' | 'LIQUIDITY' | 'MAX_DRAWDOWN', limit?: number, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<ScreeningResponse>>;
+    public screenInstruments(peaEligibility?: 'ELIGIBLE' | 'NOT_ELIGIBLE' | 'UNKNOWN', maxVolatility?: string, minAverageDailyTradedAmount?: string, performanceWindow?: 'ONE_MONTH' | 'THREE_MONTHS' | 'SIX_MONTHS' | 'ONE_YEAR', minPerformance?: string, sort?: 'PERFORMANCE' | 'VOLATILITY' | 'LIQUIDITY' | 'MAX_DRAWDOWN', limit?: number, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json' | 'application/problem+json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+
+        let localVarQueryParameters = new OpenApiHttpParams(this.encoder);
+
+        localVarQueryParameters = this.addToHttpParams(
+            localVarQueryParameters,
+            'peaEligibility',
+            <any>peaEligibility,
+            QueryParamStyle.Form,
+            true,
+        );
+
+
+        localVarQueryParameters = this.addToHttpParams(
+            localVarQueryParameters,
+            'maxVolatility',
+            <any>maxVolatility,
+            QueryParamStyle.Form,
+            true,
+        );
+
+
+        localVarQueryParameters = this.addToHttpParams(
+            localVarQueryParameters,
+            'minAverageDailyTradedAmount',
+            <any>minAverageDailyTradedAmount,
+            QueryParamStyle.Form,
+            true,
+        );
+
+
+        localVarQueryParameters = this.addToHttpParams(
+            localVarQueryParameters,
+            'performanceWindow',
+            <any>performanceWindow,
+            QueryParamStyle.Form,
+            true,
+        );
+
+
+        localVarQueryParameters = this.addToHttpParams(
+            localVarQueryParameters,
+            'minPerformance',
+            <any>minPerformance,
+            QueryParamStyle.Form,
+            true,
+        );
+
+
+        localVarQueryParameters = this.addToHttpParams(
+            localVarQueryParameters,
+            'sort',
+            <any>sort,
+            QueryParamStyle.Form,
+            true,
+        );
+
+
+        localVarQueryParameters = this.addToHttpParams(
+            localVarQueryParameters,
+            'limit',
+            <any>limit,
+            QueryParamStyle.Form,
+            true,
+        );
+
+
+        let localVarHeaders = this.defaultHeaders;
+
+        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/json',
+            'application/problem+json'
+        ]);
+        if (localVarHttpHeaderAcceptSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+        }
+
+        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+        const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+
+        let responseType_: 'text' | 'json' | 'blob' = 'json';
+        if (localVarHttpHeaderAcceptSelected) {
+            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+                responseType_ = 'text';
+            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+                responseType_ = 'json';
+            } else {
+                responseType_ = 'blob';
+            }
+        }
+
+        let localVarPath = `/api/v1/market/indicators`;
+        const { basePath, withCredentials } = this.configuration;
+        return this.httpClient.request<ScreeningResponse>('get', `${basePath}${localVarPath}`,
             {
                 context: localVarHttpContext,
                 params: localVarQueryParameters.toHttpParams(),
