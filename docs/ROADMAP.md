@@ -51,7 +51,7 @@ Principe directeur : **chaque phase se termine par une app qui tourne, CI verte,
 | Phase 2.3 — Profil investisseur, portefeuille déclaré, éligibilité PEA ([spec](specs/phase-2-03-profile-portfolio.md)) | ✅ Terminée (PR #20) ; vérifiée dans la vraie application pendant la 2.4 (anomalies mineures : #21) |
 | Phase 2.4 — Indicateurs calculés et dashboard ([spec](specs/phase-2-04-indicators-dashboard.md)) | ✅ Terminée (PR #22) ; points ouverts tranchés le 2026-10-20 (séance de référence, plausibilité reportée) |
 | **Phase 3 — Conseil via MCP** ([ADR-0010](adr/0010-ia-via-mcp-uniquement.md)) | ⏳ En cours : ADR-0010 accepté le 2026-10-20 |
-| Phase 3.0 — Squelette du serveur MCP ([spec](specs/phase-3-00-mcp-server.md)) | ✅ Terminée : `/mcp` sécurisé, outil `getHealth`, passerelle Claude Desktop, [modèle de menace](security/ai-threat-model.md) |
+| Phase 3.0 — Squelette du serveur MCP ([spec](specs/phase-3-00-mcp-server.md)) | ✅ Terminée (PR #24) : `/mcp` sécurisé, outil `getHealth`, passerelle Claude Desktop, [modèle de menace](security/ai-threat-model.md) |
 | Phase 3.0b — Observabilité des appels d'outils | ⏳ À faire (sortie de la 3.0) |
 
 ---
