@@ -1,0 +1,14 @@
+# gitleaks (pre-commit hook, `npm run secrets`, CI): default rules plus the MCP bearer token of
+# InvestAI (ADR-0010, scripts/mcp-token.mjs), whose prefix makes it recognisable. Adds a rule only:
+# no allow-list, no default rule disabled. The test vector (FixtureCredentials.MCP_BEARER) is
+# shorter than a real token on purpose, so that it does not match.
+title = "InvestAI"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "investai-mcp-token"
+description = "InvestAI MCP bearer token (scripts/mcp-token.mjs)"
+regex = '''investai_mcp_[A-Za-z0-9_-]{43}'''
+keywords = ["investai_mcp_"]

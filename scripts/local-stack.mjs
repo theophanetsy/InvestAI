@@ -5,8 +5,8 @@
 //   node scripts/local-stack.mjs status
 //   node scripts/local-stack.mjs stop     # stops everything and deletes the throwaway database
 // Never touches the development stack: own compose project and ports (15432, 18080, 14200), random
-// database password and login generated at each start, infra/.env never read. Requires Docker.
-// Logs and state (with the throwaway login) in .local-stack/, ignored by Git.
+// database password, login and MCP token generated at each start, infra/.env overridden. Requires
+// Docker. Logs and state (with the throwaway login and MCP token) in .local-stack/, ignored by Git.
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
 import {
@@ -21,6 +21,7 @@ import {
 import { createServer } from 'node:net';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { mcpTokenHash, newMcpToken } from './lib/mcp-token.mjs';
 import { hashPassword } from './lib/password-hash.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -31,6 +32,7 @@ const composeFile = join(root, 'infra', 'docker-compose.yml');
 const PROJECT = 'investai-verify';
 const PORTS = { database: 15432, backend: 18080, frontend: 14200 };
 const APP_URL = `http://localhost:${PORTS.frontend}`;
+const MCP_URL = `http://127.0.0.1:${PORTS.backend}/mcp`;
 const READINESS_URL = `http://127.0.0.1:${PORTS.backend}/actuator/health/readiness`;
 const USERNAME = 'verifier';
 const DATABASE = { name: 'investai', user: 'investai' };
@@ -53,6 +55,7 @@ function printLogin(state) {
       `  URL          ${state.url}`,
       `  Identifiant  ${state.username}`,
       '  Mot de passe champ "password" de .local-stack/state.json',
+      `  MCP          ${MCP_URL}, jeton jetable : champ "mcpToken" de .local-stack/state.json`,
       `  Journaux     .local-stack/backend.log, .local-stack/frontend.log`,
       'Arrêt : npm run stack:stop',
     ].join('\n'),
@@ -134,7 +137,7 @@ async function waitFor(url, pid, name, timeoutSeconds) {
   throw new Error(`${name} pas prêt après ${timeoutSeconds} s : voir .local-stack/${name}.log`);
 }
 
-function startBackend(databasePassword, password) {
+function startBackend(databasePassword, password, mcpToken) {
   const backend = join(root, 'backend');
   const mavenArgs = ['-q', 'spring-boot:run'];
   // No `shell: true` (Semgrep): on Windows, a .cmd file only runs through cmd.exe, called explicitly.
@@ -153,6 +156,9 @@ function startBackend(databasePassword, password) {
       SPRING_DATASOURCE_PASSWORD: databasePassword,
       INVESTAI_USERNAME: USERNAME,
       INVESTAI_PASSWORD_HASH: hashPassword(password),
+      // Throwaway MCP token (spec 3.0, criterion 18): /mcp is mounted, never with the hash of
+      // infra/.env (the owner's real token).
+      INVESTAI_MCP_TOKEN_HASH: mcpTokenHash(mcpToken),
       // Throwaway database: the market data jobs would download the Euronext files again and
       // spend the EODHD quota at every start (infra/.env may hold the key). Never call providers.
       INVESTAI_MARKET_JOBS_ENABLED: 'false',
@@ -201,6 +207,7 @@ async function start() {
     url: APP_URL,
     username: USERNAME,
     password: randomBytes(18).toString('base64url'),
+    mcpToken: newMcpToken(),
   };
   removeDatabase();
   const databaseEnv = {
@@ -212,7 +219,7 @@ async function start() {
   if (!compose(['up', '-d', '--wait'], databaseEnv)) {
     fail('PostgreSQL ne démarre pas (docker compose).');
   }
-  state.backendPid = startBackend(databasePassword, state.password);
+  state.backendPid = startBackend(databasePassword, state.password, state.mcpToken);
   state.frontendPid = startFrontend();
   writeFileSync(stateFile, JSON.stringify(state, null, 2));
   try {
