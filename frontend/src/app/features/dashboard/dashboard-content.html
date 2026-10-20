@@ -1,0 +1,24 @@
+@if (indicators().lines.length === 0) {
+  <p class="content__empty" data-testid="dashboard-empty">
+    Aucune ligne déclarée : ajoutez les valeurs de votre PEA dans
+    <a routerLink="/portefeuille">Mon portefeuille</a> pour voir leurs indicateurs.
+  </p>
+} @else {
+  <inv-risk-cards [indicators]="indicators()" />
+  <inv-dashboard-warnings [indicators]="indicators()" />
+  <section class="content__section" aria-labelledby="dashboard-curve-title">
+    <h2 class="content__title" id="dashboard-curve-title">Performance sur un an</h2>
+    @if (indicators().curve.length > 0) {
+      <inv-performance-chart [curve]="indicators().curve" />
+    } @else {
+      <p data-testid="curve-unavailable">
+        Courbe indisponible : historique insuffisant pour rejouer le portefeuille sur un an.
+      </p>
+    }
+  </section>
+  <section class="content__section" aria-labelledby="dashboard-lines-title">
+    <h2 class="content__title" id="dashboard-lines-title">Lignes</h2>
+    <inv-line-indicators-table [lines]="indicators().lines" />
+    <inv-correlation-matrix [matrix]="indicators().correlations" [lines]="indicators().lines" />
+  </section>
+}

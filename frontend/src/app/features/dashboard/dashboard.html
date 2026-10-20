@@ -1,0 +1,15 @@
+<h1>Tableau de bord</h1>
+<p class="dashboard__intro">
+  Indicateurs de votre PEA calculés par l’application à partir des cours de clôture enregistrés.
+</p>
+
+@if (loading() && indicators() === null) {
+  <mat-progress-bar mode="indeterminate" aria-label="Chargement des indicateurs" />
+} @else if (loadError(); as message) {
+  <div class="dashboard__error" role="alert">
+    <p>{{ message }}</p>
+    <button mat-stroked-button type="button" (click)="load()">Réessayer</button>
+  </div>
+} @else if (indicators(); as current) {
+  <inv-dashboard-content [indicators]="current" />
+}

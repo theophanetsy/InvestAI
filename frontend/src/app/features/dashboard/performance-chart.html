@@ -1,0 +1,52 @@
+<figure class="chart">
+  <figcaption class="chart__caption" [id]="titleId">
+    Portefeuille actuel comme s’il avait été détenu depuis un an, comparé aux ETF MSCI World et CAC
+    40 (base 100)
+  </figcaption>
+  <ul class="chart__legend">
+    @for (line of series(); track line.key) {
+      <li class="chart__legend-item">
+        <svg class="chart__swatch" viewBox="0 0 32 8" aria-hidden="true">
+          <line x1="0" y1="4" x2="32" y2="4" [class]="line.style" />
+        </svg>
+        {{ line.label }} : {{ line.last }}
+      </li>
+    }
+  </ul>
+  <svg
+    class="chart__plot"
+    role="img"
+    data-testid="performance-chart"
+    [attr.viewBox]="`0 0 ${frame.width} ${frame.height}`"
+    [attr.aria-labelledby]="titleId"
+    [attr.aria-describedby]="descriptionId"
+  >
+    @for (tick of ticks(); track tick.label) {
+      <line
+        [class]="tick.base ? 'chart__grid chart__grid--base' : 'chart__grid'"
+        [attr.x1]="frame.left"
+        [attr.x2]="frame.width - frame.right"
+        [attr.y1]="tick.y"
+        [attr.y2]="tick.y"
+      />
+      <text class="chart__label" text-anchor="end" [attr.x]="frame.left - 6" [attr.y]="tick.y + 4">
+        {{ tick.label }}
+      </text>
+    }
+    @for (line of series(); track line.key) {
+      <path [class]="line.style" [attr.d]="line.path" />
+    }
+    @for (date of dates(); track date.x) {
+      <text
+        class="chart__label"
+        [attr.x]="date.x"
+        [attr.y]="frame.height - 8"
+        [attr.text-anchor]="date.anchor"
+      >
+        {{ date.label }}
+      </text>
+    }
+  </svg>
+  <p class="chart__description" [id]="descriptionId">{{ description() }}</p>
+  <inv-chart-data-table [curve]="curve()" />
+</figure>

@@ -1,0 +1,28 @@
+<details class="data">
+  <summary>Données du graphique ({{ rows().length }} séances)</summary>
+  <div class="data__scroll">
+    <table class="data__table">
+      <caption class="data__caption">
+        Base 100, une ligne par séance ; « — » : pas de cours ce jour-là
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Séance</th>
+          <th scope="col">Portefeuille actuel</th>
+          <th scope="col">ETF MSCI World</th>
+          <th scope="col">ETF CAC 40</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of rows(); track row.date) {
+          <tr>
+            <th scope="row">{{ row.date }}</th>
+            <td>{{ row.portfolio }}</td>
+            <td>{{ row.msciWorld }}</td>
+            <td>{{ row.cac40 }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</details>

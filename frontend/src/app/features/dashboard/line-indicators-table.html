@@ -1,0 +1,32 @@
+<div class="lines__scroll">
+  <table class="lines" data-testid="line-indicators">
+    <caption class="lines__caption">
+      Lignes du PEA et indicateurs de leur valeur (performances hors dividendes)
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Valeur</th>
+        <th scope="col">Poids</th>
+        @for (header of headers; track header) {
+          <th scope="col">{{ header }}</th>
+        }
+        <th scope="col">Dans le risque du portefeuille</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of rows(); track row.id) {
+        <tr>
+          <th scope="row">
+            <span class="lines__name">{{ row.name }}</span>
+            <span class="lines__codes">{{ row.codes }}</span>
+          </th>
+          <td>{{ row.weight }}</td>
+          @for (cell of row.cells; track $index) {
+            <td>{{ cell }}</td>
+          }
+          <td>{{ row.kept }}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>

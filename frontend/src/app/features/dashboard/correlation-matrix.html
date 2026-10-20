@@ -1,0 +1,31 @@
+@if (rows().length > 1) {
+  <div class="matrix__scroll">
+    <table class="matrix" data-testid="correlations">
+      <caption class="matrix__caption">
+        Corrélations des rendements quotidiens sur un an entre les lignes (de -1 à 1)
+      </caption>
+      <thead>
+        <tr>
+          <td></td>
+          @for (column of names(); track column.id) {
+            <th scope="col" [attr.title]="column.name">{{ column.ticker }}</th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of rows(); track row.id) {
+          <tr>
+            <th scope="row">{{ row.name }}</th>
+            @for (cell of row.cells; track $index) {
+              <td>{{ cell }}</td>
+            }
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+} @else {
+  <p class="matrix__empty" data-testid="correlations-empty">
+    Corrélations : il faut au moins deux lignes avec un historique suffisant.
+  </p>
+}

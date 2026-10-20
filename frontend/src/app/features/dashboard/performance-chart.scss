@@ -1,0 +1,80 @@
+/* Colours from the Material theme: they follow the light or dark system theme. */
+.chart {
+  margin: 0;
+}
+
+.chart__caption {
+  font: var(--mat-sys-title-small);
+}
+
+.chart__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.5rem;
+  padding: 0;
+  margin: 0.5rem 0;
+  list-style: none;
+  font: var(--mat-sys-body-medium);
+}
+
+.chart__legend-item {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.chart__swatch {
+  width: 2rem;
+  height: 0.5rem;
+}
+
+.chart__plot {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.chart__grid {
+  stroke: var(--mat-sys-outline-variant);
+  stroke-width: 1;
+}
+
+.chart__grid--base {
+  stroke: var(--mat-sys-outline);
+}
+
+.chart__label {
+  font: var(--mat-sys-label-small);
+  fill: var(--mat-sys-on-surface-variant);
+}
+
+.chart__line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.chart__line--portfolio {
+  stroke: var(--mat-sys-primary);
+  stroke-width: 3;
+}
+
+/*
+ * Dashes and dots: the series are told apart without relying on colour (WCAG 1.4.1). Not
+ * --mat-sys-tertiary: with a single palette (styles.scss) it equals the primary colour.
+ */
+.chart__line--msci-world {
+  stroke: var(--mat-sys-secondary);
+  stroke-dasharray: 6 4;
+}
+
+.chart__line--cac-40 {
+  stroke: var(--mat-sys-on-surface-variant);
+  stroke-dasharray: 2 3;
+}
+
+.chart__description {
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+}

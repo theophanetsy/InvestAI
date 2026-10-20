@@ -1,0 +1,30 @@
+.data {
+  margin-top: 0.5rem;
+  font: var(--mat-sys-body-medium);
+}
+
+.data__scroll {
+  max-height: 20rem;
+  overflow: auto;
+}
+
+.data__caption {
+  text-align: start;
+  font: var(--mat-sys-body-small);
+}
+
+.data__table {
+  border-collapse: collapse;
+}
+
+.data__table th,
+.data__table td {
+  padding: 0.125rem 0.75rem;
+  text-align: end;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+}
+
+.data__table th[scope='row'] {
+  text-align: start;
+  font-weight: normal;
+}

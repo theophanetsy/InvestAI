@@ -1,0 +1,43 @@
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem;
+  padding: 0;
+  margin: 0 0 1.5rem;
+  list-style: none;
+}
+
+.card {
+  padding: 1rem;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 0.75rem;
+  background: var(--mat-sys-surface-container-low);
+}
+
+.card__title {
+  margin: 0 0 0.5rem;
+  font: var(--mat-sys-title-medium);
+}
+
+.card__items {
+  margin: 0;
+}
+
+.card__item {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font: var(--mat-sys-body-large);
+}
+
+.card__item dd {
+  margin: 0;
+  font-weight: 500;
+  text-align: end;
+}
+
+.card__note {
+  margin: 0.5rem 0 0;
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+}

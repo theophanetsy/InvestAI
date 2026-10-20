@@ -8,6 +8,26 @@ import { routes } from './app.routes';
 import { provideApiClient } from './core/api/api-client';
 import { withApiInterceptors } from './core/http/api-interceptors';
 
+const UNAVAILABLE = { status: 'NOT_COMPUTABLE' };
+const EMPTY_INDICATORS = {
+  total: '0.00',
+  currency: 'EUR',
+  composition: {
+    lineCount: 0,
+    largestLinePercent: UNAVAILABLE,
+    herfindahlIndex: UNAVAILABLE,
+    cashPercent: UNAVAILABLE,
+    etfPercent: UNAVAILABLE,
+    stockPercent: UNAVAILABLE,
+    otherPercent: UNAVAILABLE,
+  },
+  volatility: UNAVAILABLE,
+  maxDrawdown: UNAVAILABLE,
+  lines: [],
+  curve: [],
+  correlations: { instrumentIds: [], rows: [] },
+};
+
 describe('App routes', () => {
   let http: HttpTestingController;
 
@@ -43,6 +63,10 @@ describe('App routes', () => {
     for (const status of http.match('/api/v1/status')) {
       status.flush({ application: 'investai-backend', serverTime: '2026-01-02T03:04:05Z' });
     }
+    // The dashboard loads the indicators of the declared portfolio.
+    for (const indicators of http.match('/api/v1/portfolio/indicators')) {
+      indicators.flush(EMPTY_INDICATORS);
+    }
     await harness.fixture.whenStable();
     return harness.routeNativeElement ?? (harness.fixture.nativeElement as HTMLElement);
   }
@@ -66,6 +90,7 @@ describe('App routes', () => {
     expect(TestBed.inject(Router).url).toBe('/dashboard');
     expect(heading(element)).toBe('Tableau de bord');
     expect(TestBed.inject(Title).getTitle()).toBe('Tableau de bord · InvestAI');
+    expect(element.querySelector('[data-testid="dashboard-empty"]')).not.toBeNull();
   });
 
   it('opens the profile page, which loads the profile', async () => {
