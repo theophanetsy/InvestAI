@@ -43,8 +43,8 @@ menace et la documentation. Les outils métier et les consignes de conseil arriv
    pas monté** (ni route, ni serveur MCP, ni chaîne de sécurité dédiée) et **un avertissement**
    est écrit au démarrage. Le reste de l'application fonctionne normalement.
 8. **Jeton porteur dédié** (`Authorization: Bearer <jeton>`) :
-   - jeton de 256 bits aléatoires, préfixé `investai_mcp_` (reconnaissable par les scanners de
-     secrets), produit par `scripts/mcp-token.mjs` ;
+   - jeton de 256 bits aléatoires, préfixé `investai_mcp_` (règle gitleaks dédiée dans
+     `.gitleaks.toml`), produit par `scripts/mcp-token.mjs` ;
    - le backend ne connaît que son **empreinte SHA-256** en hexadécimal (`INVESTAI_MCP_TOKEN_HASH`),
      comparée en **temps constant** ;
    - une empreinte mal formée (ou le jeton collé à la place de l'empreinte) **empêche le
@@ -103,9 +103,9 @@ menace et la documentation. Les outils métier et les consignes de conseil arriv
 ### 6. Documentation et modèle de menace
 
 16. `docs/setup.md` : générer le jeton, renseigner `INVESTAI_MCP_TOKEN_HASH` dans `infra/.env`,
-    brancher **Claude Code en portée utilisateur** (`claude mcp add --transport http --scope
-    user …`, **jamais dans le `.mcp.json` du dépôt**), brancher **Claude Desktop** par la
-    passerelle (`claude_desktop_config.json`), règles d'usage de l'ADR-0010.
+    brancher **Claude Code hors du dépôt** (portée `local` d'un dossier dédié, voir « Écarts » ;
+    **jamais dans le `.mcp.json` du dépôt**), brancher **Claude Desktop** par la passerelle
+    (`claude_desktop_config.json`), règles d'usage de l'ADR-0010.
 17. Modèle de menace IA `docs/security/ai-threat-model.md` (OWASP Top 10 LLM 2025) : données non
     fiables (noms d'instruments, texte libre du profil, news), exfiltration par les autres
     connecteurs du client, futur outil d'écriture (Phase 5), et ce que chaque parade couvre ou
@@ -139,3 +139,13 @@ menace et la documentation. Les outils métier et les consignes de conseil arriv
   `INVESTAI_MCP_TOKEN_HASH` : le jeton est **le seul interrupteur**.
 - **La sécurité de `/mcp` vit dans `auth.infrastructure`** (comme celle de l'API, ADR-0007) ; le
   module `assistant` ne contient que l'outil, sa journalisation et le cas d'usage.
+- **Portée de Claude Code (critère 16)** : la revue de sécurité a montré que `--scope user`
+  charge le serveur dans **tous** les projets, sessions du dépôt comprises. `docs/setup.md`
+  recommande donc la portée `local` d'un dossier dédié hors du dépôt (`~/investai-conseil`) avec
+  un `headersHelper` (jeton lu dans son fichier, ni copié dans `~/.claude.json` ni passé en
+  argument). Précision reportée dans l'ADR-0010 ; à confirmer par le propriétaire.
+- **Copie texte du contenu structuré** : faite par le SDK MCP (rétrocompatibilité), pas par
+  `ToolCallLogging`, qui mesure la taille du JSON reçu par le client.
+- **Limite de débit** : les refus pour `Origin` consomment le budget des requêtes refusées (ils ne
+  peuvent pas inonder les journaux). Le test d'intégration de la limite a son propre contexte
+  Spring (`McpRateLimitIT`, budget de 3) pour ne pas épuiser celui des autres tests.

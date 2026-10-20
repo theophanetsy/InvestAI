@@ -81,6 +81,12 @@ npm run stack:start                # http://localhost:14200 ; npm run stack:stop
     SUCCESS` / `Tests run: …, Failures`), ou écrire le code de retour dans le log et le relire.
   - Docker Desktop arrêté (Testcontainers : « Could not find a valid Docker environment ») →
     lancer `%LOCALAPPDATA%\Programs\DockerDesktop\Docker Desktop.exe` et attendre `docker info`.
+  - Spotless « unclosed string literal » sur un `"\r\n"` Java inséré par `node -e` → même cause
+    (l'échappement devient un vrai retour à la ligne) → `String.fromCharCode(0x5c)` dans le
+    script, puis `cat -A` sur la ligne.
+  - `node --test scripts/` → « Cannot find module » (un dossier est pris pour un fichier) → motif
+    `node --test "scripts/**/*.test.mjs"` (`npm run check:scripts`, lancé par `npm run check` ;
+    la CI ne l'exécute pas encore, la passerelle MCP y est couverte par `McpStdioGatewayIT`).
   - Script ponctuel ayant besoin d'une clé d'API → `node --env-file=<fichier hors du dépôt>`
     écrit par le propriétaire ; masquer la clé dans toute URL ou erreur affichée (EODHD la passe
     en paramètre `api_token=`).
@@ -149,7 +155,8 @@ npm run stack:start                # http://localhost:14200 ; npm run stack:stop
 
 - Hooks Claude Code (`.claude/settings.json`) : formatage auto après édition, blocage des
   modifications des configs qualité, vérification rapide en fin de tour.
-- Git hooks (Lefthook) : gitleaks, format, lint, commitlint ; tests au pre-push.
+- Git hooks (Lefthook) : gitleaks (règles par défaut + jeton MCP, `.gitleaks.toml`), format, lint,
+  commitlint ; tests au pre-push.
 - CI GitHub Actions : `ci-backend`, `ci-frontend`, `security` (CodeQL, Semgrep, gitleaks,
   OSV-Scanner, Trivy, dependency review), `pr-conventions`, `sonar`, `nightly` (PIT).
 

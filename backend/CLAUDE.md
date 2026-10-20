@@ -64,6 +64,9 @@ Un package par module métier sous `dev.investai` : `portfolio`, `market`, `assi
 
 ## Sécurité (ADR 0007)
 
+- Deux chaînes de filtres : `mcpSecurity` (`/mcp`, jeton porteur, voir « Module `assistant` »)
+  puis `apiSecurity` (tout le reste, session). Les en-têtes communs sont dans
+  `SecurityConfiguration.secureHeaders`.
 - API **fermée par défaut** : un nouvel endpoint public s'ajoute explicitement dans
   `auth.infrastructure.SecurityConfiguration`, avec un test qui prouve l'accès anonyme.
 - Erreurs 401/403 : laisser Spring Security les produire (`ApiExceptionHandler` relance
@@ -252,6 +255,47 @@ Un package par module métier sous `dev.investai` : `portfolio`, `market`, `assi
 - Tests : vider `portfolio_line` avant `instrument` (clé étrangère) : `MarketTestData.clearTables`
   le fait, `PortfolioTestData.clearTables` vide aussi le profil et les espèces.
 
+## Module `assistant` et serveur MCP (Phase 3, [ADR-0010](../docs/adr/0010-ia-via-mcp-uniquement.md), [spec 3.0](../docs/specs/phase-3-00-mcp-server.md))
+
+- **Starter Spring AI MCP Server WebMVC** (`spring-ai.version`, épinglée), transport Streamable
+  HTTP **sans état** (`spring.ai.mcp.server.protocol=STATELESS`, API `SYNC`) sur `/mcp`. Seul
+  `..infrastructure..` importe `io.modelcontextprotocol..` / `org.springframework.ai..`
+  (`ONLY_INFRASTRUCTURE_USES_MCP`) ; `assistant` lit les autres modules par leur `application`,
+  jamais leurs `*Repository`, `infrastructure` ni `api`
+  (`ASSISTANT_USES_OTHER_MODULES_THROUGH_THEIR_APPLICATION`).
+- **Ajouter un outil** : une classe `@Component` dans `assistant.infrastructure` avec une méthode
+  `@McpTool` (nom camelCase, description **en français** lue par le modèle, annotations
+  `readOnlyHint`… explicites car les défauts de Spring AI sont `destructiveHint=true`,
+  `openWorldHint=true`, `generateOutputSchema = true`) qui appelle un cas d'usage, puis
+  **l'ajouter à la liste de `McpToolsConfiguration.investaiTools`** (liste blanche : ni balayage
+  d'annotations, ni conversion des `ToolCallback`, désactivés dans `application.properties`) et
+  à `McpToolsIT.toolListIsFrozen`. Sortie = projection dédiée (record, `@JsonInclude(NON_NULL)`),
+  jamais un DTO REST.
+- **Chaque outil passe par `ToolCallLogging`** : une ligne `MCP tool call: tool= status=
+  durationMs= resultBytes=` (+ `requestId` par le MDC, l'outil s'exécute sur le thread de la
+  requête), même si une exception traverse ; jamais les arguments ni le résultat ; toute erreur
+  devient `tool.failed` + `requestId` (les callbacks d'annotations renvoient sinon le message de
+  l'exception, et **avalent sa cause**) → un outil journalise lui-même la cause des échecs qu'il
+  attend (`HealthTool` : `DataAccessException`), sans valeur d'argument. Le SDK recopie le JSON
+  structuré en `TextContent` et valide la sortie contre l'`outputSchema` (obligatoire, testé).
+- **Réponses de `/mcp`** : 401 avec `WWW-Authenticate: Bearer realm="investai"` ; les refus pour
+  `Origin` consomment le budget des requêtes refusées.
+- **Activation** : `/mcp` n'existe que si `INVESTAI_MCP_TOKEN_HASH` est renseignée.
+  `auth.infrastructure.McpEndpointActivation` (`EnvironmentPostProcessor`, `spring.factories`)
+  fixe `spring.ai.mcp.server.enabled` d'après elle : ne jamais régler ce commutateur à la main.
+  `McpSecurityConfiguration` (`@Conditional(McpTokenConfigured)`) et `McpToolsConfiguration`
+  (`@ConditionalOnBooleanProperty`) suivent. Tous les `@IntegrationTest` montent `/mcp`
+  (`FixtureCredentials.MCP_HASH_PROPERTY`).
+- **Sécurité de `/mcp`** (dans `auth.infrastructure`, chaîne `mcpSecurity` évaluée avant celle de
+  l'API) : `McpAccessFilter` refuse tout `Origin` (403), vérifie le jeton (`McpTokenVerifier`,
+  SHA-256 + `MessageDigest.isEqual`), puis la limite de débit (`SlidingWindowRateLimiter`, deux
+  budgets authentifié / refusé, 429 `mcp.rate-limited` + `Retry-After`) ; sans session
+  (`STATELESS`, `RequestAttributeSecurityContextRepository`) : le cookie de session n'authentifie
+  pas `/mcp`, le jeton n'ouvre pas `/api`. Problèmes par `ProblemSecurityHandler.reject`.
+- **Version** : `investai.version=@project.version@` (filtrage Maven), lue par `AssistantHealth`.
+- **Passerelle Claude Desktop** : `scripts/mcp-stdio-gateway.mjs` (Node seul), testée par
+  `McpStdioGatewayIT` (lance `node` : il doit être dans le `PATH`) et `npm run check:scripts`.
+
 ## Tests
 
 - Unitaires : `*Test.java` (Surefire), JUnit 5 + AssertJ + Mockito. Domaine testé sans Spring.
@@ -411,6 +455,19 @@ Format : symptôme → cause → bonne pratique. Compléter à chaque étape (wo
   `npm run api:update`.
 - **`ClassFanOutComplexity` d'un IT d'indicateurs** → fabriques `IndicatorFixtures` (instrument,
   année de clôtures, insertion SQL de masse) et `var`.
+- **Outil MCP en erreur « Tool output validation failed: null found, string expected »** : le
+  serveur valide `structuredContent` contre l'`outputSchema`, et les callbacks d'annotations
+  sérialisent les champs `null` → `@JsonInclude(NON_NULL)` sur le record de sortie (un champ
+  `@Nullable` sort alors du `required` du schéma).
+- **`/mcp` répond 400 sans corps** : le transport sans état exige `Accept: application/json,
+  text/event-stream` (les deux) → le mettre dans tout client de test ou script (`McpTestClient`,
+  passerelle).
+- **IT en 429 au lieu de 401 sur `/mcp`** : un test qui épuise un budget de débit dans le contexte
+  partagé le laisse épuisé une minute pour toute la suite → la limite se teste dans son propre
+  contexte (`McpRateLimitIT`, `@TestPropertySource` budget 3, seul écart assumé au contexte
+  unique) ; les autres IT envoient peu de requêtes refusées (budget de 120/min).
+- **Tester l'en-tête `Host`** : le client HTTP du JDK refuse de le fixer (en-tête restreint) →
+  requête brute sur une `Socket` (`McpEndpointSecurityIT.unexpectedHostIsRejectedByTheFirewall`).
 
 ## Outils qualité (tous bloquants dans `./mvnw verify`)
 

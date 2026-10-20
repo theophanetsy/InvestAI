@@ -234,6 +234,10 @@ sous-processus et échangent sur l'entrée et la sortie standard.
      dans un fichier hors du dépôt. **Jamais dans le `.mcp.json` du dépôt** : le serveur InvestAI
      se déclare en portée utilisateur, sinon les coding agents qui travaillent sur le dépôt
      auraient accès aux données patrimoniales réelles.
+   - **Précision de la 3.0 (revue de sécurité)** : dans Claude Code, la portée `user` charge le
+     serveur dans **tous** les projets, y compris les sessions ouvertes dans le dépôt. Il se
+     déclare donc en portée **`local` d'un dossier dédié hors du dépôt** (`~/investai-conseil`),
+     avec un `headersHelper` qui lit le jeton dans son fichier ([setup](../setup.md)).
    - OAuth 2.1 (autorisation MCP) est disproportionné en local : à prévoir avant toute exposition
      hors du poste (Phase 9).
 3. **Liste blanche d'outils** : chaque outil est déclaré explicitement. Aucune exposition

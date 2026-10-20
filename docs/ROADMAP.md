@@ -28,9 +28,7 @@ Décisions prises :
 - L'ancienne Phase 6 (MCP) est fusionnée dans la Phase 3, qui devient « Conseil via MCP ».
 - L'ancienne Phase 7 (évaluations avancées par l'API) est réécrite sans API : c'est la nouvelle Phase 6.
 - Les anciennes phases 8, 9 et 10 deviennent les phases 7, 8 et 9.
-- Quelques commentaires du code citent encore l'ancienne numérotation ou le chat. Ils seront corrigés avec le code qu'ils accompagnent, en Phase 3 :
-  - « phase 10 » pour ShedLock dans `MarketJobs` ;
-  - pages Angular « Bientôt disponible » de l'assistant, de l'Actu et de la Simulation.
+- Les commentaires du code et les pages qui citaient l'ancienne numérotation ou le chat ont été corrigés en 3.0 (ShedLock « phase 9 » dans `MarketJobs`, page Assistant sans chat, Actu en Phase 4, Simulation en Phase 5).
 
 Principe directeur : **chaque phase se termine par une app qui tourne, CI verte, quality gate passé**. Aucune ligne de code métier avant que la Phase 0 soit en place.
 
@@ -52,7 +50,9 @@ Principe directeur : **chaque phase se termine par une app qui tourne, CI verte,
 | Phase 2.2 — Clôtures de toutes les valeurs de Paris ([spec](specs/phase-2-02-all-paris-closes.md)) | ✅ Terminée (PR #19) |
 | Phase 2.3 — Profil investisseur, portefeuille déclaré, éligibilité PEA ([spec](specs/phase-2-03-profile-portfolio.md)) | ✅ Terminée (PR #20) ; vérifiée dans la vraie application pendant la 2.4 (anomalies mineures : #21) |
 | Phase 2.4 — Indicateurs calculés et dashboard ([spec](specs/phase-2-04-indicators-dashboard.md)) | ✅ Terminée (PR #22) ; points ouverts tranchés le 2026-10-20 (séance de référence, plausibilité reportée) |
-| **Phase 3 — Conseil via MCP** ([ADR-0010](adr/0010-ia-via-mcp-uniquement.md)) | ⏳ En cours : ADR-0010 accepté le 2026-10-20, 3.0 en cours |
+| **Phase 3 — Conseil via MCP** ([ADR-0010](adr/0010-ia-via-mcp-uniquement.md)) | ⏳ En cours : ADR-0010 accepté le 2026-10-20 |
+| Phase 3.0 — Squelette du serveur MCP ([spec](specs/phase-3-00-mcp-server.md)) | ✅ Terminée : `/mcp` sécurisé, outil `getHealth`, passerelle Claude Desktop, [modèle de menace](security/ai-threat-model.md) |
+| Phase 3.0b — Observabilité des appels d'outils | ⏳ À faire (sortie de la 3.0) |
 
 ---
 
