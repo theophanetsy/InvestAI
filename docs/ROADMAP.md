@@ -156,9 +156,6 @@ n'appelle jamais de modèle.
   - Claude Code : `claude mcp add --transport http`, en portée utilisateur, **jamais dans le
     `.mcp.json` du dépôt** ;
   - Claude Desktop : passerelle stdio locale.
-- **Observabilité des appels d'outils** : Micrometer et OpenTelemetry vers Grafana LGTM (un
-  conteneur dans le compose), traces client MCP → outil → base corrélées au `requestId`. Les
-  appels au modèle restent invisibles : ils se font côté Claude.
 - **Modèle de menace IA** (OWASP Top 10 LLM), rédigé avant le premier outil métier dans
   `docs/security/` :
   - données non fiables (noms d'instruments, texte libre du profil, news) ;
@@ -166,6 +163,18 @@ n'appelle jamais de modèle.
   - futur outil d'écriture (Phase 5).
 - **Tests** d'intégration du point `/mcp` : 401 sans jeton, 403 avec `Origin`, cookie de session
   refusé, liste d'outils figée.
+- Spec : [phase-3-00-mcp-server.md](specs/phase-3-00-mcp-server.md).
+
+### 3.0b — Observabilité des appels d'outils
+
+Sortie de la 3.0 pour ne pas alourdir le squelette (dépendances, conteneur, masquage de la clé
+EODHD dans les spans) :
+
+- Micrometer et OpenTelemetry vers Grafana LGTM (un conteneur dans le compose), traces client
+  MCP → outil → base corrélées au `requestId`.
+- **Masquer `api_token` (clé EODHD)** dans les spans du client HTTP du JDK, ou désactiver cette
+  instrumentation, avec un test sur un span exporté (piège de `backend/CLAUDE.md`).
+- Les appels au modèle restent invisibles : ils se font côté Claude.
 
 ### 3.1 — Outils en lecture et consignes de conseil
 
