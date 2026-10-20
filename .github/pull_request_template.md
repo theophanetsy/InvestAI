@@ -18,4 +18,4 @@ Closes #
 - [ ] Contrat OpenAPI et client généré à jour (si API modifiée)
 - [ ] ADR ajouté dans `docs/adr/` (si décision structurante)
 - [ ] `CLAUDE.md` mis à jour si une nouvelle convention apparaît
-- [ ] Prompts / tools IA : evals mises à jour (à partir de la Phase 3)
+- [ ] Outils MCP / consignes de conseil : tests et jeux de cas mis à jour (à partir de la Phase 3)

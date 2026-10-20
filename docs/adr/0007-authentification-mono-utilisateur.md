@@ -7,7 +7,7 @@
 
 InvestAI tourne en local pour un seul utilisateur, mais manipule des données patrimoniales et
 exposera un agent IA capable d'agir (Phase 3+). L'API doit donc être protégée dès maintenant, sans
-dépendre d'un fournisseur d'identité (OIDC prévu au déploiement cloud, Phase 10).
+dépendre d'un fournisseur d'identité (OIDC prévu au déploiement cloud, Phase 9).
 
 Le frontend Angular est servi sur la **même origine** que l'API (proxy `/api` en développement,
 reverse proxy en production) : pas de CORS.
@@ -51,14 +51,14 @@ reverse proxy en production) : pas de CORS.
 
 ## Conséquences
 
-- ➕ Aucun secret dans le dépôt ; passage à OIDC en Phase 10 sans toucher aux contrôleurs (seule
+- ➕ Aucun secret dans le dépôt ; passage à OIDC en Phase 9 sans toucher aux contrôleurs (seule
   la configuration de sécurité change).
 - ➕ Contrat d'erreur homogène, testable sans navigateur.
 - ➖ Session en mémoire : perdue au redémarrage (acceptable en local ; Spring Session JDBC si
   besoin plus tard).
-- ➖ Pas de limitation des tentatives de connexion avant la Phase 8 (rate limiting) ; risque faible
+- ➖ Pas de limitation des tentatives de connexion avant la Phase 7 (rate limiting) ; risque faible
   tant que l'app n'écoute que sur `127.0.0.1` et filtre l'en-tête `Host`.
-- ➖ Risques acceptés pour un poste local mono-utilisateur, à revoir en Phase 8 / 10 :
+- ➖ Risques acceptés pour un poste local mono-utilisateur, à revoir en Phase 7 / 9 :
   - PBKDF2 à 310 000 itérations (défaut Spring Security) au lieu des 600 000 recommandées par
     l'OWASP : ne joue qu'en cas de fuite de `infra/.env` (attaque hors ligne) ; mot de passe
     de 12 caractères minimum imposé par le script.
@@ -66,4 +66,4 @@ reverse proxy en production) : pas de CORS.
     absolue (expiration après 30 min d'inactivité, défaut du conteneur).
   - Nom d'utilisateur comparé sans tenir compte de la casse (`InMemoryUserDetailsManager`).
   - Cookie `XSRF-TOKEN` marqué `Secure` seulement si la requête est en HTTPS : derrière un
-    reverse proxy TLS, configurer `server.forward-headers-strategy` (Phase 10).
+    reverse proxy TLS, configurer `server.forward-headers-strategy` (Phase 9).

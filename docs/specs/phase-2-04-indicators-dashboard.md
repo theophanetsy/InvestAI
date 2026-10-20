@@ -103,8 +103,9 @@ propriétaire) : corrigé en « Non ajustée ».
   (18 sur 22 pour un mois, 52 sur 64, 102 sur 127, 203 sur 253 pour un an), sinon
   `INSUFFICIENT_HISTORY`. Pour une comparaison à un indice, l'historique de la valeur **et** celui
   de l'ETF doivent suffire.
-- **Performance** : variation entre la première et la dernière clôture disponibles de la fenêtre
-  (la séance de référence, sauf si elle manque), en %.
+- **Performance** : variation entre la première et la dernière clôture disponibles de la fenêtre,
+  en %. La première est la séance de référence, sauf si elle manque : la période est alors
+  raccourcie (convention confirmée par le propriétaire le 2026-10-20, voir Points ouverts).
 - **Rendements quotidiens et trous** : un rendement n'existe qu'entre deux séances **consécutives
   du calendrier** ayant chacune une clôture. Une séance manquante supprime les deux rendements qui
   l'entourent ; elle n'est jamais interpolée ni fusionnée en un rendement sur deux séances (qui
@@ -262,13 +263,20 @@ propriétaire) : corrigé en « Non ajustée ».
 - **Sécurité** : pas de plafond du nombre de lignes déclarées (le calcul à la demande est
   quadratique en nombre de lignes pour la matrice) ; une exception imprévue sur une valeur ferait
   échouer tout le calcul quotidien (non atteignable aujourd'hui : prix bornés par le schéma).
-- **Phase 3 (tools de l'agent)** : noms d'instruments = données non fiables, à transmettre
-  délimitées par une projection dédiée (pas les DTO REST) ; une cotation aberrante ou une division
-  place une valeur en tête du tri par performance (indicateur de plausibilité à prévoir) ; résumé
-  du portefeuille sans la courbe ; toujours transmettre `asOf` et `computedAt`.
-- **Convention de la séance de référence** : quand elle manque, la performance part de la première
-  clôture **dans** la fenêtre (période raccourcie) plutôt que de la dernière clôture **avant**
-  elle (convention de marché) ; à confirmer par le propriétaire.
+- **Phase 3 (outils MCP, [ADR-0010](../adr/0010-ia-via-mcp-uniquement.md))** :
+  - noms d'instruments = données non fiables, à transmettre délimitées par une projection dédiée
+    (pas les DTO REST) ;
+  - résumé du portefeuille sans la courbe ;
+  - toujours transmettre le statut, `asOf` et `computedAt` ;
+  - une cotation aberrante ou une division place une valeur en tête du tri par performance. Les
+    consignes données à Claude rappellent ce risque et l'absence d'ajustement des divisions.
+- **Indicateur de plausibilité** (cotation aberrante en tête du tri) : **reporté, décidé le
+  2026-10-20 par le propriétaire**. Pas avant la Phase 3 ; inscrit en Phase 7 (durcissement) de
+  la [ROADMAP](../ROADMAP.md).
+- **Convention de la séance de référence** : **décidé le 2026-10-20 par le propriétaire**, le
+  comportement actuel est conservé. Quand la séance de référence manque, la performance part de
+  la première clôture **dans** la fenêtre (période raccourcie), et non de la dernière clôture
+  **avant** elle (convention de marché, écartée).
 - **Date de valorisation** : les poids et le total viennent de la dernière clôture (parfois celle
   du jour, EODHD le soir), le risque et la courbe s'arrêtent à `asOf` (veille) : à exposer si
   l'écart gêne.

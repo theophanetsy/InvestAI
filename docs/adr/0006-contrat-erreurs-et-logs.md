@@ -50,7 +50,8 @@ toutes les lignes d'une requête, et les envoyer plus tard vers Loki (Phase 3) s
 - ➕ Contrat d'erreur unique, testable, documentable dans l'OpenAPI (Phase 1.4).
 - ➕ Aucune fuite d'information interne ; une ligne de log par requête, sur la route et non l'URL.
 - ➖ Les sorties console des tests sont en JSON (moins lisibles) ; `local` reste en texte.
-- ➖ Le MDC est lié au thread : à propager explicitement pour l'asynchrone (SSE, Phase 3.2).
+- ➖ Le MDC est lié au thread : à propager explicitement pour tout traitement asynchrone (le
+  streaming SSE du chat prévu en Phase 3.2 est abandonné, ADR-0010).
 - ➖ Le catch-all `Exception` intercepte aussi les exceptions de sécurité levées dans les
   contrôleurs : la Phase 1.3 doit les relancer, et couvrir `/error` (erreurs hors Spring MVC).
 - ⚠️ `instance` reprend le chemin de la requête : jamais de donnée sensible en variable de

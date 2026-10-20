@@ -1,7 +1,9 @@
 # InvestAI — consignes pour les coding agents
 
-Application perso d'aide à la gestion d'un PEA / compte-titres : dashboard, agent de conseil (chat),
-page Actu (agent planifié), simulations de portefeuilles fictifs. Roadmap : `docs/ROADMAP.md`.
+Application perso d'aide à la gestion d'un PEA / compte-titres : dashboard, conseil par Claude
+(Desktop / Code) via le serveur MCP de l'app, sans appel à l'API d'un modèle (ADR-0010), page Actu
+(news collectées, analyse lancée à la main), simulations de portefeuilles fictifs. Roadmap :
+`docs/ROADMAP.md`.
 
 Objectif du projet : apprendre Java/Spring Boot/Angular **et** l'intégration d'IA en production
 (tools, MCP, observabilité, evals). La qualité du code prime sur la vitesse.
@@ -140,8 +142,8 @@ npm run stack:start                # http://localhost:14200 ; npm run stack:stop
   devise toujours explicite. Dates : `Instant`/`LocalDate` en UTC, ISO-8601 dans l'API.
 - Toute sortie d'un LLM ou d'une news est **non fiable** : jamais rendue en HTML brut, jamais
   exécutée, jamais utilisée pour une écriture sans validation + confirmation utilisateur.
-- L'app ne donne pas de « conseil financier » réglementé : les réponses de l'agent portent un
-  disclaimer (Phase 3).
+- L'app ne donne pas de « conseil financier » réglementé : les consignes fournies par le serveur
+  MCP imposent à Claude un avertissement en ce sens (Phase 3, ADR-0010).
 
 ## Contrôles automatiques (pour info)
 

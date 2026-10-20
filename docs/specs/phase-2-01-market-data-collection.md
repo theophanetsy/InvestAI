@@ -169,7 +169,7 @@ Périmètre de place : **Euronext Paris** (actions du marché réglementé `XPAR
     ou `MockRestServiceServer`.
     **Pas de ShedLock dans cette étape** : une seule instance tourne, et l'idempotence est
     garantie par les contraintes d'unicité. ShedLock arrivera avec le déploiement
-    multi-instances (Phase 10) ; la ROADMAP et l'ADR-0009 sont mis à jour en conséquence.
+    multi-instances (Phase 9) ; la ROADMAP et l'ADR-0009 sont mis à jour en conséquence.
 
 ### 8. Capitaliser et livrer
 

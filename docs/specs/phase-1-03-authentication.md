@@ -46,6 +46,6 @@ l'[ADR-0006](../adr/0006-contrat-erreurs-et-logs.md) (Phase 1.2).
 ## Hors périmètre
 
 - Écran de connexion et intercepteur 401 côté Angular : Phase 1.5 (shell).
-- Limitation des tentatives de connexion : Phase 8.
-- OIDC / multi-utilisateur : Phase 10.
+- Limitation des tentatives de connexion : Phase 7.
+- OIDC / multi-utilisateur : Phase 9.
 - Agent de vérification sur l'app lancée (Playwright exploratoire) : quand l'UI existera (1.5).

@@ -52,7 +52,7 @@ côté backend.
 ## Conséquences
 
 - ➕ Désalignement front/back détecté par la CI ; le contrat est un artefact lisible, base des
-  futurs outils (MCP, Phase 6).
+  futurs outils (MCP, Phase 3).
 - ➕ Outil standard, mis à jour par Dependabot (écosystème Maven).
 - ➖ Le contrôle « variable inutilisée » passe du compilateur à ESLint pour tout le frontend.
 - ➖ Changer l'API demande `npm run api:update` après le build backend (le message d'échec le dit),

@@ -54,5 +54,6 @@ Phase 3) où toutes les lignes d'une même requête se retrouvent. Décision : [
   stable ; contraintes croisées entre paramètres.
 - **Phase 3** : traces OpenTelemetry (`traceId`), en complément du `requestId` ; exclure ou
   échantillonner les sondes `/actuator/health/*` dans le log de requêtes.
-- **Phase 3.2** : propagation du MDC et ligne de synthèse correcte pour l'asynchrone (SSE).
+- **Asynchrone** : propagation du MDC et ligne de synthèse correcte si un traitement
+  asynchrone apparaît (le streaming SSE du chat prévu en Phase 3.2 est abandonné, ADR-0010).
 - Traduction des codes d'erreur en messages français : frontend (Phase 1.5).

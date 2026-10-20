@@ -11,11 +11,11 @@ Un package par module métier sous `dev.investai` : `portfolio`, `market`, `assi
 |---|---|---|
 | `domain` | Entités métier, value objects (records), règles, ports (interfaces) | JDK uniquement |
 | `application` | Services de cas d'usage, orchestration, transactions | `domain` |
-| `infrastructure` | Adaptateurs : JPA, clients HTTP, LLM (LangChain4j), schedulers | `domain`, `application` |
+| `infrastructure` | Adaptateurs : JPA, clients HTTP, serveur MCP (Phase 3, ADR-0010), schedulers | `domain`, `application` |
 | `api` | Controllers REST (`*Controller`), DTO requête/réponse | `application`, `domain` |
 
 - Pas de cycle entre modules. Un module en appelle un autre via son package `application`.
-- Le `domain` ne connaît ni Spring, ni JPA, ni Jackson, ni LangChain4j.
+- Le `domain` ne connaît ni Spring, ni JPA, ni Jackson, ni la bibliothèque MCP.
 - Les entités JPA vivent dans `infrastructure` et sont mappées vers le domaine ; jamais exposées
   par l'API.
 
@@ -223,7 +223,8 @@ Un package par module métier sous `dev.investai` : `portfolio`, `market`, `assi
   `Valuation`) : lus en Phase 3 par les tools de l'agent via `InvestorProfiles.get()` et
   `PortfolioQueries.overview()` (lecture seule, aucun appel externe).
 - **Textes des profils de risque** : libellé et description français dans l'enum `RiskProfile`,
-  transmis tels quels à l'agent ; les modifier change ce que l'agent reçoit (repasser les evals).
+  transmis tels quels à l'agent ; les modifier change ce que l'agent reçoit (repasser les tests
+  des outils MCP).
 - **Données non fiables pour l'agent (Phase 3)** : `objectives` (≤ 500) et `exclusions` (20 × 100)
   sont du texte libre ; les noms d'instruments viennent d'EODHD/Euronext. Les transmettre comme
   données délimitées, jamais comme instructions (neutraliser les délimiteurs dans le texte). Les

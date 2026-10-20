@@ -36,4 +36,4 @@ l'application réelle**, comme le ferait l'utilisateur, avant d'ouvrir la PR.
 ## Hors périmètre
 
 - Exécution en CI (la vérification par agent est locale ; la CI garde les e2e simulés).
-- Image Docker de l'application (Phase 10) : backend et frontend tournent depuis les sources.
+- Image Docker de l'application (Phase 9) : backend et frontend tournent depuis les sources.
