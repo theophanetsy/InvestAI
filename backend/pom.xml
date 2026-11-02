@@ -5,7 +5,7 @@
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>4.1.1</version>
+    <version>4.1.2</version>
     <relativePath/>
   </parent>
 
@@ -35,7 +35,7 @@
     <!-- Spring Boot 4.1 line; not managed by the Spring Boot BOM -->
     <springdoc.version>3.1.1</springdoc.version>
     <!-- MCP server (ADR-0010): exact version, Spring Boot 4.1 line; not managed by the Spring Boot BOM -->
-    <spring-ai.version>2.0.1</spring-ai.version>
+    <spring-ai.version>2.0.2</spring-ai.version>
     <openapi-generator.version>7.26.0</openapi-generator.version>
 
     <!-- Quality tooling versions: bump through Dependabot only -->
